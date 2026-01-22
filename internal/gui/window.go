@@ -129,6 +129,9 @@ func NewWindow(app fyne.App, logger *zap.Logger) *Window {
 	// Apply custom theme with font
 	app.Settings().SetTheme(themes.NewMarkViewThemeWithFont(w.currentTheme, w.currentFont))
 
+	// Set window icon
+	w.fyneWindow.SetIcon(themes.AppLogo())
+
 	w.setupUI()
 	w.fyneWindow.Resize(fyne.NewSize(1200, 800))
 
