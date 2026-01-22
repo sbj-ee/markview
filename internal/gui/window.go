@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -58,6 +59,11 @@ type Window struct {
 
 	// Edit toolbar (shown in edit mode)
 	editToolbar *widget.Toolbar
+
+	// Status bar
+	statusBar   *widget.Label
+	wordCount   *widget.Label
+	cursorPos   *widget.Label
 }
 
 // NewWindow creates a new application window
@@ -84,6 +90,9 @@ func NewWindow(app fyne.App, logger *zap.Logger) *Window {
 	w.setupUI()
 	w.fyneWindow.Resize(fyne.NewSize(1200, 800))
 
+	// Load last used directory
+	w.loadLastDirectory()
+
 	// Handle close with unsaved changes check
 	w.fyneWindow.SetCloseIntercept(func() {
 		w.handleClose()
@@ -93,6 +102,19 @@ func NewWindow(app fyne.App, logger *zap.Logger) *Window {
 	w.fyneWindow.SetOnClosed(func() {
 		if w.fileWatcher != nil {
 			w.fileWatcher.Close()
+		}
+	})
+
+	// Set up drag and drop
+	w.fyneWindow.SetOnDropped(func(pos fyne.Position, uris []fyne.URI) {
+		for _, uri := range uris {
+			path := uri.Path()
+			if isMarkdownFile(path) {
+				w.checkUnsavedChanges(func() {
+					w.loadFile(path)
+				})
+				break // Only load the first markdown file
+			}
 		}
 	})
 
@@ -156,8 +178,20 @@ func (w *Window) setupUI() {
 	// Create toolbar container with both toolbars
 	toolbarContainer := container.NewVBox(toolbar, w.editToolbar)
 
+	// Create status bar
+	w.wordCount = widget.NewLabel("")
+	w.cursorPos = widget.NewLabel("")
+	w.statusBar = widget.NewLabel("")
+	statusContainer := container.NewHBox(
+		w.statusBar,
+		widget.NewSeparator(),
+		w.wordCount,
+		widget.NewSeparator(),
+		w.cursorPos,
+	)
+
 	// Create main layout
-	mainContent := container.NewBorder(toolbarContainer, nil, nil, nil, w.mainSplit)
+	mainContent := container.NewBorder(toolbarContainer, statusContainer, nil, nil, w.mainSplit)
 
 	// Set up keyboard shortcuts
 	w.setupShortcuts()
@@ -189,6 +223,10 @@ func (t *toolbarAction) SetIcon(icon fyne.Resource) {
 
 // createToolbar creates the application toolbar
 func (w *Window) createToolbar() *widget.Toolbar {
+	newFileAction := newToolbarAction(themes.IconNewFile(), func() {
+		w.newFile()
+	})
+
 	openFileAction := newToolbarAction(themes.IconDocument(), func() {
 		w.showOpenDialog()
 	})
@@ -228,6 +266,7 @@ func (w *Window) createToolbar() *widget.Toolbar {
 	})
 
 	toolbar := widget.NewToolbar(
+		newFileAction,
 		openFileAction,
 		openFolderAction,
 		widget.NewToolbarSeparator(),
@@ -326,6 +365,14 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 
 // setupShortcuts sets up keyboard shortcuts
 func (w *Window) setupShortcuts() {
+	// Cmd/Ctrl+N - New file
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyN,
+		Modifier: fyne.KeyModifierSuper,
+	}, func(shortcut fyne.Shortcut) {
+		w.newFile()
+	})
+
 	// Cmd/Ctrl+O - Open file
 	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
 		KeyName:  fyne.KeyO,
@@ -375,6 +422,16 @@ func (w *Window) setupShortcuts() {
 	}, func(shortcut fyne.Shortcut) {
 		if w.editMode {
 			w.saveFile()
+		}
+	})
+
+	// Cmd/Ctrl+Shift+S - Save As
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyS,
+		Modifier: fyne.KeyModifierSuper | fyne.KeyModifierShift,
+	}, func(shortcut fyne.Shortcut) {
+		if w.editMode {
+			w.saveFileAs()
 		}
 	})
 
@@ -437,7 +494,20 @@ func (w *Window) showFolderDialog() {
 func (w *Window) setRootFolder(path string) {
 	w.currentDir = path
 	w.fileTree.SetRootPath(path)
+	// Save to preferences
+	w.app.Preferences().SetString("lastDirectory", path)
 	w.logger.Info("Set root folder", zap.String("path", path))
+}
+
+// loadLastDirectory loads the last used directory from preferences
+func (w *Window) loadLastDirectory() {
+	lastDir := w.app.Preferences().String("lastDirectory")
+	if lastDir != "" {
+		// Verify directory still exists
+		if info, err := os.Stat(lastDir); err == nil && info.IsDir() {
+			w.setRootFolder(lastDir)
+		}
+	}
 }
 
 // printDocument prints the current document
@@ -518,6 +588,9 @@ func (w *Window) loadFile(filePath string) {
 		w.fileTree.SetRootPath(fileDir)
 	}
 
+	// Highlight current file in file tree
+	w.fileTree.SetCurrentFile(filePath)
+
 	// Read file
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -549,6 +622,9 @@ func (w *Window) loadFile(filePath string) {
 
 	// Generate TOC
 	w.updateTOC(data)
+
+	// Update status bar
+	w.updateStatusBar()
 
 	w.logger.Info("File loaded successfully")
 }
@@ -623,6 +699,7 @@ func (w *Window) switchToEditMode() {
 	w.editor.Focus(w.fyneWindow.Canvas())
 
 	w.updateWindowTitle()
+	w.updateStatusBar()
 }
 
 // switchToViewMode switches to view mode
@@ -663,6 +740,7 @@ func (w *Window) switchToViewMode() {
 	w.editAction.SetIcon(themes.IconEdit())
 
 	w.updateWindowTitle()
+	w.updateStatusBar()
 }
 
 // updateTOCOnly updates the TOC without restarting the file watcher
@@ -693,6 +771,36 @@ func (w *Window) onEditorChanged(content string) {
 		w.isDirty = true
 		w.updateWindowTitle()
 	}
+
+	// Update status bar
+	w.updateStatusBar()
+}
+
+// updateStatusBar updates the status bar with current info
+func (w *Window) updateStatusBar() {
+	if w.editMode {
+		content := w.editor.GetText()
+
+		// Word count
+		words := len(strings.Fields(content))
+		chars := len(content)
+		w.wordCount.SetText(fmt.Sprintf("%d words, %d chars", words, chars))
+
+		// Cursor position (1-indexed for display)
+		row, col := w.editor.GetCursorPosition()
+		w.cursorPos.SetText(fmt.Sprintf("Ln %d, Col %d", row+1, col+1))
+
+		w.statusBar.SetText("Edit Mode")
+	} else if w.currentFile != "" {
+		// Show file path in view mode
+		w.statusBar.SetText(w.currentFile)
+		w.wordCount.SetText("")
+		w.cursorPos.SetText("")
+	} else {
+		w.statusBar.SetText("No file open")
+		w.wordCount.SetText("")
+		w.cursorPos.SetText("")
+	}
 }
 
 // updateWindowTitle updates the window title with dirty indicator
@@ -717,6 +825,8 @@ func (w *Window) updateWindowTitle() {
 // saveFile saves the current editor content to the file
 func (w *Window) saveFile() {
 	if w.currentFile == "" {
+		// No file yet, use Save As
+		w.saveFileAs()
 		return
 	}
 
@@ -734,6 +844,89 @@ func (w *Window) saveFile() {
 	w.updateWindowTitle()
 
 	w.logger.Info("File saved", zap.String("path", w.currentFile))
+}
+
+// saveFileAs saves the current content to a new file
+func (w *Window) saveFileAs() {
+	fd := dialog.NewFileSave(func(writer fyne.URIWriteCloser, err error) {
+		if err != nil {
+			dialog.ShowError(err, w.fyneWindow)
+			return
+		}
+		if writer == nil {
+			return
+		}
+		defer writer.Close()
+
+		content := w.editor.GetText()
+		_, err = writer.Write([]byte(content))
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("failed to write file: %w", err), w.fyneWindow)
+			return
+		}
+
+		// Update current file to the new path
+		w.currentFile = writer.URI().Path()
+		w.contentBuffer = content
+		w.isDirty = false
+
+		// Update file tree
+		fileDir := filepath.Dir(w.currentFile)
+		if w.currentDir != fileDir {
+			w.currentDir = fileDir
+			w.fileTree.SetRootPath(fileDir)
+		}
+		w.fileTree.SetCurrentFile(w.currentFile)
+
+		w.updateWindowTitle()
+		w.logger.Info("File saved as", zap.String("path", w.currentFile))
+	}, w.fyneWindow)
+
+	fd.SetFilter(storage.NewExtensionFileFilter([]string{".md", ".markdown"}))
+	if w.currentFile != "" {
+		fd.SetFileName(filepath.Base(w.currentFile))
+	} else {
+		fd.SetFileName("untitled.md")
+	}
+	fd.Resize(fyne.NewSize(800, 600))
+	fd.Show()
+}
+
+// newFile creates a new empty markdown file
+func (w *Window) newFile() {
+	w.checkUnsavedChanges(func() {
+		// Clear current file
+		w.currentFile = ""
+		w.contentBuffer = "# New Document\n\n"
+		w.isDirty = false
+
+		// Clear rendered content
+		w.scrollContent.Content = container.NewVBox()
+		w.scrollContent.Refresh()
+
+		// Clear TOC
+		w.tocTree = widget.NewTree(
+			func(uid string) []string { return []string{} },
+			func(uid string) bool { return false },
+			func(branch bool) fyne.CanvasObject { return widget.NewLabel("") },
+			func(uid string, branch bool, node fyne.CanvasObject) {},
+		)
+		w.tocScroll.Content = w.tocTree
+		w.tocScroll.Refresh()
+
+		// Switch to edit mode with default content
+		w.editMode = true
+		w.editor.SetText(w.contentBuffer)
+		w.scrollContent.Hide()
+		w.editorScroll.Show()
+		w.editToolbar.Show()
+		w.editAction.SetIcon(themes.IconView())
+
+		w.updateWindowTitle()
+		w.editor.Focus(w.fyneWindow.Canvas())
+
+		w.logger.Info("Created new file")
+	})
 }
 
 // discardChanges discards unsaved changes and reverts to original content

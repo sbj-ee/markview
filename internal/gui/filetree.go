@@ -40,15 +40,22 @@ func (n *fileTreeNode) CreateRenderer() fyne.WidgetRenderer {
 	return widget.NewSimpleRenderer(n.box)
 }
 
-func (n *fileTreeNode) SetContent(icon fyne.Resource, text string) {
+func (n *fileTreeNode) SetContent(icon fyne.Resource, text string, bold bool) {
 	n.icon.SetResource(icon)
 	n.label.SetText(text)
+	if bold {
+		n.label.TextStyle = fyne.TextStyle{Bold: true}
+	} else {
+		n.label.TextStyle = fyne.TextStyle{}
+	}
+	n.label.Refresh()
 }
 
 // FileTree represents a file browser tree widget
 type FileTree struct {
 	tree         *widget.Tree
 	rootPath     string
+	currentFile  string            // currently open file path
 	onFileSelect func(path string)
 	pathMap      map[string]string // uid -> path mapping
 	filter       string            // current filter text
@@ -84,6 +91,12 @@ func (ft *FileTree) createFilterEntry() *widget.Entry {
 func (ft *FileTree) SetRootPath(path string) {
 	ft.rootPath = path
 	ft.pathMap = make(map[string]string)
+	ft.tree.Refresh()
+}
+
+// SetCurrentFile sets the currently open file for highlighting
+func (ft *FileTree) SetCurrentFile(path string) {
+	ft.currentFile = path
 	ft.tree.Refresh()
 }
 
@@ -213,27 +226,28 @@ func (ft *FileTree) createTree() *widget.Tree {
 
 			// Hide the root node - only show its children
 			if uid == "" {
-				treeNode.SetContent(theme.FolderIcon(), "")
+				treeNode.SetContent(theme.FolderIcon(), "", false)
 				return
 			}
 
 			// Parent directory navigation
 			if uid == parentDirUID {
-				treeNode.SetContent(theme.FolderOpenIcon(), "..")
+				treeNode.SetContent(theme.FolderOpenIcon(), "..", false)
 				return
 			}
 
 			path := ft.getPath(uid)
 			if path == "" {
-				treeNode.SetContent(theme.FileIcon(), "")
+				treeNode.SetContent(theme.FileIcon(), "", false)
 				return
 			}
 
 			name := filepath.Base(path)
+			isCurrent := path == ft.currentFile
 			if branch {
-				treeNode.SetContent(theme.FolderIcon(), name)
+				treeNode.SetContent(theme.FolderIcon(), name, false)
 			} else {
-				treeNode.SetContent(theme.DocumentIcon(), name)
+				treeNode.SetContent(theme.DocumentIcon(), name, isCurrent)
 			}
 		},
 		OnSelected: func(uid string) {

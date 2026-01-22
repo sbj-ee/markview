@@ -335,6 +335,16 @@ func IconImage() fyne.Resource {
 	return theme.NewThemedResource(resourceImageSvg)
 }
 
+// IconNewFile returns a new file icon
+func IconNewFile() fyne.Resource {
+	return theme.NewThemedResource(resourceNewFileSvg)
+}
+
+// IconSaveAs returns a save as icon
+func IconSaveAs() fyne.Resource {
+	return theme.NewThemedResource(resourceSaveAsSvg)
+}
+
 // GetCodeColors returns syntax highlighting colors for the current theme
 func (m *MarkViewTheme) GetCodeColors() CodeColors {
 	if m.themeType == ThemeDark {

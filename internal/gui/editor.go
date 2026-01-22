@@ -43,6 +43,11 @@ func (e *MarkdownEditor) GetText() string {
 	return e.entry.Text
 }
 
+// GetCursorPosition returns the current cursor row and column (0-indexed)
+func (e *MarkdownEditor) GetCursorPosition() (row, col int) {
+	return e.entry.CursorRow, e.entry.CursorColumn
+}
+
 // Focus focuses the editor for input
 func (e *MarkdownEditor) Focus(canvas fyne.Canvas) {
 	canvas.Focus(e.entry)
@@ -94,16 +99,20 @@ func (e *MarkdownEditor) WrapSelection(prefix, suffix string) {
 		if selStart >= 0 {
 			newText := text[:selStart] + prefix + selected + suffix + text[selStart+len(selected):]
 			e.entry.SetText(newText)
+			// Position cursor after the wrapped text
+			e.setCursorPosition(selStart + len(prefix) + len(selected) + len(suffix))
 			return
 		}
 	}
 
-	// No selection, insert at cursor
+	// No selection, insert at cursor and position between prefix and suffix
 	if pos > len(text) {
 		pos = len(text)
 	}
 	newText := text[:pos] + prefix + suffix + text[pos:]
 	e.entry.SetText(newText)
+	// Position cursor between prefix and suffix
+	e.setCursorPosition(pos + len(prefix))
 }
 
 // InsertAtCursor inserts text at the current cursor position
@@ -125,18 +134,56 @@ func (e *MarkdownEditor) InsertAtCursor(insert string) {
 	}
 	newText := text[:pos] + insert + text[pos:]
 	e.entry.SetText(newText)
+	// Position cursor after inserted text
+	e.setCursorPosition(pos + len(insert))
 }
 
 // InsertAtLineStart inserts text at the beginning of the current line
 func (e *MarkdownEditor) InsertAtLineStart(prefix string) {
 	text := e.entry.Text
 	row := e.entry.CursorRow
+	col := e.entry.CursorColumn
 
 	lines := splitLines(text)
 	if row < len(lines) {
 		lines[row] = prefix + lines[row]
 	}
 	e.entry.SetText(joinLines(lines))
+
+	// Calculate new cursor position (same row, column shifted by prefix length)
+	newPos := 0
+	for i := 0; i < row && i < len(lines); i++ {
+		newPos += len(lines[i]) + 1
+	}
+	newPos += col + len(prefix)
+	e.setCursorPosition(newPos)
+}
+
+// setCursorPosition sets the cursor to a specific position in the text
+func (e *MarkdownEditor) setCursorPosition(pos int) {
+	text := e.entry.Text
+	if pos > len(text) {
+		pos = len(text)
+	}
+	if pos < 0 {
+		pos = 0
+	}
+
+	// Calculate row and column from position
+	row := 0
+	col := 0
+	for i := 0; i < pos; i++ {
+		if i < len(text) && text[i] == '\n' {
+			row++
+			col = 0
+		} else {
+			col++
+		}
+	}
+
+	e.entry.CursorRow = row
+	e.entry.CursorColumn = col
+	e.entry.Refresh()
 }
 
 // splitLines splits text into lines

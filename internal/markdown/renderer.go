@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"html"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -428,13 +429,22 @@ func (r *Renderer) renderInlineNode(node ast.Node) []widget.RichTextSegment {
 
 	case *ast.Link:
 		text := r.extractInlineText(n)
-		url := string(n.Destination)
-		segments = append(segments, &widget.TextSegment{
-			Text: text + " (" + url + ")",
-			Style: widget.RichTextStyle{
-				ColorName: widget.RichTextStyleInline.ColorName,
-			},
-		})
+		urlStr := string(n.Destination)
+		parsedURL, err := url.Parse(urlStr)
+		if err == nil {
+			segments = append(segments, &widget.HyperlinkSegment{
+				Text: text,
+				URL:  parsedURL,
+			})
+		} else {
+			// Fallback to plain text if URL parsing fails
+			segments = append(segments, &widget.TextSegment{
+				Text: text + " (" + urlStr + ")",
+				Style: widget.RichTextStyle{
+					ColorName: widget.RichTextStyleInline.ColorName,
+				},
+			})
+		}
 
 	case *ast.Image:
 		altText := r.extractInlineText(n)
@@ -447,13 +457,21 @@ func (r *Renderer) renderInlineNode(node ast.Node) []widget.RichTextSegment {
 		})
 
 	case *ast.AutoLink:
-		url := string(n.URL(r.source))
-		segments = append(segments, &widget.TextSegment{
-			Text: url,
-			Style: widget.RichTextStyle{
-				ColorName: widget.RichTextStyleInline.ColorName,
-			},
-		})
+		urlStr := string(n.URL(r.source))
+		parsedURL, err := url.Parse(urlStr)
+		if err == nil {
+			segments = append(segments, &widget.HyperlinkSegment{
+				Text: urlStr,
+				URL:  parsedURL,
+			})
+		} else {
+			segments = append(segments, &widget.TextSegment{
+				Text: urlStr,
+				Style: widget.RichTextStyle{
+					ColorName: widget.RichTextStyleInline.ColorName,
+				},
+			})
+		}
 
 	default:
 		// Recursively handle children
