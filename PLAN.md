@@ -1,224 +1,141 @@
 # Visual Rendering Improvement Plan
 
-## Current State
+## Status: COMPLETED
 
-The markdown renderer produces functional output but lacks visual polish. Attempts to add visual improvements (spacing, backgrounds, borders) have broken the rendering.
+All major visual improvements have been implemented and the markdown viewer now has a polished, modern appearance.
 
-### Current Architecture
+## Final Architecture
 
 ```
 Markdown Source
     ↓
 Goldmark Parser → AST
     ↓
-Renderer.Render() → []fyne.CanvasObject (flat slice of widgets)
+Renderer.Render() → []fyne.CanvasObject (custom widgets)
+    ├── Spacer (vertical spacing)
+    ├── RichText (headings with level-based colors)
+    ├── Label (paragraphs)
+    ├── CodeBlock (syntax highlighted code with background)
+    ├── Blockquote (styled quotes with left border)
+    └── Separator (horizontal rules)
     ↓
 container.NewVBox(widgets...) → displayed in ScrollContainer
 ```
 
-### Why Visual Improvements Break Rendering
+## Implemented Solutions
 
-1. **Flat Widget Slice**: The renderer builds a flat slice of widgets that goes into a VBox
-2. **Container Nesting**: When we wrap widgets in containers (NewStack, NewHBox, NewPadded), the VBox layout calculates sizes differently
-3. **Empty Labels for Spacing**: Using `widget.NewLabel("")` for spacing adds zero-height elements that don't create visual space
-4. **Mixed Widget Types**: Mixing simple widgets with container widgets causes layout inconsistencies
+### Custom Widgets Created
 
-## Proposed Solutions
+1. **Spacer Widget** (`spacer.go`)
+   - Configurable height for vertical spacing
+   - Used between all major elements (headings, paragraphs, code blocks, lists)
 
-### Option 1: Custom Spacer Widget
+2. **CodeBlock Widget** (`codeblock.go`)
+   - Dark background (#282A30)
+   - 8px padding
+   - 4px rounded corners
+   - Contains syntax-highlighted RichText
+   - No text wrapping (horizontal scroll for long lines)
 
-Create a custom widget that has a fixed height for spacing:
+3. **Blockquote Widget** (`blockquote.go`)
+   - Cyan left border (4px wide)
+   - Subtle dark background
+   - 12px padding
+   - Italic text styling
 
-```go
-type Spacer struct {
-    widget.BaseWidget
-    Height float32
-}
+### Theme Customization (`themes.go`)
 
-func NewSpacer(height float32) *Spacer {
-    s := &Spacer{Height: height}
-    s.ExtendBaseWidget(s)
-    return s
-}
+**Color Scheme (Dark Theme):**
+- Background: Dark charcoal (#1E2024)
+- Foreground: Light gray (#C8C8C8)
+- H1, H2 headings: Cyan/teal (#56B6C2)
+- H3, H4 headings: Orange/gold (#E5B567)
+- H5, H6 headings: Light gray
+- Links: Cyan (#56B6C2)
+- Code/blockquote backgrounds: Darker gray (#282A30)
 
-func (s *Spacer) MinSize() fyne.Size {
-    return fyne.NewSize(0, s.Height)
-}
+**Font Sizes:**
+- Body text: 18pt
+- H1: 28pt (HeadingText)
+- H2: 22pt (SubHeadingText)
+- H3: 21pt
+- H4: 18pt
+- H5, H6: 16pt, 15pt
+- TOC/captions: 13pt
 
-func (s *Spacer) CreateRenderer() fyne.WidgetRenderer {
-    return &spacerRenderer{spacer: s}
-}
+### Renderer Updates (`renderer.go`)
+
+- Level-based heading colors and sizes
+- H1 headings include horizontal rule underneath
+- Proper spacing between all elements
+- Text normalization to prevent unwanted line breaks
+- HTML entity decoding for smart quotes and em-dashes
+
+### UI Updates
+
+**TOC Navigation (`navigation.go`):**
+- Smaller font (13pt CaptionText)
+- Uses RichText instead of Label for size control
+- Hierarchical display with tree expansion
+
+**Toolbar (`window.go`):**
+- Compact buttons with icons
+- LowImportance styling for smaller appearance
+
+## Files Created/Modified
+
+### New Files
+- `internal/markdown/spacer.go` - Custom Spacer widget
+- `internal/markdown/spacer_test.go` - Spacer tests
+- `internal/markdown/codeblock.go` - Custom CodeBlock widget
+- `internal/markdown/codeblock_test.go` - CodeBlock tests
+- `internal/markdown/blockquote.go` - Custom Blockquote widget
+- `internal/markdown/blockquote_test.go` - Blockquote tests
+
+### Modified Files
+- `internal/markdown/renderer.go` - Heading colors, spacing, text normalization
+- `internal/markdown/renderer_test.go` - Additional tests for normalizeText
+- `internal/themes/themes.go` - Color scheme, font sizes, icon helpers
+- `internal/toc/navigation.go` - Smaller TOC font using RichText
+- `internal/gui/window.go` - Compact toolbar with icons
+- `README.md` - Removed emojis for Fyne Label compatibility
+
+## Visual Improvements Completed
+
+| Feature | Status | Implementation |
+|---------|--------|----------------|
+| Spacing between elements | ✅ | Custom Spacer widget |
+| Code block backgrounds | ✅ | CodeBlock widget with dark bg, padding, rounded corners |
+| Blockquote styling | ✅ | Blockquote widget with cyan left border |
+| Heading hierarchy | ✅ | Level-based colors (cyan H1-H2, orange H3-H4) |
+| Horizontal rules | ✅ | Fyne Separator widget, auto after H1 |
+| Smaller TOC font | ✅ | RichText with CaptionText size (13pt) |
+| Compact toolbar | ✅ | Icon buttons with LowImportance |
+| Dark theme colors | ✅ | Charcoal bg, cyan/orange accents |
+| Link styling | ✅ | Cyan color (not clickable yet) |
+
+## Known Limitations
+
+1. **Emojis**: Fyne Label widgets may not render certain emojis properly on all systems. Emojis have been removed from README.md.
+
+2. **Clickable links**: Links are displayed with cyan color but are not yet clickable. Would require Hyperlink widget or tap handler.
+
+3. **Inline formatting in paragraphs**: Paragraphs use plain Label widgets to avoid line break issues, which means bold/italic formatting within paragraphs is lost. Only heading text preserves bold styling.
+
+## Future Improvements (Optional)
+
+1. **Clickable links** - Implement tap handlers or use Hyperlink segments
+2. **Inline formatting** - Explore RichText improvements to preserve bold/italic in paragraphs
+3. **Image rendering** - Display actual images instead of alt text
+4. **Light theme polish** - Update light theme colors to match the dark theme aesthetic
+5. **Custom fonts** - Bundle Inter or similar font for consistent cross-platform rendering
+
+## Test Results
+
+```
+internal/markdown   - 47 tests (46 passed, 1 skipped)
+internal/toc        - 9 tests (all passed)
+internal/watcher    - 8 tests (all passed)
 ```
 
-**Pros**: Clean, predictable spacing
-**Cons**: Requires custom widget implementation
-
-### Option 2: Padding via Theme
-
-Modify the theme to add padding around text elements:
-
-```go
-func (m *MarkViewTheme) Size(name fyne.ThemeSizeName) float32 {
-    switch name {
-    case theme.SizeNamePadding:
-        return 8 // Increase default padding
-    case theme.SizeNameInnerPadding:
-        return 6
-    // ...
-    }
-}
-```
-
-**Pros**: Simple, uses existing Fyne mechanisms
-**Cons**: Affects all widgets globally, less control
-
-### Option 3: Use RichText with Newlines for Spacing
-
-Add newline characters within RichText segments for spacing:
-
-```go
-// Add spacing by including newlines in text
-rt := widget.NewRichText(&widget.ParagraphSegment{
-    Texts: []widget.RichTextSegment{
-        &widget.TextSegment{Text: "\n"}, // Spacing before
-        &widget.TextSegment{Text: heading},
-        &widget.TextSegment{Text: "\n"}, // Spacing after
-    },
-})
-```
-
-**Pros**: Works within existing widget types
-**Cons**: May affect text selection, copy/paste
-
-### Option 4: Complete Architecture Refactor
-
-Restructure to use a single RichText widget for the entire document:
-
-```go
-func (r *Renderer) Render(node ast.Node) fyne.CanvasObject {
-    // Build one large RichText with all segments
-    var allSegments []widget.RichTextSegment
-
-    r.walkAST(node, func(n ast.Node) {
-        segments := r.nodeToSegments(n)
-        allSegments = append(allSegments, segments...)
-    })
-
-    rt := widget.NewRichText(allSegments...)
-    rt.Wrapping = fyne.TextWrapWord
-    return rt
-}
-```
-
-**Pros**:
-- Single widget, consistent rendering
-- RichText handles internal layout
-- Supports inline formatting (bold, italic, links)
-
-**Cons**:
-- Significant refactor
-- May have performance issues with large documents
-- Code blocks need special handling (no wrapping)
-
-### Option 5: Custom Document Widget
-
-Create a custom widget specifically for markdown documents:
-
-```go
-type MarkdownDocument struct {
-    widget.BaseWidget
-    blocks []DocumentBlock
-}
-
-type DocumentBlock interface {
-    Render() fyne.CanvasObject
-    MinSize() fyne.Size
-    Type() BlockType
-}
-
-type HeadingBlock struct {
-    Level int
-    Text  string
-}
-
-type ParagraphBlock struct {
-    Text string
-}
-
-type CodeBlock struct {
-    Language string
-    Code     string
-}
-```
-
-**Pros**:
-- Full control over layout
-- Can implement proper spacing logic
-- Clean separation of concerns
-
-**Cons**:
-- Most complex solution
-- Requires implementing custom renderer
-
-## Recommended Approach
-
-### Phase 1: Custom Spacer Widget (Low Risk) ✅ COMPLETED
-
-1. ✅ Created `spacer.go` - Simple `Spacer` widget with configurable height
-2. ✅ Used between major elements (headings, paragraphs, code blocks)
-3. ✅ Tests added in `spacer_test.go`
-
-### Phase 2: Code Block Styling (Medium Risk) ✅ COMPLETED
-
-1. ✅ Created `codeblock.go` - `CodeBlock` widget with background, padding, rounded corners
-2. ✅ Handles sizing explicitly with custom renderer
-3. ✅ Tests added in `codeblock_test.go`
-4. ✅ Blockquote styling also implemented in `blockquote.go` with left border
-
-### Phase 3: Single RichText Approach (Higher Risk) - SKIPPED
-
-1. Skipped - current widget-based approach works well
-2. Widget approach provides better control over visual elements
-3. No need for the complexity of a single RichText approach
-
-## Visual Improvements Priority
-
-1. ✅ **Spacing between elements** - Implemented with custom Spacer widget
-2. ✅ **Code block backgrounds** - Implemented with CodeBlock widget (background, padding, rounded corners)
-3. ✅ **Blockquote styling** - Implemented with Blockquote widget (left border and subtle background)
-4. ✅ **Heading sizes** - Already implemented with theme customization
-5. ✅ **Horizontal rules** - Implemented with Fyne Separator widget
-6. 🔄 **Link styling** - Partially implemented (displayed with URL, not clickable yet)
-
-## Testing Strategy
-
-1. Create test markdown files covering all element types
-2. Test each change in isolation
-3. Verify no regression in text rendering
-4. Test with real-world markdown files (README.md)
-5. Test both light and dark themes
-
-## Files Modified/Created
-
-### New Files Created
-- `internal/markdown/spacer.go` - Custom Spacer widget for vertical spacing
-- `internal/markdown/spacer_test.go` - Tests for Spacer widget
-- `internal/markdown/codeblock.go` - Custom CodeBlock widget with background styling
-- `internal/markdown/codeblock_test.go` - Tests for CodeBlock widget
-- `internal/markdown/blockquote.go` - Custom Blockquote widget with border styling
-- `internal/markdown/blockquote_test.go` - Tests for Blockquote widget
-
-### Files Modified
-- `internal/markdown/renderer.go` - Updated to use custom widgets
-- `internal/markdown/renderer_test.go` - Added normalizeText and additional rendering tests
-- `internal/themes/themes.go` - Theme settings for sizing
-- `README.md` - Documentation updates
-
-## Success Criteria
-
-1. ✅ All markdown elements render correctly (no missing text)
-2. ✅ Visual spacing between elements (custom Spacer widget)
-3. ✅ Code blocks visually distinct (background, padding, rounded corners)
-4. ✅ Blockquotes visually distinct (left border, subtle background)
-5. ✅ No performance regression (all tests pass)
-6. ✅ Works in both light and dark themes (theme-aware colors)
+All tests pass. The visual rendering is stable and matches the target aesthetic.
