@@ -148,9 +148,6 @@ func (w *Window) setupUI() {
 	// Create main layout
 	mainContent := container.NewBorder(toolbar, nil, nil, nil, w.mainSplit)
 
-	// Set up menu
-	w.setupMenu()
-
 	// Set up keyboard shortcuts
 	w.setupShortcuts()
 
@@ -299,67 +296,6 @@ func (w *Window) toggleTheme() {
 	} else {
 		w.setTheme(themes.ThemeDark)
 	}
-}
-
-// setupMenu sets up the application menu
-func (w *Window) setupMenu() {
-	fileMenu := fyne.NewMenu("File",
-		fyne.NewMenuItem("Open File...", func() {
-			w.showOpenDialog()
-		}),
-		fyne.NewMenuItem("Open Folder...", func() {
-			w.showFolderDialog()
-		}),
-		fyne.NewMenuItem("Save", func() {
-			if w.editMode {
-				w.saveFile()
-			}
-		}),
-		fyne.NewMenuItem("Refresh", func() {
-			if w.currentFile != "" {
-				w.loadFile(w.currentFile)
-			}
-		}),
-		fyne.NewMenuItemSeparator(),
-		fyne.NewMenuItem("Print...", func() {
-			w.printDocument()
-		}),
-		fyne.NewMenuItemSeparator(),
-		fyne.NewMenuItem("Quit", func() {
-			w.fyneWindow.Close()
-		}),
-	)
-
-	editMenu := fyne.NewMenu("Edit",
-		fyne.NewMenuItem("Toggle Edit Mode", func() {
-			w.toggleEditMode()
-		}),
-		fyne.NewMenuItemSeparator(),
-		fyne.NewMenuItem("Discard Changes", func() {
-			if w.editMode {
-				w.discardChanges()
-			}
-		}),
-	)
-
-	viewMenu := fyne.NewMenu("View",
-		fyne.NewMenuItem("Toggle File Tree", func() {
-			w.toggleFileTree()
-		}),
-		fyne.NewMenuItem("Toggle TOC", func() {
-			w.toggleTOC()
-		}),
-		fyne.NewMenuItemSeparator(),
-		fyne.NewMenuItem("Light Theme", func() {
-			w.setTheme(themes.ThemeLight)
-		}),
-		fyne.NewMenuItem("Dark Theme", func() {
-			w.setTheme(themes.ThemeDark)
-		}),
-	)
-
-	mainMenu := fyne.NewMainMenu(fileMenu, editMenu, viewMenu)
-	w.fyneWindow.SetMainMenu(mainMenu)
 }
 
 // setupShortcuts sets up keyboard shortcuts
