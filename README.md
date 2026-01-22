@@ -13,14 +13,14 @@
 ## Features
 
 ### Core Functionality
-- ✅ **Full Markdown Support** - CommonMark and GitHub Flavored Markdown (GFM)
-- ✅ **Syntax Highlighting** - 250+ languages via Chroma with beautiful color schemes
-- ✅ **Live Reload** - Auto-refresh on file changes (300ms debounce)
-- ✅ **Table of Contents** - Hierarchical navigation with click-to-scroll
-- ✅ **Split View** - Resizable TOC sidebar with content area
-- ✅ **Custom Themes** - Beautiful light and dark themes with instant switching
-- ✅ **Smart Typography** - Automatic smart quotes, em-dashes, and proper character rendering
-- ✅ **Cross-Platform** - Native performance on macOS and Linux
+- **Full Markdown Support** - CommonMark and GitHub Flavored Markdown (GFM)
+- **Syntax Highlighting** - 250+ languages via Chroma with beautiful color schemes
+- **Live Reload** - Auto-refresh on file changes (300ms debounce)
+- **Table of Contents** - Hierarchical navigation with click-to-scroll
+- **Split View** - Resizable TOC sidebar with content area
+- **Custom Themes** - Beautiful light and dark themes with instant switching
+- **Smart Typography** - Automatic smart quotes, em-dashes, and proper character rendering
+- **Cross-Platform** - Native performance on macOS and Linux
 
 ### Markdown Features Supported
 - **Headings** (H1-H6) with bold styling
@@ -101,9 +101,9 @@ markview -version
 ### Live Reload
 
 MarkView automatically watches your file for changes. Perfect for:
-- 📝 Real-time markdown previewing while writing
-- 📖 Viewing auto-generated documentation
-- 🔄 Live editing workflows
+- Real-time markdown previewing while writing
+- Viewing auto-generated documentation
+- Live editing workflows
 
 The file watcher uses a 300ms debounce to prevent rapid re-renders during saves.
 
@@ -111,7 +111,7 @@ The file watcher uses a 300ms debounce to prevent rapid re-renders during saves.
 
 MarkView includes two carefully crafted themes with enhanced typography:
 
-#### 🌙 Dark Theme (Default)
+#### Dark Theme (Default)
 - Dracula-inspired color palette
 - Deep purple-gray background (#282A36)
 - Vibrant syntax highlighting
@@ -119,7 +119,7 @@ MarkView includes two carefully crafted themes with enhanced typography:
 - Easy on the eyes for extended reading sessions
 - Perfect for low-light environments
 
-#### ☀️ Light Theme
+#### Light Theme
 - GitHub-inspired clean design
 - Pure white background with professional colors
 - **Blue headings with increased font sizes** (H1: 28pt, H2: 22pt)
@@ -188,13 +188,13 @@ make test-coverage
 
 #### Test Coverage
 
-- ✅ **Parser Tests** - Markdown parsing and AST generation
-- ✅ **Renderer Tests** - AST to Fyne widget conversion, text normalization
-- ✅ **TOC Tests** - Heading extraction and hierarchy
-- ✅ **Syntax Highlighter Tests** - Code highlighting for multiple languages
-- ✅ **Debouncer Tests** - File change debouncing logic
-- ✅ **Watcher Tests** - File system monitoring
-- ✅ **Custom Widget Tests** - Spacer, CodeBlock, and Blockquote widgets
+- **Parser Tests** - Markdown parsing and AST generation
+- **Renderer Tests** - AST to Fyne widget conversion, text normalization
+- **TOC Tests** - Heading extraction and hierarchy
+- **Syntax Highlighter Tests** - Code highlighting for multiple languages
+- **Debouncer Tests** - File change debouncing logic
+- **Watcher Tests** - File system monitoring
+- **Custom Widget Tests** - Spacer, CodeBlock, and Blockquote widgets
 
 **Test Results:**
 ```
@@ -340,7 +340,7 @@ Abstract Syntax Tree (AST)
 
 ## Roadmap
 
-### ✅ Implemented (v0.1.0)
+### Implemented (v0.1.0)
 - Basic markdown rendering with smart typography
 - Syntax highlighting with beautiful colors (no line wrapping in code blocks)
 - Live file reload with auto-watch
@@ -356,11 +356,11 @@ Abstract Syntax Tree (AST)
 - **Custom spacer widgets** - Proper vertical spacing between elements
 - **Theme-aware styling** - Visual elements adapt to light/dark mode
 
-### 🚧 In Progress
+### In Progress
 - Image rendering (local files)
 - Additional theme options (Nord, Solarized, etc.)
 
-### 📋 Planned
+### Planned
 - **v0.2.0**
   - Full image support (local + remote)
   - Keyboard shortcuts (Ctrl+O, Ctrl+R, etc.)
@@ -501,5 +501,5 @@ Special thanks to the Go community for creating amazing tools!
 ---
 
 <p align="center">
-  Made with ❤️ using Go and Fyne
+  Made with Go and Fyne
 </p>
