@@ -49,11 +49,25 @@ type Window struct {
 
 	// Edit mode
 	editMode      bool
+	splitViewMode bool // Side-by-side editor and preview
 	isDirty       bool
 	editor        *MarkdownEditor
 	editorScroll  *container.Scroll
 	contentStack  *fyne.Container
-	contentBuffer string // Original content for dirty checking
+	splitView     *container.Split // For side-by-side editing
+	contentBuffer string           // Original content for dirty checking
+	focusMode     bool             // Hide all UI except content
+	typewriterMode bool            // Keep cursor centered
+	autoSaveTicker *time.Ticker    // Auto-save timer
+
+	// Recent files
+	recentFiles []string
+
+	// Word count goal
+	wordCountGoal int
+
+	// Custom CSS for exports
+	customCSS string
 
 	// Toolbar actions
 	editAction    *toolbarAction
@@ -119,16 +133,33 @@ func NewWindow(app fyne.App, logger *zap.Logger) *Window {
 	// Load last used directory
 	w.loadLastDirectory()
 
+	// Load recent files
+	w.loadRecentFiles()
+
+	// Load word count goal
+	w.wordCountGoal = w.app.Preferences().Int("wordCountGoal")
+
+	// Load custom CSS
+	w.customCSS = w.app.Preferences().String("customCSS")
+
+	// Load saved window size
+	w.loadWindowSize()
+
+	// Start auto-save
+	w.startAutoSave()
+
 	// Handle close with unsaved changes check
 	w.fyneWindow.SetCloseIntercept(func() {
 		w.handleClose()
 	})
 
-	// Clean up file watcher on close
+	// Clean up on close
 	w.fyneWindow.SetOnClosed(func() {
 		if w.fileWatcher != nil {
 			w.fileWatcher.Close()
 		}
+		w.stopAutoSave()
+		w.saveWindowSize()
 	})
 
 	// Set up drag and drop
@@ -159,6 +190,11 @@ func (w *Window) setupUI() {
 	w.editorScroll = container.NewScroll(w.editor)
 	w.editorScroll.Hide()
 
+	// Create split view for side-by-side editing (hidden by default)
+	w.splitView = container.NewHSplit(w.editorScroll, w.scrollContent)
+	w.splitView.Offset = 0.5
+	w.splitView.Hide()
+
 	// Create outline view (hidden by default)
 	w.outline = NewOutline(func(line int) {
 		w.navigateToLine(line)
@@ -173,6 +209,15 @@ func (w *Window) setupUI() {
 			w.loadFile(path)
 		})
 	})
+	// Set up starred documents persistence
+	w.libraryView.SetOnStarredChanged(func(paths []string) {
+		w.app.Preferences().SetString("starredDocs", strings.Join(paths, "\n"))
+	})
+	// Load starred documents
+	starredStr := w.app.Preferences().String("starredDocs")
+	if starredStr != "" {
+		w.libraryView.SetStarredPaths(strings.Split(starredStr, "\n"))
+	}
 	w.libraryScroll = container.NewScroll(w.libraryView.GetContainer())
 	w.libraryScroll.Hide()
 
@@ -203,8 +248,8 @@ func (w *Window) setupUI() {
 	)
 	w.leftSplit.Offset = 0.5 // Equal split between file tree and TOC/Outline
 
-	// Content area: stack of rendered view, editor, and library (only one visible at a time)
-	w.contentStack = container.NewStack(w.scrollContent, w.editorScroll, w.libraryScroll)
+	// Content area: stack of rendered view, editor, split view, and library (only one visible at a time)
+	w.contentStack = container.NewStack(w.scrollContent, w.editorScroll, w.splitView, w.libraryScroll)
 
 	// Main split: (File Tree | TOC) | Content
 	w.mainSplit = container.NewHSplit(
@@ -314,6 +359,10 @@ func (w *Window) createToolbar() *widget.Toolbar {
 		w.toggleLibraryMode()
 	})
 
+	presentationAction := newToolbarAction(themes.IconPresentation(), func() {
+		w.showPresentationMode()
+	})
+
 	toolbar := widget.NewToolbar(
 		newFileAction,
 		openFileAction,
@@ -324,6 +373,7 @@ func (w *Window) createToolbar() *widget.Toolbar {
 		w.discardAction,
 		widget.NewToolbarSeparator(),
 		refreshAction,
+		presentationAction,
 		widget.NewToolbarSpacer(),
 		toggleLibraryAction,
 		toggleFileTreeAction,
@@ -441,6 +491,20 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 		})
 	})
 
+	snippetAction := newToolbarAction(themes.IconSnippet(), func() {
+		ShowSnippetsDialog(w.fyneWindow, func(content string) {
+			w.editor.InsertAtCursor(content)
+		})
+	})
+
+	typewriterAction := newToolbarAction(themes.IconTypewriter(), func() {
+		w.toggleTypewriterMode()
+	})
+
+	goalAction := newToolbarAction(themes.IconGoal(), func() {
+		w.showWordCountGoalDialog()
+	})
+
 	return widget.NewToolbar(
 		boldAction,
 		italicAction,
@@ -459,6 +523,10 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 		quoteAction,
 		listAction,
 		hrAction,
+		widget.NewToolbarSeparator(),
+		snippetAction,
+		typewriterAction,
+		goalAction,
 	)
 }
 
@@ -498,12 +566,16 @@ func (w *Window) setupShortcuts() {
 		}
 	})
 
-	// Cmd/Ctrl+F - Focus file filter
+	// Cmd/Ctrl+F - Find (in edit mode) or Focus file filter (in view mode)
 	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
 		KeyName:  fyne.KeyF,
 		Modifier: fyne.KeyModifierSuper,
 	}, func(shortcut fyne.Shortcut) {
-		w.fileTree.FocusFilter(w.fyneWindow.Canvas())
+		if w.editMode {
+			ShowFindReplaceDialog(w.fyneWindow, w.editor)
+		} else {
+			w.fileTree.FocusFilter(w.fyneWindow.Canvas())
+		}
 	})
 
 	// Cmd/Ctrl+E - Toggle edit mode
@@ -552,6 +624,38 @@ func (w *Window) setupShortcuts() {
 	}, func(shortcut fyne.Shortcut) {
 		w.fileTree.NavigateUp()
 	})
+
+	// Cmd/Ctrl+\ - Toggle split view
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyBackslash,
+		Modifier: fyne.KeyModifierSuper,
+	}, func(shortcut fyne.Shortcut) {
+		w.toggleSplitView()
+	})
+
+	// Cmd/Ctrl+Shift+F - Toggle focus mode
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyF,
+		Modifier: fyne.KeyModifierSuper | fyne.KeyModifierShift,
+	}, func(shortcut fyne.Shortcut) {
+		w.toggleFocusMode()
+	})
+
+	// Cmd/Ctrl+? or Cmd+/ - Show keyboard shortcuts
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeySlash,
+		Modifier: fyne.KeyModifierSuper,
+	}, func(shortcut fyne.Shortcut) {
+		w.showKeyboardShortcuts()
+	})
+
+	// Cmd/Ctrl+Shift+O - Show recent files
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyO,
+		Modifier: fyne.KeyModifierSuper | fyne.KeyModifierShift,
+	}, func(shortcut fyne.Shortcut) {
+		w.showRecentFiles()
+	})
 }
 
 // toggleFileTree toggles the file tree visibility
@@ -570,6 +674,324 @@ func (w *Window) toggleTOC() {
 	} else {
 		w.tocScroll.Show()
 	}
+}
+
+// toggleSplitView toggles split view mode (side-by-side editor and preview)
+func (w *Window) toggleSplitView() {
+	if w.currentFile == "" {
+		dialog.ShowInformation("Split View", "No file is currently open.", w.fyneWindow)
+		return
+	}
+
+	if w.splitViewMode {
+		// Exit split view, back to normal edit mode
+		w.splitViewMode = false
+		w.splitView.Hide()
+		if w.editMode {
+			w.editorScroll.Show()
+		} else {
+			w.scrollContent.Show()
+		}
+	} else {
+		// Enter split view mode
+		w.splitViewMode = true
+		w.editMode = true
+
+		// Pause file watching
+		if w.fileWatcher != nil {
+			w.fileWatcher.Pause()
+		}
+
+		// Set editor content
+		w.editor.SetText(w.contentBuffer)
+
+		// Update outline
+		w.outline.UpdateFromText(w.contentBuffer)
+
+		// Hide single views, show split
+		w.scrollContent.Hide()
+		w.editorScroll.Hide()
+		w.splitView.Show()
+		w.editToolbar.Show()
+
+		// Show outline in TOC area
+		w.tocScroll.Hide()
+		w.outlineScroll.Show()
+
+		w.editAction.SetIcon(themes.IconView())
+	}
+	w.updateWindowTitle()
+}
+
+// toggleTypewriterMode toggles typewriter mode (keep cursor centered)
+func (w *Window) toggleTypewriterMode() {
+	w.typewriterMode = !w.typewriterMode
+	if w.typewriterMode {
+		// Immediately center the cursor
+		w.centerCursor()
+	}
+}
+
+// centerCursor scrolls the editor to keep the cursor line centered
+func (w *Window) centerCursor() {
+	if !w.editMode || w.editor == nil || w.editorScroll == nil {
+		return
+	}
+
+	// Get cursor row
+	row, _ := w.editor.GetCursorPosition()
+
+	// Estimate line height (approximately 20 pixels per line)
+	lineHeight := float32(20)
+
+	// Calculate scroll position to center the cursor row
+	scrollHeight := w.editorScroll.Size().Height
+	targetY := float32(row)*lineHeight - scrollHeight/2 + lineHeight/2
+
+	if targetY < 0 {
+		targetY = 0
+	}
+
+	w.editorScroll.Offset = fyne.NewPos(0, targetY)
+	w.editorScroll.Refresh()
+}
+
+// toggleFocusMode toggles focus mode (hide all UI except content)
+func (w *Window) toggleFocusMode() {
+	w.focusMode = !w.focusMode
+
+	if w.focusMode {
+		// Hide sidebars and toolbars
+		w.fileTreeScroll.Hide()
+		w.tocScroll.Hide()
+		w.outlineScroll.Hide()
+		w.editToolbar.Hide()
+		w.mainSplit.Offset = 0 // Hide left panel entirely
+	} else {
+		// Restore UI
+		w.fileTreeScroll.Show()
+		if w.editMode {
+			w.outlineScroll.Show()
+			w.editToolbar.Show()
+		} else {
+			w.tocScroll.Show()
+		}
+		w.mainSplit.Offset = 0.30
+	}
+	w.mainSplit.Refresh()
+}
+
+// showKeyboardShortcuts shows a dialog with keyboard shortcuts
+func (w *Window) showKeyboardShortcuts() {
+	shortcuts := []struct {
+		key  string
+		desc string
+	}{
+		{"Cmd+N", "New file"},
+		{"Cmd+O", "Open file"},
+		{"Cmd+S", "Save file"},
+		{"Cmd+Shift+S", "Save as"},
+		{"Cmd+E", "Toggle edit mode"},
+		{"Cmd+F", "Find in file tree"},
+		{"Cmd+P", "Print/Export"},
+		{"Cmd+R", "Refresh"},
+		{"Cmd+\\", "Toggle split view"},
+		{"Cmd+Shift+F", "Toggle focus mode"},
+		{"Cmd+?", "Show shortcuts"},
+		{"Escape", "Exit edit mode / Clear filter"},
+		{"Alt+Up", "Navigate to parent directory"},
+	}
+
+	var items []fyne.CanvasObject
+	for _, s := range shortcuts {
+		row := container.NewHBox(
+			widget.NewLabelWithStyle(s.key, fyne.TextAlignLeading, fyne.TextStyle{Monospace: true}),
+			widget.NewLabel("-"),
+			widget.NewLabel(s.desc),
+		)
+		items = append(items, row)
+	}
+
+	content := container.NewVBox(items...)
+	scroll := container.NewScroll(content)
+	scroll.SetMinSize(fyne.NewSize(350, 400))
+
+	d := dialog.NewCustom("Keyboard Shortcuts", "Close", scroll, w.fyneWindow)
+	d.Resize(fyne.NewSize(400, 450))
+	d.Show()
+}
+
+// addRecentFile adds a file to the recent files list
+func (w *Window) addRecentFile(path string) {
+	// Remove if already in list
+	for i, p := range w.recentFiles {
+		if p == path {
+			w.recentFiles = append(w.recentFiles[:i], w.recentFiles[i+1:]...)
+			break
+		}
+	}
+
+	// Add to front
+	w.recentFiles = append([]string{path}, w.recentFiles...)
+
+	// Keep only last 10
+	if len(w.recentFiles) > 10 {
+		w.recentFiles = w.recentFiles[:10]
+	}
+
+	// Save to preferences
+	w.app.Preferences().SetString("recentFiles", strings.Join(w.recentFiles, "\n"))
+}
+
+// loadRecentFiles loads recent files from preferences
+func (w *Window) loadRecentFiles() {
+	recentStr := w.app.Preferences().String("recentFiles")
+	if recentStr != "" {
+		w.recentFiles = strings.Split(recentStr, "\n")
+	}
+}
+
+// showRecentFiles shows a dialog with recent files
+func (w *Window) showRecentFiles() {
+	if len(w.recentFiles) == 0 {
+		dialog.ShowInformation("Recent Files", "No recent files.", w.fyneWindow)
+		return
+	}
+
+	list := widget.NewList(
+		func() int { return len(w.recentFiles) },
+		func() fyne.CanvasObject {
+			return widget.NewLabel("filename.md")
+		},
+		func(id widget.ListItemID, obj fyne.CanvasObject) {
+			if id < len(w.recentFiles) {
+				obj.(*widget.Label).SetText(filepath.Base(w.recentFiles[id]))
+			}
+		},
+	)
+
+	var d dialog.Dialog
+	list.OnSelected = func(id widget.ListItemID) {
+		if id < len(w.recentFiles) {
+			path := w.recentFiles[id]
+			d.Hide()
+			w.checkUnsavedChanges(func() {
+				w.loadFile(path)
+			})
+		}
+	}
+
+	scroll := container.NewScroll(list)
+	scroll.SetMinSize(fyne.NewSize(400, 300))
+
+	d = dialog.NewCustom("Recent Files", "Cancel", scroll, w.fyneWindow)
+	d.Resize(fyne.NewSize(450, 400))
+	d.Show()
+}
+
+// startAutoSave starts the auto-save timer
+func (w *Window) startAutoSave() {
+	if w.autoSaveTicker != nil {
+		w.autoSaveTicker.Stop()
+	}
+	w.autoSaveTicker = time.NewTicker(30 * time.Second)
+	go func() {
+		for range w.autoSaveTicker.C {
+			if w.editMode && w.isDirty && w.currentFile != "" {
+				w.saveFile()
+				w.logger.Info("Auto-saved file")
+			}
+		}
+	}()
+}
+
+// stopAutoSave stops the auto-save timer
+func (w *Window) stopAutoSave() {
+	if w.autoSaveTicker != nil {
+		w.autoSaveTicker.Stop()
+		w.autoSaveTicker = nil
+	}
+}
+
+// showCustomCSSDialog shows a dialog to edit custom CSS for exports
+func (w *Window) showCustomCSSDialog() {
+	cssEntry := widget.NewMultiLineEntry()
+	cssEntry.SetPlaceHolder("/* Custom CSS for exports */\n\nbody {\n    /* your styles here */\n}")
+	cssEntry.SetText(w.customCSS)
+	cssEntry.Wrapping = fyne.TextWrapOff
+
+	scroll := container.NewScroll(cssEntry)
+	scroll.SetMinSize(fyne.NewSize(500, 300))
+
+	resetBtn := widget.NewButton("Reset to Default", func() {
+		cssEntry.SetText("")
+	})
+
+	content := container.NewBorder(
+		widget.NewLabel("Add custom CSS that will be included in HTML/PDF exports:"),
+		resetBtn,
+		nil, nil,
+		scroll,
+	)
+
+	dialog.ShowCustomConfirm("Custom Export CSS", "Save", "Cancel", content, func(confirm bool) {
+		if confirm {
+			w.customCSS = cssEntry.Text
+			w.app.Preferences().SetString("customCSS", w.customCSS)
+		}
+	}, w.fyneWindow)
+}
+
+// showWordCountGoalDialog shows a dialog to set the word count goal
+func (w *Window) showWordCountGoalDialog() {
+	goalEntry := widget.NewEntry()
+	goalEntry.SetPlaceHolder("Enter goal (e.g., 500)")
+	if w.wordCountGoal > 0 {
+		goalEntry.SetText(intToString(w.wordCountGoal))
+	}
+
+	clearBtn := widget.NewButton("Clear Goal", func() {
+		w.wordCountGoal = 0
+		w.app.Preferences().SetInt("wordCountGoal", 0)
+		w.updateStatusBar()
+	})
+
+	content := container.NewVBox(
+		widget.NewLabel("Set a word count goal for this session:"),
+		goalEntry,
+		clearBtn,
+	)
+
+	dialog.ShowCustomConfirm("Word Count Goal", "Set", "Cancel", content, func(confirm bool) {
+		if confirm {
+			goal := parseIntFromString(goalEntry.Text)
+			if goal > 0 {
+				w.wordCountGoal = goal
+				w.app.Preferences().SetInt("wordCountGoal", goal)
+				w.updateStatusBar()
+			}
+		}
+	}, w.fyneWindow)
+}
+
+// parseIntFromString parses an integer from a string
+func parseIntFromString(s string) int {
+	result := 0
+	for _, c := range s {
+		if c >= '0' && c <= '9' {
+			result = result*10 + int(c-'0')
+		}
+	}
+	return result
+}
+
+// showPresentationMode shows the markdown as a presentation
+func (w *Window) showPresentationMode() {
+	if w.currentFile == "" {
+		dialog.ShowInformation("Presentation Mode", "No file is currently open.", w.fyneWindow)
+		return
+	}
+	ShowPresentationMode(w.fyneWindow, w.contentBuffer)
 }
 
 // toggleLibraryMode toggles between library mode and normal mode
@@ -640,6 +1062,22 @@ func (w *Window) loadLastDirectory() {
 			w.setRootFolder(lastDir)
 		}
 	}
+}
+
+// loadWindowSize loads the saved window size from preferences
+func (w *Window) loadWindowSize() {
+	width := w.app.Preferences().Float("windowWidth")
+	height := w.app.Preferences().Float("windowHeight")
+	if width > 0 && height > 0 {
+		w.fyneWindow.Resize(fyne.NewSize(float32(width), float32(height)))
+	}
+}
+
+// saveWindowSize saves the current window size to preferences
+func (w *Window) saveWindowSize() {
+	size := w.fyneWindow.Canvas().Size()
+	w.app.Preferences().SetFloat("windowWidth", float64(size.Width))
+	w.app.Preferences().SetFloat("windowHeight", float64(size.Height))
 }
 
 // printDocument prints the current document
@@ -727,6 +1165,9 @@ func (w *Window) LoadFile(filePath string) {
 func (w *Window) loadFile(filePath string) {
 	w.logger.Info("Loading file", zap.String("path", filePath))
 	w.currentFile = filePath
+
+	// Add to recent files
+	w.addRecentFile(filePath)
 
 	// Update window title
 	fileName := filepath.Base(filePath)
@@ -937,8 +1378,34 @@ func (w *Window) onEditorChanged(content string) {
 	// Update outline (debounced - only update occasionally)
 	w.outline.UpdateFromText(content)
 
+	// Update preview in split view mode
+	if w.splitViewMode {
+		w.updateSplitViewPreview(content)
+	}
+
+	// Center cursor in typewriter mode
+	if w.typewriterMode {
+		w.centerCursor()
+	}
+
 	// Update status bar
 	w.updateStatusBar()
+}
+
+// updateSplitViewPreview updates the preview pane in split view
+func (w *Window) updateSplitViewPreview(content string) {
+	fileDir := ""
+	if w.currentFile != "" {
+		fileDir = filepath.Dir(w.currentFile)
+	}
+
+	parsedContent, err := w.parser.ParseWithBasePath([]byte(content), fileDir)
+	if err != nil {
+		return // Silently fail for preview updates
+	}
+
+	w.scrollContent.Content = parsedContent
+	w.scrollContent.Refresh()
 }
 
 // navigateToLine navigates the editor to a specific line
@@ -972,7 +1439,17 @@ func (w *Window) updateStatusBar() {
 		// Word count
 		words := len(strings.Fields(content))
 		chars := len(content)
-		w.wordCount.SetText(fmt.Sprintf("%d words, %d chars", words, chars))
+
+		// Show goal progress if goal is set
+		if w.wordCountGoal > 0 {
+			percentage := (words * 100) / w.wordCountGoal
+			if percentage > 100 {
+				percentage = 100
+			}
+			w.wordCount.SetText(fmt.Sprintf("%d/%d words (%d%%), %d chars", words, w.wordCountGoal, percentage, chars))
+		} else {
+			w.wordCount.SetText(fmt.Sprintf("%d words, %d chars", words, chars))
+		}
 
 		// Cursor position (1-indexed for display)
 		row, col := w.editor.GetCursorPosition()
@@ -1230,8 +1707,14 @@ func (w *Window) showPrintDialog() {
 		exportDOCXBtn,
 		exportRTFBtn,
 	)
+	// Custom CSS button
+	customCSSBtn := widget.NewButton("Custom CSS...", func() {
+		w.showCustomCSSDialog()
+	})
+
 	row3 := container.NewHBox(
 		printBtn,
+		customCSSBtn,
 	)
 
 	dialogContent := container.NewVBox(
@@ -1455,6 +1938,61 @@ func parseFileURL(path string) *url.URL {
 	return u
 }
 
+// generateTOCHTML generates an HTML table of contents from markdown headings
+func generateTOCHTML(data []byte) string {
+	lines := strings.Split(string(data), "\n")
+	var tocItems []string
+	headingID := 0
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			// Count the number of # to determine heading level
+			level := 0
+			for _, c := range trimmed {
+				if c == '#' {
+					level++
+				} else {
+					break
+				}
+			}
+			if level > 0 && level <= 6 {
+				text := strings.TrimSpace(strings.TrimLeft(trimmed, "#"))
+				if text != "" {
+					headingID++
+					indent := strings.Repeat("  ", level-1)
+					anchorID := fmt.Sprintf("heading-%d", headingID)
+					tocItems = append(tocItems, fmt.Sprintf("%s<li><a href=\"#%s\">%s</a></li>", indent, anchorID, text))
+				}
+			}
+		}
+	}
+
+	if len(tocItems) == 0 {
+		return ""
+	}
+
+	return "<nav class=\"toc\">\n<h2>Table of Contents</h2>\n<ul>\n" + strings.Join(tocItems, "\n") + "\n</ul>\n</nav>\n"
+}
+
+// addHeadingIDs adds id attributes to headings in HTML content
+func addHeadingIDs(html string) string {
+	headingID := 0
+	result := html
+
+	// Simple regex-like replacement for h1-h6 tags
+	for level := 1; level <= 6; level++ {
+		openTag := fmt.Sprintf("<h%d>", level)
+		for strings.Contains(result, openTag) {
+			headingID++
+			replacement := fmt.Sprintf("<h%d id=\"heading-%d\">", level, headingID)
+			result = strings.Replace(result, openTag, replacement, 1)
+		}
+	}
+
+	return result
+}
+
 // markdownToHTML converts markdown to a styled HTML document
 func (w *Window) markdownToHTML(data []byte) string {
 	// Use goldmark to convert markdown to HTML
@@ -1474,6 +2012,12 @@ func (w *Window) markdownToHTML(data []byte) string {
 	if err != nil {
 		return fmt.Sprintf("<html><body><pre>Error: %s</pre></body></html>", err.Error())
 	}
+
+	// Generate TOC
+	tocHTML := generateTOCHTML(data)
+
+	// Add heading IDs to content
+	contentHTML := addHeadingIDs(buf.String())
 
 	// Wrap in styled HTML document
 	title := filepath.Base(w.currentFile)
@@ -1534,9 +2078,37 @@ func (w *Window) markdownToHTML(data []byte) string {
         a { color: #4299e1; }
         hr { border: none; border-top: 1px solid #e2e8f0; }
         .mermaid { text-align: center; }
+        .toc {
+            background-color: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+        .toc h2 {
+            margin-top: 0;
+            border-bottom: none;
+            font-size: 1.1em;
+            color: #4a5568;
+        }
+        .toc ul {
+            list-style-type: none;
+            padding-left: 0;
+            margin-bottom: 0;
+        }
+        .toc li {
+            margin: 4px 0;
+        }
+        .toc a {
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
         @media print {
             body { max-width: none; }
             pre { white-space: pre-wrap; }
+            .toc { page-break-after: always; }
         }
     </style>
     <!-- Mermaid for diagram rendering -->
@@ -1545,9 +2117,19 @@ func (w *Window) markdownToHTML(data []byte) string {
     <!-- MathJax for math rendering -->
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    %s
 </head>
 <body>
 %s
+%s
 </body>
-</html>`, title, buf.String())
+</html>`, title, w.getCustomCSSStyle(), tocHTML, contentHTML)
+}
+
+// getCustomCSSStyle returns the custom CSS wrapped in a style tag, or empty string if no custom CSS
+func (w *Window) getCustomCSSStyle() string {
+	if w.customCSS == "" {
+		return ""
+	}
+	return "<style>\n/* Custom CSS */\n" + w.customCSS + "\n</style>"
 }

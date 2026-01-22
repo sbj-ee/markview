@@ -21,19 +21,43 @@ type LibraryView struct {
 	documentList  *widget.List
 	searchEntry   *widget.Entry
 	currentFilter string
-	filterType    string // "all", "category", "tag", "search"
+	filterType    string // "all", "category", "tag", "search", "starred"
 	filteredDocs  []*library.Document
+	sortBy        library.SortBy
+	sortAscending bool
+	starredPaths  map[string]bool
+	onStarredChanged func(paths []string) // Callback when starred docs change
 }
 
 // NewLibraryView creates a new library view
 func NewLibraryView(onFileSelect func(path string)) *LibraryView {
 	lv := &LibraryView{
-		onFileSelect: onFileSelect,
-		filterType:   "all",
+		onFileSelect:  onFileSelect,
+		filterType:    "all",
+		sortBy:        library.SortByDate,
+		sortAscending: false, // Newest first by default
+		starredPaths:  make(map[string]bool),
 	}
 	lv.ExtendBaseWidget(lv)
 	lv.buildUI()
 	return lv
+}
+
+// SetOnStarredChanged sets the callback for when starred documents change
+func (lv *LibraryView) SetOnStarredChanged(callback func(paths []string)) {
+	lv.onStarredChanged = callback
+}
+
+// SetStarredPaths sets which documents are starred
+func (lv *LibraryView) SetStarredPaths(paths []string) {
+	lv.starredPaths = make(map[string]bool)
+	for _, p := range paths {
+		lv.starredPaths[p] = true
+	}
+	if lv.library != nil {
+		lv.library.LoadStarredFromPaths(paths)
+	}
+	lv.updateFilteredDocs()
 }
 
 // buildUI builds the library view UI
@@ -133,13 +157,16 @@ func (lv *LibraryView) buildUI() {
 			return len(lv.filteredDocs)
 		},
 		func() fyne.CanvasObject {
+			starBtn := widget.NewButton("", nil)
+			starBtn.Importance = widget.LowImportance
 			title := widget.NewLabel("Title")
 			title.TextStyle = fyne.TextStyle{Bold: true}
+			titleRow := container.NewHBox(starBtn, title)
 			preview := widget.NewLabel("Preview text here...")
 			preview.Wrapping = fyne.TextWrapWord
 			meta := widget.NewLabel("Category | Tags | Words")
 			meta.TextStyle = fyne.TextStyle{Italic: true}
-			return container.NewVBox(title, preview, meta)
+			return container.NewVBox(titleRow, preview, meta)
 		},
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
 			if id >= len(lv.filteredDocs) {
@@ -148,7 +175,20 @@ func (lv *LibraryView) buildUI() {
 			doc := lv.filteredDocs[id]
 			box := obj.(*fyne.Container)
 
-			title := box.Objects[0].(*widget.Label)
+			titleRow := box.Objects[0].(*fyne.Container)
+			starBtn := titleRow.Objects[0].(*widget.Button)
+			title := titleRow.Objects[1].(*widget.Label)
+
+			// Update star button
+			if doc.Starred {
+				starBtn.SetText("★")
+			} else {
+				starBtn.SetText("☆")
+			}
+			starBtn.OnTapped = func() {
+				lv.toggleStarred(doc.Path)
+			}
+
 			title.SetText(doc.Title)
 
 			preview := box.Objects[1].(*widget.Label)
@@ -172,6 +212,15 @@ func (lv *LibraryView) buildUI() {
 		}
 	}
 
+	// Create starred filter button
+	starredBtn := widget.NewButton("★ Starred", func() {
+		lv.filterType = "starred"
+		lv.currentFilter = ""
+		lv.categoryList.UnselectAll()
+		lv.tagList.UnselectAll()
+		lv.updateFilteredDocs()
+	})
+
 	// Create sidebar with categories and tags
 	categoryHeader := widget.NewLabel("Categories")
 	categoryHeader.TextStyle = fyne.TextStyle{Bold: true}
@@ -179,6 +228,8 @@ func (lv *LibraryView) buildUI() {
 	tagHeader.TextStyle = fyne.TextStyle{Bold: true}
 
 	sidebar := container.NewVBox(
+		starredBtn,
+		widget.NewSeparator(),
 		categoryHeader,
 		container.NewVScroll(lv.categoryList),
 		widget.NewSeparator(),
@@ -186,12 +237,40 @@ func (lv *LibraryView) buildUI() {
 		container.NewVScroll(lv.tagList),
 	)
 
+	// Create sort options
+	sortSelect := widget.NewSelect([]string{"Date (Newest)", "Date (Oldest)", "Name (A-Z)", "Name (Z-A)", "Words (Most)", "Words (Least)"}, func(selected string) {
+		switch selected {
+		case "Date (Newest)":
+			lv.sortBy = library.SortByDate
+			lv.sortAscending = false
+		case "Date (Oldest)":
+			lv.sortBy = library.SortByDate
+			lv.sortAscending = true
+		case "Name (A-Z)":
+			lv.sortBy = library.SortByName
+			lv.sortAscending = true
+		case "Name (Z-A)":
+			lv.sortBy = library.SortByName
+			lv.sortAscending = false
+		case "Words (Most)":
+			lv.sortBy = library.SortByWordCount
+			lv.sortAscending = false
+		case "Words (Least)":
+			lv.sortBy = library.SortByWordCount
+			lv.sortAscending = true
+		}
+		lv.updateFilteredDocs()
+	})
+	sortSelect.SetSelected("Date (Newest)")
+
 	// Create main content area
 	docHeader := widget.NewLabel("Documents")
 	docHeader.TextStyle = fyne.TextStyle{Bold: true}
 
+	headerRow := container.NewBorder(nil, nil, docHeader, sortSelect, nil)
+
 	mainContent := container.NewBorder(
-		container.NewVBox(lv.searchEntry, docHeader),
+		container.NewVBox(lv.searchEntry, headerRow),
 		nil, nil, nil,
 		lv.documentList,
 	)
@@ -215,6 +294,31 @@ func (lv *LibraryView) SetLibrary(lib *library.DocumentLibrary) {
 	lv.tagList.Refresh()
 }
 
+// toggleStarred toggles the starred status of a document
+func (lv *LibraryView) toggleStarred(path string) {
+	if lv.library == nil {
+		return
+	}
+
+	starred := lv.library.ToggleStarred(path)
+	if starred {
+		lv.starredPaths[path] = true
+	} else {
+		delete(lv.starredPaths, path)
+	}
+
+	// Notify callback
+	if lv.onStarredChanged != nil {
+		paths := make([]string, 0, len(lv.starredPaths))
+		for p := range lv.starredPaths {
+			paths = append(paths, p)
+		}
+		lv.onStarredChanged(paths)
+	}
+
+	lv.documentList.Refresh()
+}
+
 // updateFilteredDocs updates the filtered document list
 func (lv *LibraryView) updateFilteredDocs() {
 	if lv.library == nil {
@@ -230,14 +334,14 @@ func (lv *LibraryView) updateFilteredDocs() {
 		lv.filteredDocs = lv.library.FilterByTag(lv.currentFilter)
 	case "search":
 		lv.filteredDocs = lv.library.Search(lv.currentFilter)
+	case "starred":
+		lv.filteredDocs = lv.library.FilterStarred()
 	default:
 		lv.filteredDocs = lv.library.Documents
 	}
 
-	// Sort by modification time (newest first)
-	sort.Slice(lv.filteredDocs, func(i, j int) bool {
-		return lv.filteredDocs[i].ModTime.After(lv.filteredDocs[j].ModTime)
-	})
+	// Apply sorting
+	library.SortDocuments(lv.filteredDocs, lv.sortBy, lv.sortAscending)
 
 	lv.documentList.Refresh()
 }

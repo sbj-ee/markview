@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -18,6 +19,7 @@ type Document struct {
 	ModTime    time.Time
 	Preview    string
 	WordCount  int
+	Starred    bool
 }
 
 // DocumentLibrary manages a collection of documents
@@ -280,4 +282,103 @@ func (lib *DocumentLibrary) Search(query string) []*Document {
 func isMarkdownFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
 	return ext == ".md" || ext == ".markdown" || ext == ".mdown" || ext == ".mkd"
+}
+
+// FilterStarred returns only starred documents
+func (lib *DocumentLibrary) FilterStarred() []*Document {
+	var docs []*Document
+	for _, doc := range lib.Documents {
+		if doc.Starred {
+			docs = append(docs, doc)
+		}
+	}
+	return docs
+}
+
+// ToggleStarred toggles the starred status of a document
+func (lib *DocumentLibrary) ToggleStarred(path string) bool {
+	for _, doc := range lib.Documents {
+		if doc.Path == path {
+			doc.Starred = !doc.Starred
+			return doc.Starred
+		}
+	}
+	return false
+}
+
+// SetStarred sets the starred status for a document
+func (lib *DocumentLibrary) SetStarred(path string, starred bool) {
+	for _, doc := range lib.Documents {
+		if doc.Path == path {
+			doc.Starred = starred
+			return
+		}
+	}
+}
+
+// GetStarredPaths returns paths of all starred documents
+func (lib *DocumentLibrary) GetStarredPaths() []string {
+	var paths []string
+	for _, doc := range lib.Documents {
+		if doc.Starred {
+			paths = append(paths, doc.Path)
+		}
+	}
+	return paths
+}
+
+// LoadStarredFromPaths marks documents as starred based on provided paths
+func (lib *DocumentLibrary) LoadStarredFromPaths(paths []string) {
+	pathSet := make(map[string]bool)
+	for _, p := range paths {
+		pathSet[p] = true
+	}
+	for _, doc := range lib.Documents {
+		doc.Starred = pathSet[doc.Path]
+	}
+}
+
+// SortBy represents the sort field
+type SortBy int
+
+const (
+	SortByDate SortBy = iota
+	SortByName
+	SortByWordCount
+)
+
+// SortDocuments sorts documents by the specified field
+func SortDocuments(docs []*Document, sortBy SortBy, ascending bool) {
+	switch sortBy {
+	case SortByName:
+		if ascending {
+			sort.Slice(docs, func(i, j int) bool {
+				return strings.ToLower(docs[i].Title) < strings.ToLower(docs[j].Title)
+			})
+		} else {
+			sort.Slice(docs, func(i, j int) bool {
+				return strings.ToLower(docs[i].Title) > strings.ToLower(docs[j].Title)
+			})
+		}
+	case SortByWordCount:
+		if ascending {
+			sort.Slice(docs, func(i, j int) bool {
+				return docs[i].WordCount < docs[j].WordCount
+			})
+		} else {
+			sort.Slice(docs, func(i, j int) bool {
+				return docs[i].WordCount > docs[j].WordCount
+			})
+		}
+	default: // SortByDate
+		if ascending {
+			sort.Slice(docs, func(i, j int) bool {
+				return docs[i].ModTime.Before(docs[j].ModTime)
+			})
+		} else {
+			sort.Slice(docs, func(i, j int) bool {
+				return docs[i].ModTime.After(docs[j].ModTime)
+			})
+		}
+	}
 }

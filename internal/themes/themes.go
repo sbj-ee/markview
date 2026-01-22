@@ -729,6 +729,56 @@ func IconLibrary() fyne.Resource {
 	return theme.NewThemedResource(resourceLibrarySvg)
 }
 
+// IconSplitView returns a split view icon
+func IconSplitView() fyne.Resource {
+	return theme.NewThemedResource(resourceSplitViewSvg)
+}
+
+// IconFocus returns a focus mode icon
+func IconFocus() fyne.Resource {
+	return theme.NewThemedResource(resourceFocusSvg)
+}
+
+// IconHelp returns a help icon
+func IconHelp() fyne.Resource {
+	return theme.NewThemedResource(resourceHelpSvg)
+}
+
+// IconSearch returns a search icon
+func IconSearch() fyne.Resource {
+	return theme.NewThemedResource(resourceSearchSvg)
+}
+
+// IconStar returns a star/favorite icon
+func IconStar() fyne.Resource {
+	return theme.NewThemedResource(resourceStarSvg)
+}
+
+// IconPresentation returns a presentation mode icon
+func IconPresentation() fyne.Resource {
+	return theme.NewThemedResource(resourcePresentationSvg)
+}
+
+// IconSnippet returns a snippet icon
+func IconSnippet() fyne.Resource {
+	return theme.NewThemedResource(resourceSnippetSvg)
+}
+
+// IconSort returns a sort icon
+func IconSort() fyne.Resource {
+	return theme.NewThemedResource(resourceSortSvg)
+}
+
+// IconGoal returns a goal/target icon
+func IconGoal() fyne.Resource {
+	return theme.NewThemedResource(resourceGoalSvg)
+}
+
+// IconTypewriter returns a typewriter mode icon
+func IconTypewriter() fyne.Resource {
+	return theme.NewThemedResource(resourceTypewriterSvg)
+}
+
 // GetCodeColors returns syntax highlighting colors for the current theme
 func (m *MarkViewTheme) GetCodeColors() CodeColors {
 	if m.themeType == ThemeDark {
