@@ -101,17 +101,20 @@ func (w *Window) setupUI() {
 	w.fyneWindow.SetContent(mainContent)
 }
 
-// createToolbar creates the application toolbar
+// createToolbar creates the application toolbar with smaller buttons
 func (w *Window) createToolbar() *fyne.Container {
-	openButton := widget.NewButton("Open File", func() {
+	// Use icon buttons for a more compact toolbar
+	openButton := widget.NewButtonWithIcon("Open", themes.IconDocument(), func() {
 		w.showOpenDialog()
 	})
+	openButton.Importance = widget.LowImportance
 
-	refreshButton := widget.NewButton("Refresh", func() {
+	refreshButton := widget.NewButtonWithIcon("Refresh", themes.IconRefresh(), func() {
 		if w.currentFile != "" {
 			w.loadFile(w.currentFile)
 		}
 	})
+	refreshButton.Importance = widget.LowImportance
 
 	toolbar := container.NewHBox(
 		openButton,

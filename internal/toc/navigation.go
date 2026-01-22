@@ -5,6 +5,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -112,20 +113,43 @@ func (n *Navigator) createTree() *widget.Tree {
 			return false
 		},
 		CreateNode: func(branch bool) fyne.CanvasObject {
-			return widget.NewLabel("")
+			// Use RichText with smaller font for TOC items
+			rt := widget.NewRichText(&widget.TextSegment{
+				Text: "",
+				Style: widget.RichTextStyle{
+					SizeName: theme.SizeNameCaptionText,
+				},
+			})
+			rt.Truncation = fyne.TextTruncateEllipsis
+			return rt
 		},
 		UpdateNode: func(uid string, branch bool, node fyne.CanvasObject) {
-			label := node.(*widget.Label)
+			rt := node.(*widget.RichText)
 
 			if uid == "" {
-				label.SetText("")
+				rt.Segments = []widget.RichTextSegment{
+					&widget.TextSegment{
+						Text: "",
+						Style: widget.RichTextStyle{
+							SizeName: theme.SizeNameCaptionText,
+						},
+					},
+				}
+				rt.Refresh()
 				return
 			}
 
 			if entry, ok := n.entryMap[uid]; ok {
-				// Just show the heading text - tree widget handles hierarchy
-				label.SetText(entry.Text)
-				label.Wrapping = fyne.TextTruncate
+				// Show the heading text with smaller font
+				rt.Segments = []widget.RichTextSegment{
+					&widget.TextSegment{
+						Text: entry.Text,
+						Style: widget.RichTextStyle{
+							SizeName: theme.SizeNameCaptionText,
+						},
+					},
+				}
+				rt.Refresh()
 			}
 		},
 		OnSelected: func(uid string) {

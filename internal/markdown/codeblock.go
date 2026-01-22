@@ -93,12 +93,11 @@ func (r *codeBlockRenderer) Refresh() {
 
 // getBackgroundColor returns the appropriate background color based on theme
 func (r *codeBlockRenderer) getBackgroundColor() color.Color {
-	// Use a slightly different background for code blocks
-	// This creates visual distinction without being too jarring
+	// Use InputBackground which is slightly darker than the main background
 	bg := theme.Current().Color(theme.ColorNameInputBackground, theme.VariantDark)
 	if bg == nil {
-		// Fallback to a subtle gray
-		return color.RGBA{R: 40, G: 42, B: 54, A: 255}
+		// Fallback to a dark gray
+		return color.RGBA{R: 40, G: 42, B: 48, A: 255}
 	}
 	return bg
 }

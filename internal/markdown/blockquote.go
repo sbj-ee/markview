@@ -111,16 +111,16 @@ func (r *blockquoteRenderer) Refresh() {
 
 // getBackgroundColor returns the appropriate background color based on theme
 func (r *blockquoteRenderer) getBackgroundColor() color.Color {
-	// Subtle background for blockquotes
-	return color.RGBA{R: 50, G: 52, B: 64, A: 128}
+	// Subtle background for blockquotes - slightly lighter than main bg
+	return color.RGBA{R: 40, G: 42, B: 48, A: 200}
 }
 
 // getBorderColor returns the border color for the left edge
 func (r *blockquoteRenderer) getBorderColor() color.Color {
-	// Use primary color for the border to make it stand out
+	// Use cyan/teal color for the border
 	c := theme.Current().Color(theme.ColorNamePrimary, theme.VariantDark)
 	if c == nil {
-		return color.RGBA{R: 139, G: 233, B: 253, A: 255}
+		return color.RGBA{R: 86, G: 182, B: 194, A: 255}
 	}
 	return c
 }

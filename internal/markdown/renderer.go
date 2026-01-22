@@ -501,7 +501,35 @@ func (r *Renderer) extractInlineText(node ast.Node) string {
 
 // Widget rendering methods
 
-// renderHeadingAsWidget renders heading with blue color and larger size
+// getHeadingColorName returns the color name for a heading level
+func getHeadingColorName(level int) fyne.ThemeColorName {
+	switch level {
+	case 1, 2:
+		return "heading1" // Cyan/teal
+	case 3, 4:
+		return "heading3" // Orange/gold
+	default:
+		return "heading5" // Light gray
+	}
+}
+
+// getHeadingSizeName returns the size name for a heading level
+func getHeadingSizeName(level int) fyne.ThemeSizeName {
+	switch level {
+	case 1:
+		return theme.SizeNameHeadingText
+	case 2:
+		return theme.SizeNameSubHeadingText
+	case 3:
+		return "heading3"
+	case 4:
+		return "heading4"
+	default:
+		return theme.SizeNameText
+	}
+}
+
+// renderHeadingAsWidget renders heading with level-appropriate color and size
 func (r *Renderer) renderHeadingAsWidget(node *ast.Heading) {
 	text := r.extractInlineText(node)
 
@@ -510,15 +538,18 @@ func (r *Renderer) renderHeadingAsWidget(node *ast.Heading) {
 		r.widgets = append(r.widgets, NewSpacer(16))
 	}
 
-	// Use hyperlink color which is a nice shade of blue
+	// Get color and size based on heading level
+	colorName := getHeadingColorName(node.Level)
+	sizeName := getHeadingSizeName(node.Level)
+
 	rt := widget.NewRichText(&widget.ParagraphSegment{
 		Texts: []widget.RichTextSegment{
 			&widget.TextSegment{
 				Text: text,
 				Style: widget.RichTextStyle{
 					TextStyle: fyne.TextStyle{Bold: true},
-					ColorName: theme.ColorNameHyperlink,
-					SizeName:  theme.SizeNameHeadingText,
+					ColorName: colorName,
+					SizeName:  sizeName,
 				},
 			},
 		},
@@ -526,6 +557,12 @@ func (r *Renderer) renderHeadingAsWidget(node *ast.Heading) {
 	rt.Wrapping = fyne.TextWrapWord
 
 	r.widgets = append(r.widgets, rt)
+
+	// Add horizontal rule after H1 headings for visual separation
+	if node.Level == 1 {
+		r.widgets = append(r.widgets, NewSpacer(4))
+		r.widgets = append(r.widgets, widget.NewSeparator())
+	}
 
 	// Add spacing after heading
 	r.widgets = append(r.widgets, NewSpacer(8))

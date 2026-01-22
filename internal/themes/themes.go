@@ -56,7 +56,7 @@ func (m *MarkViewTheme) Size(name fyne.ThemeSizeName) float32 {
 	case theme.SizeNameSubHeadingText:
 		return 22 // H2 size
 	case theme.SizeNameCaptionText:
-		return 15 // Smaller text
+		return 13 // Smaller text for TOC and captions
 	case "heading1":
 		return 32 // H1: Extra large
 	case "heading2":
@@ -128,54 +128,71 @@ func (m *MarkViewTheme) lightColor(name fyne.ThemeColorName) color.Color {
 	}
 }
 
-// darkColor returns colors for dark theme (inspired by Dracula/Nord)
+// darkColor returns colors for dark theme (inspired by the reference markdown viewer)
 func (m *MarkViewTheme) darkColor(name fyne.ThemeColorName) color.Color {
 	switch name {
 	case theme.ColorNameBackground:
-		return color.RGBA{R: 40, G: 42, B: 54, A: 255} // Dark purple-gray (Dracula bg)
+		return color.RGBA{R: 30, G: 32, B: 36, A: 255} // Dark charcoal background
 	case theme.ColorNameForeground:
-		return color.RGBA{R: 248, G: 248, B: 242, A: 255} // Off-white text
+		return color.RGBA{R: 200, G: 200, B: 200, A: 255} // Light gray text
 
 	case theme.ColorNameButton:
-		return color.RGBA{R: 68, G: 71, B: 90, A: 255} // Lighter purple-gray
+		return color.RGBA{R: 50, G: 52, B: 58, A: 255} // Slightly lighter than bg
 	case theme.ColorNameHover:
-		return color.RGBA{R: 80, G: 84, B: 106, A: 255} // Even lighter on hover
+		return color.RGBA{R: 60, G: 62, B: 70, A: 255} // Lighter on hover
 	case theme.ColorNamePressed:
-		return color.RGBA{R: 98, G: 103, B: 128, A: 255} // Lightest when pressed
+		return color.RGBA{R: 70, G: 72, B: 80, A: 255} // Lightest when pressed
 
 	case theme.ColorNamePrimary:
-		return color.RGBA{R: 139, G: 233, B: 253, A: 255} // Cyan
+		return color.RGBA{R: 86, G: 182, B: 194, A: 255} // Cyan/teal for headings
 	case theme.ColorNameSuccess:
 		return color.RGBA{R: 80, G: 250, B: 123, A: 255} // Green
 	case theme.ColorNameWarning:
-		return color.RGBA{R: 255, G: 184, B: 108, A: 255} // Orange
+		return color.RGBA{R: 229, G: 181, B: 103, A: 255} // Orange/gold for sub-headings
 	case theme.ColorNameError:
 		return color.RGBA{R: 255, G: 85, B: 85, A: 255} // Red
 
 	case theme.ColorNameSelection:
-		return color.RGBA{R: 68, G: 71, B: 90, A: 200} // Purple-gray with transparency
+		return color.RGBA{R: 68, G: 71, B: 90, A: 200} // Selection with transparency
 	case theme.ColorNameFocus:
-		return color.RGBA{R: 139, G: 233, B: 253, A: 128} // Cyan focus
+		return color.RGBA{R: 86, G: 182, B: 194, A: 128} // Cyan focus
+
+	case theme.ColorNameHyperlink:
+		return color.RGBA{R: 86, G: 182, B: 194, A: 255} // Cyan for links
 
 	case theme.ColorNameInputBackground:
-		return color.RGBA{R: 30, G: 31, B: 41, A: 255} // Darker background
+		return color.RGBA{R: 40, G: 42, B: 48, A: 255} // Darker background
 	case theme.ColorNameInputBorder:
-		return color.RGBA{R: 68, G: 71, B: 90, A: 255} // Purple-gray border
+		return color.RGBA{R: 60, G: 62, B: 70, A: 255} // Border
 
 	case theme.ColorNameShadow:
-		return color.RGBA{R: 0, G: 0, B: 0, A: 50} // Darker shadow
+		return color.RGBA{R: 0, G: 0, B: 0, A: 50} // Shadow
 
 	case theme.ColorNameDisabled:
-		return color.RGBA{R: 98, G: 114, B: 164, A: 255} // Muted purple
+		return color.RGBA{R: 100, G: 100, B: 110, A: 255} // Muted gray
 	case theme.ColorNamePlaceHolder:
-		return color.RGBA{R: 98, G: 114, B: 164, A: 255} // Muted purple
+		return color.RGBA{R: 100, G: 100, B: 110, A: 255} // Muted gray
 
 	case theme.ColorNameScrollBar:
-		return color.RGBA{R: 68, G: 71, B: 90, A: 255} // Purple-gray scrollbar
+		return color.RGBA{R: 60, G: 62, B: 70, A: 255} // Scrollbar
 
 	// Custom markdown colors
 	case theme.ColorNameHeaderBackground:
-		return color.RGBA{R: 30, G: 31, B: 41, A: 255} // Darker section bg
+		return color.RGBA{R: 40, G: 42, B: 48, A: 255} // Darker section bg
+
+	// Custom colors for markdown elements
+	case "heading1", "heading2":
+		return color.RGBA{R: 86, G: 182, B: 194, A: 255} // Cyan/teal for H1, H2
+	case "heading3", "heading4":
+		return color.RGBA{R: 229, G: 181, B: 103, A: 255} // Orange/gold for H3, H4
+	case "heading5", "heading6":
+		return color.RGBA{R: 200, G: 200, B: 200, A: 255} // Light gray for H5, H6
+	case "bold":
+		return color.RGBA{R: 229, G: 181, B: 103, A: 255} // Orange/gold for bold text
+	case "link":
+		return color.RGBA{R: 86, G: 182, B: 194, A: 255} // Cyan for links
+	case "separator":
+		return color.RGBA{R: 70, G: 72, B: 80, A: 255} // Subtle gray for horizontal rules
 
 	default:
 		return theme.DefaultTheme().Color(name, theme.VariantDark)
@@ -193,6 +210,16 @@ type CodeColors struct {
 	Type      color.Color
 	Variable  color.Color
 	Background color.Color
+}
+
+// IconDocument returns a document/file icon
+func IconDocument() fyne.Resource {
+	return theme.DocumentIcon()
+}
+
+// IconRefresh returns a refresh icon
+func IconRefresh() fyne.Resource {
+	return theme.ViewRefreshIcon()
 }
 
 // GetCodeColors returns syntax highlighting colors for the current theme
