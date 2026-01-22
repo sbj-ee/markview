@@ -546,7 +546,7 @@ func (r *Renderer) renderParagraphAsWidget(node *ast.Paragraph) {
 	}
 }
 
-// renderCodeBlockAsWidget renders code block with syntax highlighting
+// renderCodeBlockAsWidget renders code block with syntax highlighting and background
 func (r *Renderer) renderCodeBlockAsWidget(node ast.Node, fenced bool) {
 	var buf bytes.Buffer
 	var language string
@@ -574,21 +574,17 @@ func (r *Renderer) renderCodeBlockAsWidget(node ast.Node, fenced bool) {
 	// Get syntax highlighted segments (no fence markers)
 	highlightedSegments := r.highlighter.Highlight(code, language)
 
-	rt := widget.NewRichText(&widget.ParagraphSegment{
-		Texts: highlightedSegments,
-	})
-
-	// Don't wrap code - let it scroll horizontally
-	rt.Wrapping = fyne.TextWrapOff
+	// Create code block widget with background styling
+	codeBlock := NewCodeBlock(highlightedSegments)
 
 	// Add spacing before code block
 	r.widgets = append(r.widgets, NewSpacer(8))
-	r.widgets = append(r.widgets, rt)
+	r.widgets = append(r.widgets, codeBlock)
 	// Add spacing after code block
 	r.widgets = append(r.widgets, NewSpacer(8))
 }
 
-// renderBlockquoteAsWidget renders blockquote
+// renderBlockquoteAsWidget renders blockquote with styled left border
 func (r *Renderer) renderBlockquoteAsWidget(node *ast.Blockquote) {
 	// Extract all text from blockquote
 	var quoteText string
@@ -598,14 +594,12 @@ func (r *Renderer) renderBlockquoteAsWidget(node *ast.Blockquote) {
 		}
 	}
 
-	// Create label with quote marker and italic text
-	label := widget.NewLabel("│ " + quoteText)
-	label.Wrapping = fyne.TextWrapWord
-	label.TextStyle = fyne.TextStyle{Italic: true}
+	// Create blockquote widget with styled border and background
+	blockquote := NewBlockquote(quoteText)
 
 	// Add spacing before blockquote
 	r.widgets = append(r.widgets, NewSpacer(8))
-	r.widgets = append(r.widgets, label)
+	r.widgets = append(r.widgets, blockquote)
 	// Add spacing after blockquote
 	r.widgets = append(r.widgets, NewSpacer(8))
 }

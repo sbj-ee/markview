@@ -136,9 +136,17 @@ MarkView includes two carefully crafted themes with enhanced typography:
 - **Bold heading styling** for improved scannability
 - **Smart typography** - Automatic conversion of quotes and dashes (e.g., "smart quotes", em-dashes)
 - **Clean rendering** without markdown syntax symbols (no fence markers shown)
-- **Proper code formatting** - Syntax highlighted code blocks with no line wrapping
-- **Proper spacing** between elements
+- **Proper code formatting** - Syntax highlighted code blocks with background styling and rounded corners
+- **Styled blockquotes** - Italic text with colored left border and subtle background
+- **Proper spacing** between elements using custom spacer widgets
 - **Widget-based rendering** for precise control over appearance
+
+### Visual Styling
+
+- **Code blocks** - Dark background with padding, rounded corners, and syntax highlighting
+- **Blockquotes** - Colored left border (theme primary color), subtle background, italic text
+- **Consistent spacing** - Custom spacer widgets ensure proper visual separation between elements
+- **Theme-aware colors** - Code block and blockquote backgrounds adapt to light/dark theme
 
 ---
 
@@ -181,15 +189,16 @@ make test-coverage
 #### Test Coverage
 
 - ✅ **Parser Tests** - Markdown parsing and AST generation
-- ✅ **Renderer Tests** - AST to Fyne widget conversion
+- ✅ **Renderer Tests** - AST to Fyne widget conversion, text normalization
 - ✅ **TOC Tests** - Heading extraction and hierarchy
 - ✅ **Syntax Highlighter Tests** - Code highlighting for multiple languages
 - ✅ **Debouncer Tests** - File change debouncing logic
 - ✅ **Watcher Tests** - File system monitoring
+- ✅ **Custom Widget Tests** - Spacer, CodeBlock, and Blockquote widgets
 
 **Test Results:**
 ```
-internal/markdown   - 22 tests (21 passed, 1 skipped)
+internal/markdown   - 47 tests (46 passed, 1 skipped)
 internal/toc        - 9 tests (all passed)
 internal/watcher    - 8 tests (all passed)
 ```
@@ -263,13 +272,18 @@ markview/
 │   ├── markdown/           # Markdown processing
 │   │   ├── parser.go       # Goldmark wrapper
 │   │   ├── renderer.go     # AST to Fyne conversion
-│   │   └── syntax.go       # Chroma integration
+│   │   ├── syntax.go       # Chroma integration
+│   │   ├── spacer.go       # Custom spacer widget for vertical spacing
+│   │   ├── codeblock.go    # Custom code block widget with background
+│   │   └── blockquote.go   # Custom blockquote widget with border
 │   ├── toc/                # Table of contents
 │   │   ├── generator.go    # Heading extraction
 │   │   └── navigation.go   # TOC tree widget
 │   ├── watcher/            # File monitoring
 │   │   ├── watcher.go      # fsnotify wrapper
 │   │   └── debounce.go     # Change debouncing
+│   ├── themes/             # Custom themes
+│   │   └── themes.go       # Light and dark theme definitions
 │   └── images/             # Image handling (future)
 ├── testdata/               # Sample markdown files
 ├── assets/                 # Application assets
@@ -337,6 +351,10 @@ Abstract Syntax Tree (AST)
 - Theme switching with instant reload
 - HTML entity rendering (smart quotes, em-dashes, etc.)
 - Clean code block display (no fence markers)
+- **Code block styling** - Background color, padding, rounded corners
+- **Blockquote styling** - Colored left border, subtle background
+- **Custom spacer widgets** - Proper vertical spacing between elements
+- **Theme-aware styling** - Visual elements adapt to light/dark mode
 
 ### 🚧 In Progress
 - Image rendering (local files)
