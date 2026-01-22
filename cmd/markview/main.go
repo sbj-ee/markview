@@ -7,6 +7,7 @@ import (
 
 	"fyne.io/fyne/v2/app"
 	"github.com/sbj-ee/markview/internal/gui"
+	"github.com/sbj-ee/markview/internal/themes"
 	"go.uber.org/zap"
 )
 
@@ -37,6 +38,7 @@ func main() {
 
 	// Create Fyne application
 	myApp := app.NewWithID("com.sbj-ee.markview")
+	myApp.SetIcon(themes.AppLogo())
 
 	// Create main window
 	window := gui.NewWindow(myApp, logger)

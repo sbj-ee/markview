@@ -594,6 +594,11 @@ type CodeColors struct {
 	Background color.Color
 }
 
+// AppLogo returns the MarkView application logo
+func AppLogo() fyne.Resource {
+	return resourceAppLogoSvg
+}
+
 // IconDocument returns a document/file icon
 func IconDocument() fyne.Resource {
 	return theme.DocumentIcon()

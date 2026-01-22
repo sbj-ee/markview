@@ -2,6 +2,16 @@ package themes
 
 import "fyne.io/fyne/v2"
 
+// App logo - M with v in the valley
+var resourceAppLogoSvg = &fyne.StaticResource{
+	StaticName: "applogo.svg",
+	StaticContent: []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="12" fill="#1E88E5"/>
+  <path d="M12 52V18h6l14 22 14-22h6v34h-7V30l-10.5 16h-5L19 30v22h-7z" fill="white"/>
+  <path d="M32 10l-5 9h3l2-3.5 2 3.5h3l-5-9z" fill="white"/>
+</svg>`),
+}
+
 // SVG icon resources for markdown editing toolbar
 
 var resourceBoldSvg = &fyne.StaticResource{
