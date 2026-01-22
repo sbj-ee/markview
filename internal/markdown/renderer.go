@@ -525,7 +525,7 @@ func (r *Renderer) renderHeadingAsWidget(node *ast.Heading) {
 
 // renderParagraphAsWidget renders paragraph as RichText
 func (r *Renderer) renderParagraphAsWidget(node *ast.Paragraph) {
-	// Try a simpler approach: extract all text as plain text and use Label
+	// Extract text as plain text (to avoid line break issues)
 	text := r.extractInlineText(node)
 
 	if text != "" {
