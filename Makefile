@@ -1,10 +1,10 @@
-.PHONY: all build run clean test install deps help
+.PHONY: all build run clean test install deps help package-deb package-dmg
 
 # Build variables
 BINARY_NAME=markview
 BUILD_DIR=bin
 CMD_DIR=cmd/markview
-VERSION?=0.1.0
+VERSION?=1.0.0
 
 # Go parameters
 GOCMD=go
@@ -94,6 +94,17 @@ package-macos: build ## Create macOS app bundle
 package-linux: build ## Create Linux package
 	@echo "Creating Linux package..."
 	fyne package -os linux -icon assets/icon.png
+
+# Native packaging scripts
+package-deb: ## Build .deb package for Debian/Ubuntu (Linux only)
+	@echo "Building .deb package..."
+	@chmod +x scripts/build-deb.sh
+	VERSION=$(VERSION) ./scripts/build-deb.sh
+
+package-dmg: ## Build .dmg package for macOS (macOS only)
+	@echo "Building .dmg package..."
+	@chmod +x scripts/build-dmg.sh
+	VERSION=$(VERSION) ./scripts/build-dmg.sh
 
 help: ## Display this help screen
 	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
