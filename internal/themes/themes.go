@@ -305,9 +305,14 @@ func IconLink() fyne.Resource {
 	return theme.NewThemedResource(resourceLinkSvg)
 }
 
-// IconCode returns a code icon
+// IconCode returns an inline code icon
 func IconCode() fyne.Resource {
 	return theme.NewThemedResource(resourceCodeSvg)
+}
+
+// IconCodeBlock returns a code block icon
+func IconCodeBlock() fyne.Resource {
+	return theme.NewThemedResource(resourceCodeBlockSvg)
 }
 
 // IconQuote returns a blockquote icon

@@ -288,7 +288,7 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 		w.editor.WrapSelection("`", "`")
 	})
 
-	codeBlockAction := newToolbarAction(themes.IconCode(), func() {
+	codeBlockAction := newToolbarAction(themes.IconCodeBlock(), func() {
 		w.editor.InsertAtCursor("\n```\n\n```\n")
 	})
 
