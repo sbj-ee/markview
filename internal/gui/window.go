@@ -94,6 +94,13 @@ type Window struct {
 	libraryView   *LibraryView
 	docLibrary    *library.DocumentLibrary
 	libraryScroll *container.Scroll
+
+	// Tags and features
+	tagManager    *TagManager
+	spellChecker  *SpellChecker
+	zenMode       bool
+	readingTime   *widget.Label
+	currentExportTheme string
 }
 
 // NewWindow creates a new application window
@@ -154,6 +161,16 @@ func NewWindow(app fyne.App, logger *zap.Logger) *Window {
 
 	// Load custom CSS
 	w.customCSS = w.app.Preferences().String("customCSS")
+
+	// Initialize tag manager and spell checker
+	w.tagManager = NewTagManager()
+	w.spellChecker = NewSpellChecker()
+
+	// Load export theme preference
+	w.currentExportTheme = w.app.Preferences().String("exportTheme")
+	if w.currentExportTheme == "" {
+		w.currentExportTheme = "Default"
+	}
 
 	// Load saved window size
 	w.loadWindowSize()
@@ -285,10 +302,13 @@ func (w *Window) setupUI() {
 	w.wordCount = widget.NewLabel("")
 	w.cursorPos = widget.NewLabel("")
 	w.statusBar = widget.NewLabel("")
+	w.readingTime = widget.NewLabel("")
 	statusInfo := container.NewHBox(
 		w.statusBar,
 		widget.NewSeparator(),
 		w.wordCount,
+		widget.NewSeparator(),
+		w.readingTime,
 		widget.NewSeparator(),
 		w.cursorPos,
 	)
@@ -706,6 +726,75 @@ func (w *Window) setupShortcuts() {
 	}, func(shortcut fyne.Shortcut) {
 		w.showRecentFiles()
 	})
+
+	// Ctrl+P - Quick switcher (not Cmd+P which is print)
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyP,
+		Modifier: fyne.KeyModifierControl,
+	}, func(shortcut fyne.Shortcut) {
+		w.showQuickSwitcher()
+	})
+
+	// Ctrl+Shift+P - Quick switcher (alternative)
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyP,
+		Modifier: fyne.KeyModifierControl | fyne.KeyModifierShift,
+	}, func(shortcut fyne.Shortcut) {
+		w.showQuickSwitcher()
+	})
+
+	// Ctrl+Shift+F - Full-text search across files
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyG,
+		Modifier: fyne.KeyModifierSuper | fyne.KeyModifierShift,
+	}, func(shortcut fyne.Shortcut) {
+		w.showFullTextSearch()
+	})
+
+	// Cmd/Ctrl+B - Show backlinks
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyB,
+		Modifier: fyne.KeyModifierSuper,
+	}, func(shortcut fyne.Shortcut) {
+		w.showBacklinks()
+	})
+
+	// Cmd/Ctrl+L - Validate links
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyL,
+		Modifier: fyne.KeyModifierSuper,
+	}, func(shortcut fyne.Shortcut) {
+		w.validateLinks()
+	})
+
+	// Cmd/Ctrl+T - Browse by tags
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyT,
+		Modifier: fyne.KeyModifierSuper,
+	}, func(shortcut fyne.Shortcut) {
+		w.showTagsBrowser()
+	})
+
+	// Cmd/Ctrl+Shift+N - New from template
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyN,
+		Modifier: fyne.KeyModifierSuper | fyne.KeyModifierShift,
+	}, func(shortcut fyne.Shortcut) {
+		w.newFileFromTemplate()
+	})
+
+	// F11 or Cmd+Shift+Enter - Zen mode (fullscreen)
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyF11,
+	}, func(shortcut fyne.Shortcut) {
+		w.toggleZenMode()
+	})
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyReturn,
+		Modifier: fyne.KeyModifierSuper | fyne.KeyModifierShift,
+	}, func(shortcut fyne.Shortcut) {
+		w.toggleZenMode()
+	})
 }
 
 // toggleFileTree toggles the file tree visibility
@@ -838,15 +927,22 @@ func (w *Window) showKeyboardShortcuts() {
 		desc string
 	}{
 		{"Cmd+N", "New file"},
+		{"Cmd+Shift+N", "New from template"},
 		{"Cmd+O", "Open file"},
 		{"Cmd+S", "Save file"},
 		{"Cmd+Shift+S", "Save as"},
 		{"Cmd+E", "Toggle edit mode"},
-		{"Cmd+F", "Find in file tree"},
+		{"Cmd+F", "Find/Replace (edit) / Filter (view)"},
 		{"Cmd+P", "Print/Export"},
+		{"Ctrl+P", "Quick file switcher"},
+		{"Cmd+Shift+G", "Search in all files"},
+		{"Cmd+B", "Show backlinks"},
+		{"Cmd+L", "Validate links"},
+		{"Cmd+T", "Browse by tags"},
 		{"Cmd+R", "Refresh"},
 		{"Cmd+\\", "Toggle split view"},
 		{"Cmd+Shift+F", "Toggle focus mode"},
+		{"F11 / Cmd+Shift+Enter", "Zen mode (fullscreen)"},
 		{"Cmd+?", "Show shortcuts"},
 		{"Escape", "Exit edit mode / Clear filter"},
 		{"Alt+Up", "Navigate to parent directory"},
@@ -1517,6 +1613,14 @@ func (w *Window) updateStatusBar() {
 			w.wordCount.SetText(fmt.Sprintf("%d words, %d chars", words, chars))
 		}
 
+		// Reading time (average 200 words per minute)
+		readMins := words / 200
+		if readMins < 1 {
+			w.readingTime.SetText("< 1 min read")
+		} else {
+			w.readingTime.SetText(fmt.Sprintf("%d min read", readMins))
+		}
+
 		// Cursor position (1-indexed for display)
 		row, col := w.editor.GetCursorPosition()
 		w.cursorPos.SetText(fmt.Sprintf("Ln %d, Col %d", row+1, col+1))
@@ -1525,11 +1629,23 @@ func (w *Window) updateStatusBar() {
 	} else if w.currentFile != "" {
 		// Show file path in view mode
 		w.statusBar.SetText(w.currentFile)
-		w.wordCount.SetText("")
+
+		// Calculate word count and reading time for view mode too
+		words := len(strings.Fields(w.contentBuffer))
+		w.wordCount.SetText(fmt.Sprintf("%d words", words))
+
+		readMins := words / 200
+		if readMins < 1 {
+			w.readingTime.SetText("< 1 min read")
+		} else {
+			w.readingTime.SetText(fmt.Sprintf("%d min read", readMins))
+		}
+
 		w.cursorPos.SetText("")
 	} else {
 		w.statusBar.SetText("No file open")
 		w.wordCount.SetText("")
+		w.readingTime.SetText("")
 		w.cursorPos.SetText("")
 	}
 }
@@ -1778,9 +1894,15 @@ func (w *Window) showPrintDialog() {
 		w.showCustomCSSDialog()
 	})
 
+	// Export theme button
+	exportThemeBtn := widget.NewButton("Export Theme...", func() {
+		w.showExportThemeDialog()
+	})
+
 	row3 := container.NewHBox(
 		printBtn,
 		customCSSBtn,
+		exportThemeBtn,
 	)
 
 	dialogContent := container.NewVBox(
@@ -2088,61 +2210,16 @@ func (w *Window) markdownToHTML(data []byte) string {
 	// Wrap in styled HTML document
 	title := filepath.Base(w.currentFile)
 
+	// Get the export theme CSS
+	themeCSS := w.getExportThemeCSS()
+
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <title>%s</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-            font-size: 16px;
-            line-height: 1.6;
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 20px;
-            color: #333;
-        }
-        h1, h2 { color: #2c5282; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.3em; }
-        h3, h4 { color: #c05621; }
-        code {
-            background-color: #f7fafc;
-            padding: 0.2em 0.4em;
-            border-radius: 3px;
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-            font-size: 85%%;
-        }
-        pre {
-            background-color: #2d3748;
-            color: #e2e8f0;
-            padding: 16px;
-            border-radius: 6px;
-            overflow-x: auto;
-        }
-        pre code {
-            background-color: transparent;
-            padding: 0;
-            color: inherit;
-        }
-        blockquote {
-            border-left: 4px solid #4299e1;
-            margin: 0;
-            padding-left: 16px;
-            color: #4a5568;
-            font-style: italic;
-        }
-        table {
-            border-collapse: collapse;
-            width: 100%%;
-        }
-        th, td {
-            border: 1px solid #e2e8f0;
-            padding: 8px 12px;
-            text-align: left;
-        }
-        th { background-color: #f7fafc; }
-        a { color: #4299e1; }
-        hr { border: none; border-top: 1px solid #e2e8f0; }
+%s
         .mermaid { text-align: center; }
         .toc {
             background-color: #f7fafc;
@@ -2171,11 +2248,6 @@ func (w *Window) markdownToHTML(data []byte) string {
         .toc a:hover {
             text-decoration: underline;
         }
-        @media print {
-            body { max-width: none; }
-            pre { white-space: pre-wrap; }
-            .toc { page-break-after: always; }
-        }
     </style>
     <!-- Mermaid for diagram rendering -->
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
@@ -2189,7 +2261,7 @@ func (w *Window) markdownToHTML(data []byte) string {
 %s
 %s
 </body>
-</html>`, title, w.getCustomCSSStyle(), tocHTML, contentHTML)
+</html>`, title, themeCSS, w.getCustomCSSStyle(), tocHTML, contentHTML)
 }
 
 // getCustomCSSStyle returns the custom CSS wrapped in a style tag, or empty string if no custom CSS
@@ -2205,4 +2277,208 @@ func withLeftPadding(content fyne.CanvasObject, padding float32) fyne.CanvasObje
 	spacer := canvas.NewRectangle(color.Transparent)
 	spacer.SetMinSize(fyne.NewSize(padding, 0))
 	return container.NewBorder(nil, nil, spacer, nil, content)
+}
+
+// showQuickSwitcher shows the quick file switcher
+func (w *Window) showQuickSwitcher() {
+	ShowQuickSwitcher(w.fyneWindow, w.currentDir, func(path string) {
+		w.checkUnsavedChanges(func() {
+			w.loadFile(path)
+		})
+	})
+}
+
+// showFullTextSearch shows the full-text search dialog
+func (w *Window) showFullTextSearch() {
+	ShowFullTextSearch(w.fyneWindow, w.currentDir, func(path string, line int) {
+		w.checkUnsavedChanges(func() {
+			w.loadFile(path)
+			// Navigate to line if in edit mode
+			if w.editMode {
+				w.navigateToLine(line - 1)
+			}
+		})
+	})
+}
+
+// showBacklinks shows the backlinks panel
+func (w *Window) showBacklinks() {
+	ShowBacklinks(w.fyneWindow, w.currentDir, w.currentFile, func(path string, line int) {
+		w.checkUnsavedChanges(func() {
+			w.loadFile(path)
+		})
+	})
+}
+
+// validateLinks validates links in the current document
+func (w *Window) validateLinks() {
+	if w.currentFile == "" {
+		dialog.ShowInformation("Link Validation", "No file is currently open.", w.fyneWindow)
+		return
+	}
+
+	basePath := filepath.Dir(w.currentFile)
+	ShowLinkValidationDialog(w.fyneWindow, basePath, w.contentBuffer, func(line int) {
+		if w.editMode {
+			w.navigateToLine(line - 1)
+		}
+	})
+}
+
+// showTagsBrowser shows the tags browser dialog
+func (w *Window) showTagsBrowser() {
+	// Reindex current file if open
+	if w.currentFile != "" {
+		w.tagManager.IndexFile(w.currentFile, w.contentBuffer)
+	}
+
+	ShowTagsDialog(w.fyneWindow, w.tagManager, func(path string) {
+		w.checkUnsavedChanges(func() {
+			w.loadFile(path)
+		})
+	})
+}
+
+// newFileFromTemplate creates a new file from a template
+func (w *Window) newFileFromTemplate() {
+	ShowTemplatesDialog(w.fyneWindow, func(content string) {
+		w.checkUnsavedChanges(func() {
+			// Clear current file
+			w.currentFile = ""
+			w.contentBuffer = content
+			w.isDirty = true
+
+			// Clear rendered content
+			w.scrollContent.Content = container.NewVBox()
+			w.scrollContent.Refresh()
+
+			// Switch to edit mode with template content
+			w.editMode = true
+			w.editor.SetText(w.contentBuffer)
+			w.scrollContent.Hide()
+			w.editorScroll.Show()
+			w.editToolbar.Show()
+			w.editAction.SetIcon(themes.IconView())
+
+			w.updateWindowTitle()
+			w.editor.Focus(w.fyneWindow.Canvas())
+
+			w.logger.Info("Created new file from template")
+		})
+	})
+}
+
+// toggleZenMode toggles zen mode (fullscreen distraction-free)
+func (w *Window) toggleZenMode() {
+	w.zenMode = !w.zenMode
+
+	if w.zenMode {
+		// Enter zen mode - fullscreen and hide all UI
+		w.fyneWindow.SetFullScreen(true)
+
+		// Hide all sidebars
+		w.fileTreeScroll.Hide()
+		w.tocScroll.Hide()
+		w.outlineScroll.Hide()
+		w.editToolbar.Hide()
+
+		// Set main split to show only content
+		w.mainSplit.Offset = 0
+	} else {
+		// Exit zen mode
+		w.fyneWindow.SetFullScreen(false)
+
+		// Restore UI based on current mode
+		w.fileTreeScroll.Show()
+		if w.editMode {
+			w.outlineScroll.Show()
+			w.editToolbar.Show()
+		} else {
+			w.tocScroll.Show()
+		}
+		w.mainSplit.Offset = 0.30
+	}
+	w.mainSplit.Refresh()
+}
+
+// showExportThemeDialog shows the export theme selection dialog
+func (w *Window) showExportThemeDialog() {
+	themes := GetExportThemes()
+	themeNames := make([]string, len(themes))
+	for i, t := range themes {
+		themeNames[i] = t.Name
+	}
+
+	themeRadio := widget.NewRadioGroup(themeNames, func(selected string) {
+		w.currentExportTheme = selected
+		w.app.Preferences().SetString("exportTheme", selected)
+	})
+	themeRadio.SetSelected(w.currentExportTheme)
+
+	// Show theme descriptions
+	var descLabels []*widget.Label
+	for _, t := range themes {
+		descLabels = append(descLabels, widget.NewLabel(t.Description))
+	}
+
+	list := widget.NewList(
+		func() int { return len(themes) },
+		func() fyne.CanvasObject {
+			return container.NewVBox(
+				widget.NewLabelWithStyle("Theme Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+				widget.NewLabel("Description"),
+			)
+		},
+		func(id widget.ListItemID, obj fyne.CanvasObject) {
+			if id < len(themes) {
+				box := obj.(*fyne.Container)
+				nameLabel := box.Objects[0].(*widget.Label)
+				descLabel := box.Objects[1].(*widget.Label)
+
+				t := themes[id]
+				if t.Name == w.currentExportTheme {
+					nameLabel.SetText(t.Name + " (selected)")
+				} else {
+					nameLabel.SetText(t.Name)
+				}
+				descLabel.SetText(t.Description)
+			}
+		},
+	)
+
+	list.OnSelected = func(id widget.ListItemID) {
+		if id < len(themes) {
+			w.currentExportTheme = themes[id].Name
+			w.app.Preferences().SetString("exportTheme", w.currentExportTheme)
+			list.Refresh()
+		}
+	}
+
+	scroll := container.NewScroll(list)
+	scroll.SetMinSize(fyne.NewSize(400, 300))
+
+	content := container.NewBorder(
+		widget.NewLabel("Select an export theme style:"),
+		nil, nil, nil,
+		scroll,
+	)
+
+	d := dialog.NewCustom("Export Theme", "Close", content, w.fyneWindow)
+	d.Resize(fyne.NewSize(450, 400))
+	d.Show()
+}
+
+// getExportThemeCSS returns the CSS for the current export theme
+func (w *Window) getExportThemeCSS() string {
+	themes := GetExportThemes()
+	for _, t := range themes {
+		if t.Name == w.currentExportTheme {
+			return t.CSS
+		}
+	}
+	// Default to first theme
+	if len(themes) > 0 {
+		return themes[0].CSS
+	}
+	return ""
 }

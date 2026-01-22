@@ -153,3 +153,33 @@ var resourceExportSvg = &fyne.StaticResource{
 	StaticName:    "export.svg",
 	StaticContent: []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2v9.67z"/></svg>`),
 }
+
+var resourceBacklinksSvg = &fyne.StaticResource{
+	StaticName:    "backlinks.svg",
+	StaticContent: []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19.07 4.93a10 10 0 1 0 0 14.14 10 10 0 0 0 0-14.14zM12 20a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm-.71-6.29a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3-3a1 1 0 0 0 0-1.42l-3-3a1 1 0 0 0-1.42 1.42L13.59 12zM8 12a1 1 0 0 0 1 1h2a1 1 0 0 0 0-2H9a1 1 0 0 0-1 1z"/></svg>`),
+}
+
+var resourceTagSvg = &fyne.StaticResource{
+	StaticName:    "tag.svg",
+	StaticContent: []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M10.9 2.1l9.9 1.4 1.4 9.9-8.5 8.5c-.8.8-2 .8-2.8 0L2.1 13c-.8-.8-.8-2 0-2.8l8.8-8.1zm.7 2.1L4 11.9l7.1 7.1 7.7-7.7-1-7.1-6.2-1zM8.5 11a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/></svg>`),
+}
+
+var resourceTemplateSvg = &fyne.StaticResource{
+	StaticName:    "template.svg",
+	StaticContent: []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-7-2h5v-5h-5v5zm-2-5H5v5h5v-5zm2-2h5V5h-5v5zM5 5h5v5H5V5z"/></svg>`),
+}
+
+var resourceZenSvg = &fyne.StaticResource{
+	StaticName:    "zen.svg",
+	StaticContent: []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>`),
+}
+
+var resourceQuickSwitchSvg = &fyne.StaticResource{
+	StaticName:    "quickswitch.svg",
+	StaticContent: []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>`),
+}
+
+var resourceLinkCheckSvg = &fyne.StaticResource{
+	StaticName:    "linkcheck.svg",
+	StaticContent: []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M17 7h-3c-.55 0-1 .45-1 1s.45 1 1 1h3c1.65 0 3 1.35 3 3s-1.35 3-3 3h-3c-.55 0-1 .45-1 1s.45 1 1 1h3c2.76 0 5-2.24 5-5s-2.24-5-5-5zm-9 5c0 .55.45 1 1 1h6c.55 0 1-.45 1-1s-.45-1-1-1H9c-.55 0-1 .45-1 1zM7 7c-2.76 0-5 2.24-5 5s2.24 5 5 5h3c.55 0 1-.45 1-1s-.45-1-1-1H7c-1.65 0-3-1.35-3-3s1.35-3 3-3h3c.55 0 1-.45 1-1s-.45-1-1-1H7z"/></svg>`),
+}
