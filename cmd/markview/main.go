@@ -1,0 +1,50 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+
+	"fyne.io/fyne/v2/app"
+	"github.com/sbj-ee/markview/internal/gui"
+	"go.uber.org/zap"
+)
+
+var (
+	version = "0.1.0"
+	logger  *zap.Logger
+)
+
+func main() {
+	// Parse command-line flags
+	filePath := flag.String("file", "", "Path to markdown file to open")
+	showVersion := flag.Bool("version", false, "Show version information")
+	flag.Parse()
+
+	// Initialize logger
+	var err error
+	logger, err = zap.NewDevelopment()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
+		os.Exit(1)
+	}
+	defer logger.Sync()
+
+	if *showVersion {
+		fmt.Printf("markview version %s\n", version)
+		return
+	}
+
+	// Create Fyne application
+	myApp := app.NewWithID("com.sbj-ee.markview")
+
+	// Create main window
+	window := gui.NewWindow(myApp, logger)
+
+	// Load file if provided via command line
+	if *filePath != "" {
+		window.LoadFile(*filePath)
+	}
+
+	window.ShowAndRun()
+}
