@@ -1,7 +1,11 @@
 # MarkView
 
 <p align="center">
-  <strong>A fast, cross-platform markdown viewer with live reload and syntax highlighting</strong>
+  <img src="assets/logo-128.png" alt="MarkView Logo" width="128" height="128">
+</p>
+
+<p align="center">
+  <strong>A powerful, cross-platform markdown viewer and editor with advanced features</strong>
 </p>
 
 <p align="center">
@@ -12,33 +16,92 @@
 
 ## Features
 
-### Core Functionality
+### Viewing & Editing
 - **Full Markdown Support** - CommonMark and GitHub Flavored Markdown (GFM)
-- **Syntax Highlighting** - 250+ languages via Chroma with beautiful color schemes
+- **Syntax Highlighting** - 250+ languages via Chroma
 - **Live Reload** - Auto-refresh on file changes (300ms debounce)
-- **Edit Mode** - Toggle between viewing and editing markdown with formatting toolbar
-- **File Browser** - Built-in file tree for easy navigation and file selection
-- **Table of Contents** - Hierarchical navigation with click-to-scroll
-- **Three-Pane Layout** - File Tree | TOC | Content with resizable panels
-- **Print Support** - Export to HTML or print via browser with styled formatting
-- **Custom Themes** - Beautiful light and dark themes with instant switching
-- **Smart Typography** - Automatic smart quotes, em-dashes, and proper character rendering
-- **Keyboard Shortcuts** - Cmd+O (Open), Cmd+E (Edit), Cmd+S (Save), Cmd+P (Print)
-- **Cross-Platform** - Native performance on macOS and Linux
+- **Edit Mode** - Toggle between viewing and editing with formatting toolbar
+- **Split View** - Side-by-side editor and preview (Cmd+\\)
+- **Focus Mode** - Hide sidebars for distraction-free reading (Cmd+Shift+F)
+- **Zen Mode** - Fullscreen distraction-free writing (F11)
+- **Typewriter Mode** - Keep cursor centered while typing
+- **Auto-Save** - Automatically saves changes every 30 seconds
 
-### Markdown Features Supported
-- **Headings** (H1-H6) with bold styling
-- **Text Formatting** - *italic*, **bold**, ***bold italic***
-- **Code Blocks** - Fenced (` ```language `) and indented, with syntax highlighting
-- **Inline Code** - Monospace rendering with `backticks`
-- **Lists** - Ordered and unordered, nested support
-- **Blockquotes** - Italic rendering
-- **Links** - Displayed with URL
-- **Images** - Alt text display (full image rendering coming soon)
-- **Tables** - GFM table support
-- **Task Lists** - GFM task list support
-- **Strikethrough** - GFM strikethrough support
-- **Smart Typography** - Smart quotes, em dashes, etc.
+### Navigation & Search
+- **File Browser** - Built-in file tree with filtering (Cmd+F)
+- **Table of Contents** - Hierarchical navigation with click-to-scroll
+- **Quick Switcher** - Fuzzy file finder (Ctrl+P)
+- **Full-Text Search** - Search across all markdown files (Cmd+Shift+G)
+- **Backlinks Panel** - See documents that link to the current file (Cmd+B)
+- **Recent Files** - Quick access to recently opened files (Cmd+Shift+O)
+
+### Organization
+- **Library Mode** - Browse and manage all documents in a folder
+- **Tags Support** - Organize documents with #hashtags (Cmd+T)
+- **Starred Documents** - Mark favorite documents for quick access
+- **Document Templates** - Create new files from templates (Cmd+Shift+N)
+  - Meeting Notes, Blog Post, README, Technical Spec, Journal, and more
+
+### Themes & Appearance
+- **8 Color Themes** - Light, Dark, Nord, Solarized Light/Dark, Monokai, Gruvbox Dark, One Dark
+- **Font Families** - System Default, Monospace, Serif, Sans Serif
+- **Font Sizes** - Small, Normal, Large, Extra Large
+- **Instant Theme Switching** - Click the palette icon to customize
+
+### Export & Print
+- **Export Formats** - HTML, PDF (via wkhtmltopdf), DOCX, RTF (via pandoc)
+- **6 Export Themes** - Default, GitHub, Academic, Dark, Minimal, Print-Friendly
+- **Custom CSS** - Add your own styles for exports
+- **Print via Browser** - Open in browser for system print dialog
+- **Table of Contents in Export** - Automatic TOC generation in HTML exports
+
+### Productivity
+- **Word Count & Reading Time** - Live statistics in status bar
+- **Word Count Goals** - Set and track writing goals
+- **Find & Replace** - Search and replace in edit mode (Cmd+F)
+- **Link Validation** - Check for broken links (Cmd+L)
+- **Spell Checking** - Highlight misspelled words (requires aspell)
+- **Snippets** - Quick-insert common markdown patterns
+- **Presentation Mode** - View markdown as slides
+
+### Additional Features
+- **Drag & Drop** - Drop markdown files onto the window to open
+- **Image Support** - Local image rendering with upload dialog
+- **Window Size Persistence** - Remembers your window size
+- **Keyboard Shortcuts** - Comprehensive shortcuts for all operations
+
+---
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| **File Operations** | |
+| Cmd+N | New file |
+| Cmd+Shift+N | New from template |
+| Cmd+O | Open file |
+| Cmd+S | Save file |
+| Cmd+Shift+S | Save as |
+| Cmd+P | Print/Export |
+| Cmd+R | Refresh |
+| **Edit Mode** | |
+| Cmd+E | Toggle edit mode |
+| Cmd+F | Find/Replace (edit) or Filter (view) |
+| Cmd+\\ | Toggle split view |
+| Escape | Exit edit mode |
+| **Navigation** | |
+| Ctrl+P | Quick file switcher |
+| Cmd+Shift+G | Search in all files |
+| Cmd+B | Show backlinks |
+| Cmd+T | Browse by tags |
+| Cmd+Shift+O | Recent files |
+| Alt+Up | Navigate to parent directory |
+| **View** | |
+| Cmd+Shift+F | Toggle focus mode |
+| F11 | Toggle zen mode (fullscreen) |
+| **Tools** | |
+| Cmd+L | Validate links |
+| Cmd+? | Show shortcuts |
 
 ---
 
@@ -49,11 +112,17 @@
 - **Go 1.21+** (for building from source)
 - **GCC** or compatible C compiler (required by Fyne for GUI)
 
+### Optional Dependencies
+
+- **aspell** - For spell checking (`brew install aspell` or `apt install aspell`)
+- **wkhtmltopdf** - For PDF export (`brew install wkhtmltopdf`)
+- **pandoc** - For DOCX/RTF export (`brew install pandoc`)
+
 ### Quick Install
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/sbj-ee/markview.git
 cd markview
 
 # Install to $GOPATH/bin
@@ -75,237 +144,80 @@ make build
 
 ### Command Line Interface
 
-#### Open a specific file:
 ```bash
+# Open a specific file
 markview -file README.md
-```
 
-#### Open file picker dialog:
-```bash
+# Open file picker dialog
 markview
-```
 
-#### Show version:
-```bash
+# Show version
 markview -version
 ```
 
-### GUI Operations
+### Edit Mode Toolbar
 
-MarkView uses a toolbar-based interface with icons for all major operations:
+When in edit mode, the formatting toolbar provides quick access to:
 
-| Action | Toolbar Icon | Keyboard Shortcut |
-|--------|--------------|-------------------|
-| **Open File** | Document icon | Cmd+O |
-| **Open Folder** | Folder icon | - |
-| **Toggle Edit Mode** | Edit/View icon | Cmd+E |
-| **Save** | Save icon | Cmd+S (in edit mode) |
-| **Discard Changes** | Undo icon | - |
-| **Refresh** | Refresh icon | Cmd+R |
-| **Toggle File Tree** | List icon | - |
-| **Toggle TOC** | Menu icon | - |
-| **Switch Theme** | Palette icon | - |
-| **Print** | - | Cmd+P |
-| **Focus File Filter** | - | Cmd+F |
-| **Navigate Up** | - | Alt+Up |
-| **Exit Edit Mode** | - | Escape (if no changes) |
-
-Additional interactions:
-- **Navigate** - Click TOC entries to jump to sections
-- **Browse Files** - Click files in the file tree pane
-- **Resize Panes** - Drag the split dividers
-
-### Live Reload
-
-MarkView automatically watches your file for changes. Perfect for:
-- Real-time markdown previewing while writing
-- Viewing auto-generated documentation
-- Live editing workflows
-
-The file watcher uses a 300ms debounce to prevent rapid re-renders during saves.
-
-### Edit Mode
-
-Toggle between viewing and editing markdown with Cmd+E or the Edit toolbar button:
-
-**View Mode** (default):
-- Rendered markdown display
-- Live file watching enabled
-- Click-to-scroll TOC navigation
-
-**Edit Mode**:
-- Raw markdown text editor
-- Formatting toolbar with quick-insert buttons
-- File watching paused to prevent conflicts
-- Unsaved changes indicator in title bar
-
-**Edit Toolbar Actions**:
 | Button | Action |
 |--------|--------|
-| Bold | Wrap selection with `**` |
-| Italic | Wrap selection with `*` |
-| H1/H2/H3 | Insert heading prefix at line start |
-| Link | Wrap selection as `[text](url)` |
-| Image | Insert image syntax `![alt](url)` |
-| Code | Wrap selection with backticks |
-| Code Block | Insert fenced code block |
-| Quote | Insert `>` at line start |
-| List | Insert `-` at line start |
-| HR | Insert horizontal rule `---` |
-
-**Saving**:
-- Cmd+S saves the file and clears the dirty indicator
-- Switching files or closing with unsaved changes prompts for confirmation
-- Discard button reverts to the last saved version
-
-### Beautiful Themes
-
-MarkView includes two carefully crafted themes with enhanced typography:
-
-#### Dark Theme (Default)
-- Dracula-inspired color palette
-- Deep purple-gray background (#282A36)
-- Vibrant syntax highlighting
-- **Large, blue-colored headings** for excellent hierarchy
-- Easy on the eyes for extended reading sessions
-- Perfect for low-light environments
-
-#### Light Theme
-- GitHub-inspired clean design
-- Pure white background with professional colors
-- **Blue headings with increased font sizes** (H1: 28pt, H2: 22pt)
-- High contrast for readability
-- Ideal for daytime use and printing
-- Easy on battery life
-
-**Switch themes instantly** by clicking the color palette icon in the toolbar.
-
-### Typography & Rendering
-
-- **Larger headings** with visual hierarchy (H1 @ 28pt, H2 @ 22pt, H3 @ 21pt)
-- **Colored headings** in professional blue shades
-- **Bold heading styling** for improved scannability
-- **Smart typography** - Automatic conversion of quotes and dashes (e.g., "smart quotes", em-dashes)
-- **Clean rendering** without markdown syntax symbols (no fence markers shown)
-- **Proper code formatting** - Syntax highlighted code blocks with background styling and rounded corners
-- **Styled blockquotes** - Italic text with colored left border and subtle background
-- **Proper spacing** between elements using custom spacer widgets
-- **Widget-based rendering** for precise control over appearance
-
-### Visual Styling
-
-- **Code blocks** - Dark background with padding, rounded corners, and syntax highlighting
-- **Blockquotes** - Colored left border (theme primary color), subtle background, italic text
-- **Consistent spacing** - Custom spacer widgets ensure proper visual separation between elements
-- **Theme-aware colors** - Code block and blockquote backgrounds adapt to light/dark theme
+| **B** | Bold - wrap with `**` |
+| *I* | Italic - wrap with `*` |
+| H1/H2/H3 | Insert heading |
+| Link | Insert `[text](url)` |
+| Image | Insert image dialog |
+| Table | Visual table editor |
+| Code | Inline code |
+| Code Block | Fenced code block |
+| Quote | Blockquote |
+| List | Bullet list |
+| HR | Horizontal rule |
+| Snippet | Insert template snippets |
+| Typewriter | Toggle typewriter mode |
+| Goal | Set word count goal |
 
 ---
 
-## Development
+## Themes
 
-### Build Commands
+### Color Themes
 
-```bash
-# Build the application
-make build
+| Theme | Description |
+|-------|-------------|
+| **Light** | Clean, professional design |
+| **Dark** | Dracula-inspired dark theme (default) |
+| **Nord** | Arctic, north-bluish color palette |
+| **Solarized Light** | Warm, yellowish light theme |
+| **Solarized Dark** | Blue-tinted dark theme |
+| **Monokai** | Classic code editor colors |
+| **Gruvbox Dark** | Retro groove colors |
+| **One Dark** | Atom-inspired dark theme |
 
-# Run directly
-make run
+### Export Themes
 
-# Run with sample file
-make run-sample
-
-# Run with theme showcase
-make run-theme
-
-# Clean build artifacts
-make clean
-```
-
-### Testing
-
-The project includes comprehensive unit tests:
-
-```bash
-# Run all tests
-make test
-
-# Run tests with verbose output
-go test ./internal/... -v
-
-# Run tests with coverage
-make test-coverage
-```
-
-#### Test Coverage
-
-- **Parser Tests** - Markdown parsing and AST generation
-- **Renderer Tests** - AST to Fyne widget conversion, text normalization
-- **TOC Tests** - Heading extraction and hierarchy
-- **Syntax Highlighter Tests** - Code highlighting for multiple languages
-- **Debouncer Tests** - File change debouncing logic
-- **Watcher Tests** - File system monitoring
-- **Custom Widget Tests** - Spacer, CodeBlock, and Blockquote widgets
-
-**Test Results:**
-```
-internal/markdown   - 47 tests (46 passed, 1 skipped)
-internal/toc        - 9 tests (all passed)
-internal/watcher    - 8 tests (all passed)
-```
-
-### Code Quality
-
-```bash
-# Format code
-make fmt
-
-# Run go vet
-make vet
-
-# Run linter (requires golangci-lint)
-make lint
-```
+| Theme | Best For |
+|-------|----------|
+| **Default** | General purpose |
+| **GitHub** | GitHub-style documentation |
+| **Academic** | Papers and formal documents |
+| **Dark** | Screen viewing |
+| **Minimal** | Clean, serif typography |
+| **Print-Friendly** | Physical printing |
 
 ---
 
-## Cross-Platform Building
+## Document Templates
 
-MarkView supports cross-compilation for multiple platforms using `fyne-cross`.
+Create new documents from templates with Cmd+Shift+N:
 
-### Setup
-
-```bash
-# Install fyne-cross
-go install github.com/fyne-io/fyne-cross@latest
-
-# Requires Docker for cross-compilation
-```
-
-### Build Commands
-
-```bash
-# Build for Linux (amd64 & arm64)
-make build-linux
-
-# Build for macOS (amd64 & arm64)
-make build-macos
-
-# Build for all platforms
-make build-all
-```
-
-Binaries will be output to `fyne-cross/dist/`.
-
-### Packaging
-
-```bash
-# Create macOS .app bundle
-make package-macos
-
-# Create Linux package
-make package-linux
-```
+- **Blank Document** - Start fresh
+- **Meeting Notes** - Attendees, agenda, action items
+- **Blog Post** - YAML frontmatter, sections
+- **Project README** - Features, installation, usage
+- **Technical Specification** - Requirements, architecture, timeline
+- **Daily Journal** - Gratitude, goals, reflection
+- **Weekly Review** - Accomplishments, lessons, planning
+- **Code Review Notes** - Findings, checklist, approval
 
 ---
 
@@ -316,169 +228,67 @@ make package-linux
 ```
 markview/
 ├── cmd/markview/           # Application entry point
-│   └── main.go             # CLI parsing and app initialization
 ├── internal/
 │   ├── gui/                # User interface
-│   │   ├── window.go       # Main window, toolbar, print support
-│   │   ├── editor.go       # Markdown editor widget with text manipulation
-│   │   └── filetree.go     # File browser tree widget
+│   │   ├── window.go       # Main window and toolbar
+│   │   ├── editor.go       # Markdown editor widget
+│   │   ├── filetree.go     # File browser
+│   │   ├── quickswitcher.go # Fuzzy file finder
+│   │   ├── search.go       # Full-text search
+│   │   ├── backlinks.go    # Backlinks panel
+│   │   ├── tags.go         # Tag management
+│   │   ├── templates.go    # Document templates
+│   │   ├── export_themes.go # Export styling
+│   │   ├── spellcheck.go   # Spell checking
+│   │   └── ...
 │   ├── markdown/           # Markdown processing
 │   │   ├── parser.go       # Goldmark wrapper
 │   │   ├── renderer.go     # AST to Fyne conversion
-│   │   ├── syntax.go       # Chroma integration
-│   │   ├── spacer.go       # Custom spacer widget for vertical spacing
-│   │   ├── codeblock.go    # Custom code block widget with background
-│   │   └── blockquote.go   # Custom blockquote widget with border
+│   │   └── syntax.go       # Chroma integration
 │   ├── toc/                # Table of contents
-│   │   ├── generator.go    # Heading extraction
-│   │   └── navigation.go   # TOC tree widget
 │   ├── watcher/            # File monitoring
-│   │   ├── watcher.go      # fsnotify wrapper
-│   │   └── debounce.go     # Change debouncing
-│   └── themes/             # Custom themes
-│       ├── themes.go       # Light and dark theme definitions
-│       └── icons.go        # SVG icons for toolbar
-├── testdata/               # Sample markdown files
-├── assets/                 # Application assets
-├── Makefile                # Build automation
-├── README.md               # This file
-└── IMPLEMENTATION.md       # Technical details
-```
-
-### Rendering Pipeline
-
-```
-Markdown File
-    ↓
-Goldmark Parser (CommonMark + GFM)
-    ↓
-Abstract Syntax Tree (AST)
-    ├→ TOC Generator → Heading Tree
-    └→ Renderer
-        ├→ Chroma (syntax highlighting)
-        └→ Fyne Widgets (RichText, Tree, etc.)
-            ↓
-        Display in Window
+│   ├── library/            # Document library
+│   └── themes/             # Theme definitions
+├── assets/                 # Logo and icons
+├── testdata/               # Sample files
+└── Makefile                # Build automation
 ```
 
 ### Key Technologies
 
-| Component | Technology | Version |
-|-----------|-----------|---------|
-| GUI Framework | [Fyne](https://fyne.io) | v2.7.2 |
-| Markdown Parser | [Goldmark](https://github.com/yuin/goldmark) | v1.7.16 |
-| Syntax Highlighter | [Chroma](https://github.com/alecthomas/chroma) | v2.23.0 |
-| File Watcher | [fsnotify](https://github.com/fsnotify/fsnotify) | v1.9.0 |
-| Logger | [zap](https://github.com/uber-go/zap) | v1.27.1 |
+| Component | Technology |
+|-----------|-----------|
+| GUI Framework | [Fyne](https://fyne.io) v2.7.2 |
+| Markdown Parser | [Goldmark](https://github.com/yuin/goldmark) v1.7.16 |
+| Syntax Highlighter | [Chroma](https://github.com/alecthomas/chroma) v2.23.0 |
+| File Watcher | [fsnotify](https://github.com/fsnotify/fsnotify) v1.9.0 |
+| Logger | [zap](https://github.com/uber-go/zap) v1.27.1 |
 
 ---
 
-## Performance
+## Development
 
-- **Fast Parsing** - Goldmark is optimized for speed
-- **Efficient Rendering** - Only re-renders on file changes
-- **Low Memory** - ~50MB typical memory usage
-- **Native UI** - Fyne provides native performance
-- **Debounced Reload** - Prevents excessive re-renders
+### Build Commands
 
-### Benchmark (Apple M1, macOS)
+```bash
+make build          # Build the application
+make run            # Run directly
+make test           # Run all tests
+make test-coverage  # Run tests with coverage
+make fmt            # Format code
+make vet            # Run go vet
+make lint           # Run linter
+make clean          # Clean build artifacts
+```
 
-| File Size | Parse Time | Render Time | Total |
-|-----------|-----------|-------------|-------|
-| 10 KB | < 1ms | 2-3ms | ~3ms |
-| 100 KB | 3-5ms | 10-15ms | ~18ms |
-| 1 MB | 30-40ms | 100-150ms | ~180ms |
+### Cross-Platform Building
 
----
-
-## Roadmap
-
-### Implemented (v0.1.0)
-- Basic markdown rendering with smart typography
-- Syntax highlighting with beautiful colors (no line wrapping in code blocks)
-- Live file reload with auto-watch
-- Table of contents with click-to-scroll navigation
-- Split view layout with resizable panels
-- File operations (open, refresh)
-- Custom light and dark themes
-- Theme switching with instant reload
-- HTML entity rendering (smart quotes, em-dashes, etc.)
-- Clean code block display (no fence markers)
-- **Code block styling** - Background color, padding, rounded corners
-- **Blockquote styling** - Colored left border, subtle background
-- **Custom spacer widgets** - Proper vertical spacing between elements
-- **Theme-aware styling** - Visual elements adapt to light/dark mode
-- **Image support** - Local image rendering in markdown
-- **Icon-based toolbar** - Clean toolbar interface replacing menu bar
-- **Keyboard shortcuts** - Cmd+O, Cmd+E, Cmd+S, Cmd+P, Cmd+R, Cmd+F
-- **Edit mode** - Toggle between view and edit with formatting toolbar
-- **Markdown editing** - Full text editing with save, undo/redo, dirty tracking
-
-### In Progress
-- Additional theme options (Nord, Solarized, etc.)
-
-### Planned
-- **v0.2.0**
-  - Remote image support
-  - Additional themes (Nord, Solarized, Monokai, etc.)
-  - Enhanced TOC with current position tracking
-
-- **v0.3.0**
-  - PDF export
-  - Search functionality
-  - Recent files list
-  - Preferences dialog
-
-- **v0.4.0**
-  - Custom CSS styling
-  - Plugin system
-  - Multi-file viewing (tabs)
-
----
-
-## Contributing
-
-Contributions are welcome! Here's how to get started:
-
-### Development Setup
-
-1. **Fork and clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/markview.git
-   cd markview
-   ```
-
-2. **Install dependencies**
-   ```bash
-   make deps
-   ```
-
-3. **Create a feature branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-4. **Make your changes**
-   - Write code
-   - Add tests
-   - Update documentation
-
-5. **Test your changes**
-   ```bash
-   make test
-   make fmt
-   make vet
-   ```
-
-6. **Submit a pull request**
-
-### Code Guidelines
-
-- Follow Go best practices
-- Add tests for new features
-- Update documentation
-- Run `make fmt` before committing
-- Keep commits atomic and well-described
+```bash
+# Requires fyne-cross and Docker
+make build-linux    # Build for Linux
+make build-macos    # Build for macOS
+make build-all      # Build for all platforms
+```
 
 ---
 
@@ -490,40 +300,19 @@ Contributions are welcome! Here's how to get started:
 - Install Go 1.21+ from https://go.dev/dl/
 
 **"gcc: command not found"**
-- macOS: Install Xcode Command Line Tools: `xcode-select --install`
-- Linux: Install build-essential: `sudo apt install build-essential`
+- macOS: `xcode-select --install`
+- Linux: `sudo apt install build-essential`
 
 ### Runtime Issues
 
-**"Failed to initialize logger"**
-- Check file permissions in the application directory
+**Spell checking not working**
+- Install aspell: `brew install aspell` or `apt install aspell`
 
-**"File watcher not working"**
-- Verify the file exists and is readable
-- Check system file descriptor limits (Linux: `ulimit -n`)
+**PDF export not working**
+- Install wkhtmltopdf: `brew install wkhtmltopdf`
 
-**"Syntax highlighting not working"**
-- Verify language name in fence (e.g., ` ```go ` not ` ```golang `)
-- Check Chroma supports the language: https://github.com/alecthomas/chroma
-
----
-
-## FAQ
-
-**Q: What markdown flavor is supported?**
-A: CommonMark with GitHub Flavored Markdown (GFM) extensions.
-
-**Q: Can I use MarkView on Windows?**
-A: Not currently, but Fyne supports Windows. Contributions welcome!
-
-**Q: Does MarkView support custom CSS?**
-A: Not yet, but it's planned for v0.4.0.
-
-**Q: Can I edit markdown in MarkView?**
-A: Yes! Press Cmd+E to toggle edit mode. The editor includes a formatting toolbar and supports save (Cmd+S), undo/redo, and unsaved changes prompts.
-
-**Q: How do I change the theme?**
-A: Click the color palette icon in the toolbar to toggle between light and dark themes. The entire interface updates instantly!
+**DOCX/RTF export not working**
+- Install pandoc: `brew install pandoc`
 
 ---
 
@@ -543,18 +332,10 @@ Built with excellent open-source projects:
 - [fsnotify](https://github.com/fsnotify/fsnotify) - Cross-platform file system notifications
 - [zap](https://github.com/uber-go/zap) - Blazing fast, structured logging
 
-Special thanks to the Go community for creating amazing tools!
-
----
-
-## Support & Contact
-
-- **Issues**: [GitHub Issues](https://github.com/yourusername/markview/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/markview/discussions)
-- **Email**: your.email@example.com
-
 ---
 
 <p align="center">
+  <img src="assets/logo-64.png" alt="MarkView" width="32" height="32">
+  <br>
   Made with Go and Fyne
 </p>
