@@ -60,7 +60,15 @@ func (e *MarkdownEditor) TypedRune(r rune) {
 
 // MinSize returns the minimum size of the editor
 func (e *MarkdownEditor) MinSize() fyne.Size {
-	return e.entry.MinSize()
+	// Return a reasonable minimum size for the editor
+	min := e.entry.MinSize()
+	if min.Width < 200 {
+		min.Width = 200
+	}
+	if min.Height < 100 {
+		min.Height = 100
+	}
+	return min
 }
 
 // WrapSelection wraps the selected text with prefix and suffix, or inserts at cursor

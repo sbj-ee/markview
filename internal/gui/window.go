@@ -48,12 +48,13 @@ type Window struct {
 	isDirty       bool
 	editor        *MarkdownEditor
 	editorScroll  *container.Scroll
+	contentStack  *fyne.Container
 	contentBuffer string // Original content for dirty checking
 
 	// Toolbar actions
-	editAction    *tooltipToolbarAction
-	saveAction    *tooltipToolbarAction
-	discardAction *tooltipToolbarAction
+	editAction    *toolbarAction
+	saveAction    *toolbarAction
+	discardAction *toolbarAction
 
 	// Edit toolbar (shown in edit mode)
 	editToolbar *widget.Toolbar
@@ -136,12 +137,12 @@ func (w *Window) setupUI() {
 	w.leftSplit.Offset = 0.5 // Equal split between file tree and TOC
 
 	// Content area: stack of rendered view and editor (only one visible at a time)
-	contentStack := container.NewStack(w.scrollContent, w.editorScroll)
+	w.contentStack = container.NewStack(w.scrollContent, w.editorScroll)
 
 	// Main split: (File Tree | TOC) | Content
 	w.mainSplit = container.NewHSplit(
 		w.leftSplit,
-		contentStack,
+		w.contentStack,
 	)
 	w.mainSplit.Offset = 0.30 // Left panes take 30% of width
 
@@ -164,120 +165,65 @@ func (w *Window) setupUI() {
 	w.fyneWindow.SetContent(mainContent)
 }
 
-// tooltipButton is a button with tooltip support
-type tooltipButton struct {
-	widget.Button
-	tooltip string
-	popup   *widget.PopUp
+// toolbarAction is a custom toolbar item
+type toolbarAction struct {
+	button *widget.Button
 }
 
-// newTooltipButton creates a button with an icon and tooltip
-func newTooltipButton(icon fyne.Resource, tooltip string, onTap func()) *tooltipButton {
-	btn := &tooltipButton{
-		tooltip: tooltip,
-	}
-	btn.ExtendBaseWidget(btn)
-	btn.Icon = icon
-	btn.OnTapped = onTap
+// newToolbarAction creates a toolbar action with an icon
+func newToolbarAction(icon fyne.Resource, onTap func()) *toolbarAction {
+	btn := widget.NewButtonWithIcon("", icon, onTap)
 	btn.Importance = widget.LowImportance
-	return btn
-}
-
-// MouseIn shows the tooltip
-func (b *tooltipButton) MouseIn(e *desktop.MouseEvent) {
-	b.Button.MouseIn(e)
-
-	if b.tooltip == "" {
-		return
-	}
-
-	canvas := fyne.CurrentApp().Driver().CanvasForObject(b)
-	if canvas == nil {
-		return
-	}
-
-	label := widget.NewLabel(b.tooltip)
-	b.popup = widget.NewPopUp(
-		container.NewPadded(label),
-		canvas,
-	)
-
-	pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(b)
-	b.popup.ShowAtPosition(fyne.NewPos(pos.X, pos.Y+b.Size().Height+2))
-}
-
-// MouseOut hides the tooltip
-func (b *tooltipButton) MouseOut() {
-	b.Button.MouseOut()
-
-	if b.popup != nil {
-		b.popup.Hide()
-		b.popup = nil
-	}
-}
-
-// tooltipToolbarAction is a custom toolbar item with tooltip support
-type tooltipToolbarAction struct {
-	button *tooltipButton
-}
-
-// newTooltipToolbarAction creates a toolbar action with a tooltip
-func newTooltipToolbarAction(icon fyne.Resource, tooltip string, onTap func()) *tooltipToolbarAction {
-	return &tooltipToolbarAction{
-		button: newTooltipButton(icon, tooltip, onTap),
-	}
+	return &toolbarAction{button: btn}
 }
 
 // ToolbarObject implements widget.ToolbarItem
-func (t *tooltipToolbarAction) ToolbarObject() fyne.CanvasObject {
-	// Add horizontal padding around each button for more spacing
+func (t *toolbarAction) ToolbarObject() fyne.CanvasObject {
 	return container.NewPadded(t.button)
 }
 
 // SetIcon updates the icon of the toolbar action
-func (t *tooltipToolbarAction) SetIcon(icon fyne.Resource) {
-	t.button.Icon = icon
-	t.button.Refresh()
+func (t *toolbarAction) SetIcon(icon fyne.Resource) {
+	t.button.SetIcon(icon)
 }
 
 // createToolbar creates the application toolbar
 func (w *Window) createToolbar() *widget.Toolbar {
-	// Create toolbar actions with tooltips
-	openFileAction := newTooltipToolbarAction(themes.IconDocument(), "Open File (Cmd+O)", func() {
+	openFileAction := newToolbarAction(themes.IconDocument(), func() {
 		w.showOpenDialog()
 	})
 
-	openFolderAction := newTooltipToolbarAction(themes.IconFolder(), "Open Folder", func() {
+	openFolderAction := newToolbarAction(themes.IconFolder(), func() {
 		w.showFolderDialog()
 	})
 
-	w.saveAction = newTooltipToolbarAction(themes.IconSave(), "Save (Cmd+S)", func() {
+	w.saveAction = newToolbarAction(themes.IconSave(), func() {
 		w.saveFile()
 	})
 
-	w.discardAction = newTooltipToolbarAction(themes.IconUndo(), "Discard Changes", func() {
+	w.discardAction = newToolbarAction(themes.IconUndo(), func() {
 		w.discardChanges()
 	})
 
-	w.editAction = newTooltipToolbarAction(themes.IconEdit(), "Edit Mode (Cmd+E)", func() {
+	w.editAction = newToolbarAction(themes.IconEdit(), func() {
 		w.toggleEditMode()
 	})
 
-	refreshAction := newTooltipToolbarAction(themes.IconRefresh(), "Refresh (Cmd+R)", func() {
+	refreshAction := newToolbarAction(themes.IconRefresh(), func() {
 		if w.currentFile != "" {
 			w.loadFile(w.currentFile)
 		}
 	})
 
-	toggleFileTreeAction := newTooltipToolbarAction(themes.IconFileTree(), "Toggle File Tree", func() {
+	toggleFileTreeAction := newToolbarAction(themes.IconFileTree(), func() {
 		w.toggleFileTree()
 	})
 
-	toggleTOCAction := newTooltipToolbarAction(themes.IconTOC(), "Toggle Table of Contents", func() {
+	toggleTOCAction := newToolbarAction(themes.IconTOC(), func() {
 		w.toggleTOC()
 	})
 
-	toggleThemeAction := newTooltipToolbarAction(themes.IconTheme(), "Toggle Theme", func() {
+	toggleThemeAction := newToolbarAction(themes.IconTheme(), func() {
 		w.toggleTheme()
 	})
 
@@ -310,47 +256,47 @@ func (w *Window) toggleTheme() {
 
 // createEditToolbar creates the markdown editing toolbar
 func (w *Window) createEditToolbar() *widget.Toolbar {
-	boldAction := newTooltipToolbarAction(themes.IconBold(), "Bold (Cmd+B)", func() {
+	boldAction := newToolbarAction(themes.IconBold(), func() {
 		w.editor.WrapSelection("**", "**")
 	})
 
-	italicAction := newTooltipToolbarAction(themes.IconItalic(), "Italic (Cmd+I)", func() {
+	italicAction := newToolbarAction(themes.IconItalic(), func() {
 		w.editor.WrapSelection("*", "*")
 	})
 
-	h1Action := newTooltipToolbarAction(themes.IconHeading(), "Heading 1", func() {
+	h1Action := newToolbarAction(themes.IconHeading(), func() {
 		w.editor.InsertAtLineStart("# ")
 	})
 
-	h2Action := newTooltipToolbarAction(themes.IconHeading(), "Heading 2", func() {
+	h2Action := newToolbarAction(themes.IconHeading(), func() {
 		w.editor.InsertAtLineStart("## ")
 	})
 
-	h3Action := newTooltipToolbarAction(themes.IconHeading(), "Heading 3", func() {
+	h3Action := newToolbarAction(themes.IconHeading(), func() {
 		w.editor.InsertAtLineStart("### ")
 	})
 
-	linkAction := newTooltipToolbarAction(themes.IconLink(), "Link", func() {
+	linkAction := newToolbarAction(themes.IconLink(), func() {
 		w.editor.WrapSelection("[", "](url)")
 	})
 
-	codeAction := newTooltipToolbarAction(themes.IconCode(), "Inline Code", func() {
+	codeAction := newToolbarAction(themes.IconCode(), func() {
 		w.editor.WrapSelection("`", "`")
 	})
 
-	codeBlockAction := newTooltipToolbarAction(themes.IconCode(), "Code Block", func() {
+	codeBlockAction := newToolbarAction(themes.IconCode(), func() {
 		w.editor.InsertAtCursor("\n```\n\n```\n")
 	})
 
-	quoteAction := newTooltipToolbarAction(themes.IconQuote(), "Blockquote", func() {
+	quoteAction := newToolbarAction(themes.IconQuote(), func() {
 		w.editor.InsertAtLineStart("> ")
 	})
 
-	listAction := newTooltipToolbarAction(themes.IconList(), "Bullet List", func() {
+	listAction := newToolbarAction(themes.IconList(), func() {
 		w.editor.InsertAtLineStart("- ")
 	})
 
-	hrAction := newTooltipToolbarAction(themes.IconHorizontalRule(), "Horizontal Rule", func() {
+	hrAction := newToolbarAction(themes.IconHorizontalRule(), func() {
 		w.editor.InsertAtCursor("\n---\n")
 	})
 
@@ -731,10 +677,14 @@ func (w *Window) updateTOCOnly(data []byte) {
 
 // onEditorChanged handles content changes in the editor
 func (w *Window) onEditorChanged(content string) {
-	wasDirty := w.isDirty
-	w.isDirty = content != w.contentBuffer
+	// Skip dirty checking if we're just loading content
+	if !w.editMode {
+		return
+	}
 
-	if wasDirty != w.isDirty {
+	// Mark as dirty on any change (don't compare full content - too slow)
+	if !w.isDirty {
+		w.isDirty = true
 		w.updateWindowTitle()
 	}
 }
