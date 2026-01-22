@@ -16,13 +16,14 @@
 - **Full Markdown Support** - CommonMark and GitHub Flavored Markdown (GFM)
 - **Syntax Highlighting** - 250+ languages via Chroma with beautiful color schemes
 - **Live Reload** - Auto-refresh on file changes (300ms debounce)
+- **Edit Mode** - Toggle between viewing and editing markdown with formatting toolbar
 - **File Browser** - Built-in file tree for easy navigation and file selection
 - **Table of Contents** - Hierarchical navigation with click-to-scroll
 - **Three-Pane Layout** - File Tree | TOC | Content with resizable panels
 - **Print Support** - Export to HTML or print via browser with styled formatting
 - **Custom Themes** - Beautiful light and dark themes with instant switching
 - **Smart Typography** - Automatic smart quotes, em-dashes, and proper character rendering
-- **Keyboard Shortcuts** - Cmd+O (Open), Cmd+P (Print), Cmd+R (Refresh)
+- **Keyboard Shortcuts** - Cmd+O (Open), Cmd+E (Edit), Cmd+S (Save), Cmd+P (Print)
 - **Cross-Platform** - Native performance on macOS and Linux
 
 ### Markdown Features Supported
@@ -91,19 +92,28 @@ markview -version
 
 ### GUI Operations
 
-| Action | Method |
-|--------|--------|
-| **Open File** | File → Open File or Cmd+O |
-| **Open Folder** | File → Open Folder (sets file tree root) |
-| **Refresh** | File → Refresh or Cmd+R |
-| **Print** | File → Print or Cmd+P |
-| **Toggle File Tree** | View → Toggle File Tree |
-| **Toggle TOC** | View → Toggle TOC |
-| **Switch Theme** | View → Light Theme / Dark Theme |
-| **Navigate** | Click TOC entries to jump to sections |
-| **Browse Files** | Click files in the file tree pane |
-| **Resize Panes** | Drag the split dividers |
-| **Quit** | File → Quit or Cmd+Q (macOS) / Ctrl+Q (Linux) |
+MarkView uses a toolbar-based interface with icons for all major operations:
+
+| Action | Toolbar Icon | Keyboard Shortcut |
+|--------|--------------|-------------------|
+| **Open File** | Document icon | Cmd+O |
+| **Open Folder** | Folder icon | - |
+| **Toggle Edit Mode** | Edit/View icon | Cmd+E |
+| **Save** | Save icon | Cmd+S (in edit mode) |
+| **Discard Changes** | Undo icon | - |
+| **Refresh** | Refresh icon | Cmd+R |
+| **Toggle File Tree** | List icon | - |
+| **Toggle TOC** | Menu icon | - |
+| **Switch Theme** | Palette icon | - |
+| **Print** | - | Cmd+P |
+| **Focus File Filter** | - | Cmd+F |
+| **Navigate Up** | - | Alt+Up |
+| **Exit Edit Mode** | - | Escape (if no changes) |
+
+Additional interactions:
+- **Navigate** - Click TOC entries to jump to sections
+- **Browse Files** - Click files in the file tree pane
+- **Resize Panes** - Drag the split dividers
 
 ### Live Reload
 
@@ -113,6 +123,40 @@ MarkView automatically watches your file for changes. Perfect for:
 - Live editing workflows
 
 The file watcher uses a 300ms debounce to prevent rapid re-renders during saves.
+
+### Edit Mode
+
+Toggle between viewing and editing markdown with Cmd+E or the Edit toolbar button:
+
+**View Mode** (default):
+- Rendered markdown display
+- Live file watching enabled
+- Click-to-scroll TOC navigation
+
+**Edit Mode**:
+- Raw markdown text editor
+- Formatting toolbar with quick-insert buttons
+- File watching paused to prevent conflicts
+- Unsaved changes indicator in title bar
+
+**Edit Toolbar Actions**:
+| Button | Action |
+|--------|--------|
+| Bold | Wrap selection with `**` |
+| Italic | Wrap selection with `*` |
+| H1/H2/H3 | Insert heading prefix at line start |
+| Link | Wrap selection as `[text](url)` |
+| Image | Insert image syntax `![alt](url)` |
+| Code | Wrap selection with backticks |
+| Code Block | Insert fenced code block |
+| Quote | Insert `>` at line start |
+| List | Insert `-` at line start |
+| HR | Insert horizontal rule `---` |
+
+**Saving**:
+- Cmd+S saves the file and clears the dirty indicator
+- Switching files or closing with unsaved changes prompts for confirmation
+- Discard button reverts to the last saved version
 
 ### Beautiful Themes
 
@@ -134,7 +178,7 @@ MarkView includes two carefully crafted themes with enhanced typography:
 - Ideal for daytime use and printing
 - Easy on battery life
 
-**Switch themes instantly** via View → Light Theme / Dark Theme menu.
+**Switch themes instantly** by clicking the color palette icon in the toolbar.
 
 ### Typography & Rendering
 
@@ -275,7 +319,8 @@ markview/
 │   └── main.go             # CLI parsing and app initialization
 ├── internal/
 │   ├── gui/                # User interface
-│   │   ├── window.go       # Main window, menus, toolbar, print support
+│   │   ├── window.go       # Main window, toolbar, print support
+│   │   ├── editor.go       # Markdown editor widget with text manipulation
 │   │   └── filetree.go     # File browser tree widget
 │   ├── markdown/           # Markdown processing
 │   │   ├── parser.go       # Goldmark wrapper
@@ -363,20 +408,23 @@ Abstract Syntax Tree (AST)
 - **Blockquote styling** - Colored left border, subtle background
 - **Custom spacer widgets** - Proper vertical spacing between elements
 - **Theme-aware styling** - Visual elements adapt to light/dark mode
+- **Image support** - Local image rendering in markdown
+- **Icon-based toolbar** - Clean toolbar interface replacing menu bar
+- **Keyboard shortcuts** - Cmd+O, Cmd+E, Cmd+S, Cmd+P, Cmd+R, Cmd+F
+- **Edit mode** - Toggle between view and edit with formatting toolbar
+- **Markdown editing** - Full text editing with save, undo/redo, dirty tracking
 
 ### In Progress
-- Image rendering (local files)
 - Additional theme options (Nord, Solarized, etc.)
 
 ### Planned
 - **v0.2.0**
-  - Full image support (local + remote)
-  - Keyboard shortcuts (Ctrl+O, Ctrl+R, etc.)
+  - Remote image support
   - Additional themes (Nord, Solarized, Monokai, etc.)
   - Enhanced TOC with current position tracking
 
 - **v0.3.0**
-  - Export to HTML/PDF
+  - PDF export
   - Search functionality
   - Recent files list
   - Preferences dialog
@@ -385,7 +433,6 @@ Abstract Syntax Tree (AST)
   - Custom CSS styling
   - Plugin system
   - Multi-file viewing (tabs)
-  - Markdown editing (optional)
 
 ---
 
@@ -473,10 +520,10 @@ A: Not currently, but Fyne supports Windows. Contributions welcome!
 A: Not yet, but it's planned for v0.4.0.
 
 **Q: Can I edit markdown in MarkView?**
-A: Currently read-only. Editing support is being considered for future versions.
+A: Yes! Press Cmd+E to toggle edit mode. The editor includes a formatting toolbar and supports save (Cmd+S), undo/redo, and unsaved changes prompts.
 
 **Q: How do I change the theme?**
-A: Go to View → Light Theme or View → Dark Theme. The entire interface updates instantly!
+A: Click the color palette icon in the toolbar to toggle between light and dark themes. The entire interface updates instantly!
 
 ---
 

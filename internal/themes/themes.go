@@ -285,6 +285,21 @@ func IconHeading() fyne.Resource {
 	return theme.NewThemedResource(resourceHeadingSvg)
 }
 
+// IconHeading1 returns a H1 heading icon
+func IconHeading1() fyne.Resource {
+	return theme.NewThemedResource(resourceHeading1Svg)
+}
+
+// IconHeading2 returns a H2 heading icon
+func IconHeading2() fyne.Resource {
+	return theme.NewThemedResource(resourceHeading2Svg)
+}
+
+// IconHeading3 returns a H3 heading icon
+func IconHeading3() fyne.Resource {
+	return theme.NewThemedResource(resourceHeading3Svg)
+}
+
 // IconLink returns a link icon
 func IconLink() fyne.Resource {
 	return theme.NewThemedResource(resourceLinkSvg)

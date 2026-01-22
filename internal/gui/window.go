@@ -264,15 +264,15 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 		w.editor.WrapSelection("*", "*")
 	})
 
-	h1Action := newToolbarAction(themes.IconHeading(), func() {
+	h1Action := newToolbarAction(themes.IconHeading1(), func() {
 		w.editor.InsertAtLineStart("# ")
 	})
 
-	h2Action := newToolbarAction(themes.IconHeading(), func() {
+	h2Action := newToolbarAction(themes.IconHeading2(), func() {
 		w.editor.InsertAtLineStart("## ")
 	})
 
-	h3Action := newToolbarAction(themes.IconHeading(), func() {
+	h3Action := newToolbarAction(themes.IconHeading3(), func() {
 		w.editor.InsertAtLineStart("### ")
 	})
 

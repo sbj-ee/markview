@@ -19,6 +19,21 @@ var resourceHeadingSvg = &fyne.StaticResource{
 	StaticContent: []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M17 11V4h2v17h-2v-8H7v8H5V4h2v7h10Z"/></svg>`),
 }
 
+var resourceHeading1Svg = &fyne.StaticResource{
+	StaticName:    "heading1.svg",
+	StaticContent: []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M13 20h-2v-7H4v7H2V4h2v7h7V4h2v16zm8-12v12h-2v-9.796l-2 .536V8.67L19.5 8H21z"/></svg>`),
+}
+
+var resourceHeading2Svg = &fyne.StaticResource{
+	StaticName:    "heading2.svg",
+	StaticContent: []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4v7h7V4h2v16h-2v-7H4v7H2V4h2zm14.5 4c2.071 0 3.75 1.679 3.75 3.75 0 .857-.288 1.648-.772 2.28l-.148.18L18.034 18H22v2h-7v-1.556l4.82-5.546c.268-.307.43-.709.43-1.148 0-.966-.784-1.75-1.75-1.75-.918 0-1.671.707-1.744 1.606l-.006.144h-2C14.75 9.679 16.429 8 18.5 8z"/></svg>`),
+}
+
+var resourceHeading3Svg = &fyne.StaticResource{
+	StaticName:    "heading3.svg",
+	StaticContent: []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M22 8l-.002 2-2.505 2.883c1.59.435 2.757 1.89 2.757 3.617 0 2.071-1.679 3.75-3.75 3.75-1.826 0-3.347-1.305-3.682-3.033l1.964-.382c.156.806.866 1.415 1.718 1.415.966 0 1.75-.784 1.75-1.75s-.784-1.75-1.75-1.75H17v-2h1.5c.966 0 1.75-.784 1.75-1.75s-.784-1.75-1.75-1.75c-.852 0-1.562.609-1.718 1.415l-1.964-.382C15.153 9.305 16.674 8 18.5 8c2.071 0 3.75 1.679 3.75 3.75 0 .475-.088.929-.249 1.347L22 13.097V8zM4 4v7h7V4h2v16h-2v-7H4v7H2V4h2z"/></svg>`),
+}
+
 var resourceLinkSvg = &fyne.StaticResource{
 	StaticName:    "link.svg",
 	StaticContent: []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M18.364 15.536 16.95 14.12l1.414-1.414a5 5 0 1 0-7.071-7.071L9.878 7.05 8.464 5.636 9.88 4.222a7 7 0 1 1 9.9 9.9l-1.415 1.414Zm-2.828 2.828-1.415 1.414a7 7 0 1 1-9.9-9.9l1.415-1.414L7.05 9.88l-1.414 1.414a5 5 0 1 0 7.071 7.071l1.414-1.414 1.415 1.414Zm-.708-10.607 1.415 1.415-7.071 7.07-1.415-1.414 7.071-7.07Z"/></svg>`),
