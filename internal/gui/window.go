@@ -3,6 +3,7 @@ package gui
 import (
 	"bytes"
 	"fmt"
+	"image/color"
 	"net/url"
 	"os"
 	"os/exec"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
@@ -1204,7 +1206,7 @@ func (w *Window) loadFile(filePath string) {
 	}
 
 	// Update content with left padding
-	w.scrollContent.Content = container.NewPadded(content)
+	w.scrollContent.Content = withLeftPadding(content, 16)
 	w.scrollContent.Refresh()
 
 	// Update editor content if in edit mode
@@ -1324,7 +1326,7 @@ func (w *Window) switchToViewMode() {
 	}
 
 	// Update content with left padding
-	w.scrollContent.Content = container.NewPadded(content)
+	w.scrollContent.Content = withLeftPadding(content, 16)
 	w.scrollContent.Refresh()
 
 	// Update TOC
@@ -1404,7 +1406,7 @@ func (w *Window) updateSplitViewPreview(content string) {
 		return // Silently fail for preview updates
 	}
 
-	w.scrollContent.Content = container.NewPadded(parsedContent)
+	w.scrollContent.Content = withLeftPadding(parsedContent, 16)
 	w.scrollContent.Refresh()
 }
 
@@ -2132,4 +2134,11 @@ func (w *Window) getCustomCSSStyle() string {
 		return ""
 	}
 	return "<style>\n/* Custom CSS */\n" + w.customCSS + "\n</style>"
+}
+
+// withLeftPadding wraps content with left padding
+func withLeftPadding(content fyne.CanvasObject, padding float32) fyne.CanvasObject {
+	spacer := canvas.NewRectangle(color.Transparent)
+	spacer.SetMinSize(fyne.NewSize(padding, 0))
+	return container.NewBorder(nil, nil, spacer, nil, content)
 }
