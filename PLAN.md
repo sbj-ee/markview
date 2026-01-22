@@ -122,13 +122,34 @@ container.NewVBox(widgets...) → displayed in ScrollContainer
 
 3. **Inline formatting in paragraphs**: Paragraphs use plain Label widgets to avoid line break issues, which means bold/italic formatting within paragraphs is lost. Only heading text preserves bold styling.
 
-## Future Improvements (Optional)
+## Future Improvements
 
-1. **Clickable links** - Implement tap handlers or use Hyperlink segments
-2. **Inline formatting** - Explore RichText improvements to preserve bold/italic in paragraphs
-3. **Image rendering** - Display actual images instead of alt text
-4. **Light theme polish** - Update light theme colors to match the dark theme aesthetic
-5. **Custom fonts** - Bundle Inter or similar font for consistent cross-platform rendering
+### High Priority
+
+1. **File Tree Pane** - Add a file browser pane on the far left for directory navigation and file selection
+   - Show directory tree structure
+   - Filter to show only markdown files (.md, .markdown)
+   - Click to open files
+   - Remember last opened directory
+   - Layout: File Tree | TOC | Content (three-pane design)
+
+2. **Print Support** - Add ability to print the rendered formatted markdown
+   - File menu: Print option
+   - Keyboard shortcut: Cmd+P / Ctrl+P
+   - Print preview dialog
+   - Preserve formatting (headings, code blocks, etc.)
+   - Consider PDF export as alternative
+
+### Medium Priority
+
+3. **Clickable links** - Implement tap handlers or use Hyperlink segments
+4. **Inline formatting** - Explore RichText improvements to preserve bold/italic in paragraphs
+5. **Image rendering** - Display actual images instead of alt text
+
+### Low Priority
+
+6. **Light theme polish** - Update light theme colors to match the dark theme aesthetic
+7. **Custom fonts** - Bundle Inter or similar font for consistent cross-platform rendering
 
 ## Test Results
 
