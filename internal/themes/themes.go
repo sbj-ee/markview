@@ -13,30 +13,152 @@ type ThemeType int
 const (
 	ThemeLight ThemeType = iota
 	ThemeDark
+	ThemeNord
+	ThemeSolarizedLight
+	ThemeSolarizedDark
+	ThemeMonokai
+	ThemeGruvboxDark
+	ThemeOneDark
 )
+
+// ThemeNames returns all available theme names
+func ThemeNames() []string {
+	return []string{
+		"Light",
+		"Dark",
+		"Nord",
+		"Solarized Light",
+		"Solarized Dark",
+		"Monokai",
+		"Gruvbox Dark",
+		"One Dark",
+	}
+}
+
+// ThemeFromName returns the ThemeType for a given name
+func ThemeFromName(name string) ThemeType {
+	switch name {
+	case "Light":
+		return ThemeLight
+	case "Dark":
+		return ThemeDark
+	case "Nord":
+		return ThemeNord
+	case "Solarized Light":
+		return ThemeSolarizedLight
+	case "Solarized Dark":
+		return ThemeSolarizedDark
+	case "Monokai":
+		return ThemeMonokai
+	case "Gruvbox Dark":
+		return ThemeGruvboxDark
+	case "One Dark":
+		return ThemeOneDark
+	default:
+		return ThemeDark
+	}
+}
+
+// ThemeName returns the name for a ThemeType
+func (t ThemeType) Name() string {
+	return ThemeNames()[int(t)]
+}
+
+// IsDark returns true if the theme is a dark theme
+func (t ThemeType) IsDark() bool {
+	switch t {
+	case ThemeLight, ThemeSolarizedLight:
+		return false
+	default:
+		return true
+	}
+}
+
+// FontFamily represents a font family option
+type FontFamily string
+
+const (
+	FontDefault    FontFamily = "default"
+	FontMonospace  FontFamily = "monospace"
+	FontSerif      FontFamily = "serif"
+	FontSansSerif  FontFamily = "sans-serif"
+)
+
+// FontFamilyNames returns all available font family names
+func FontFamilyNames() []string {
+	return []string{
+		"System Default",
+		"Monospace",
+		"Serif",
+		"Sans Serif",
+	}
+}
+
+// FontFamilyFromName returns the FontFamily for a given name
+func FontFamilyFromName(name string) FontFamily {
+	switch name {
+	case "Monospace":
+		return FontMonospace
+	case "Serif":
+		return FontSerif
+	case "Sans Serif":
+		return FontSansSerif
+	default:
+		return FontDefault
+	}
+}
 
 // MarkViewTheme is a custom theme for MarkView
 type MarkViewTheme struct {
-	themeType ThemeType
+	themeType  ThemeType
+	fontFamily FontFamily
 }
 
 // NewMarkViewTheme creates a new MarkView theme
 func NewMarkViewTheme(themeType ThemeType) fyne.Theme {
-	return &MarkViewTheme{themeType: themeType}
+	return &MarkViewTheme{themeType: themeType, fontFamily: FontDefault}
+}
+
+// NewMarkViewThemeWithFont creates a new MarkView theme with custom font
+func NewMarkViewThemeWithFont(themeType ThemeType, fontFamily FontFamily) fyne.Theme {
+	return &MarkViewTheme{themeType: themeType, fontFamily: fontFamily}
 }
 
 // Color returns the color for the given theme color name
 func (m *MarkViewTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
-	if m.themeType == ThemeDark {
+	switch m.themeType {
+	case ThemeLight:
+		return m.lightColor(name)
+	case ThemeDark:
+		return m.darkColor(name)
+	case ThemeNord:
+		return m.nordColor(name)
+	case ThemeSolarizedLight:
+		return m.solarizedLightColor(name)
+	case ThemeSolarizedDark:
+		return m.solarizedDarkColor(name)
+	case ThemeMonokai:
+		return m.monokaiColor(name)
+	case ThemeGruvboxDark:
+		return m.gruvboxDarkColor(name)
+	case ThemeOneDark:
+		return m.oneDarkColor(name)
+	default:
 		return m.darkColor(name)
 	}
-	return m.lightColor(name)
 }
 
 // Font returns the font resource for the given theme text style
 func (m *MarkViewTheme) Font(style fyne.TextStyle) fyne.Resource {
-	// Use Inter font - for now, use default which is similar to Inter on modern systems
-	// TODO: Bundle Inter font files for consistent cross-platform rendering
+	// Apply custom font family preference
+	switch m.fontFamily {
+	case FontMonospace:
+		style.Monospace = true
+	case FontSerif:
+		// Fyne doesn't have built-in serif support, use default
+	case FontSansSerif:
+		// Default is sans-serif in most systems
+	}
 	return theme.DefaultTheme().Font(style)
 }
 
@@ -130,6 +252,8 @@ func (m *MarkViewTheme) lightColor(name fyne.ThemeColorName) color.Color {
 	// Custom markdown colors
 	case theme.ColorNameHeaderBackground:
 		return color.RGBA{R: 246, G: 248, B: 250, A: 255} // Very light blue-gray
+	case "math":
+		return color.RGBA{R: 128, G: 90, B: 213, A: 255} // Purple for math
 
 	default:
 		return theme.DefaultTheme().Color(name, theme.VariantLight)
@@ -201,7 +325,257 @@ func (m *MarkViewTheme) darkColor(name fyne.ThemeColorName) color.Color {
 		return color.RGBA{R: 86, G: 182, B: 194, A: 255} // Cyan for links
 	case "separator":
 		return color.RGBA{R: 70, G: 72, B: 80, A: 255} // Subtle gray for horizontal rules
+	case "math":
+		return color.RGBA{R: 189, G: 147, B: 249, A: 255} // Purple for math
 
+	default:
+		return theme.DefaultTheme().Color(name, theme.VariantDark)
+	}
+}
+
+// nordColor returns colors for Nord theme
+func (m *MarkViewTheme) nordColor(name fyne.ThemeColorName) color.Color {
+	switch name {
+	case theme.ColorNameBackground:
+		return color.RGBA{R: 46, G: 52, B: 64, A: 255} // Nord0 - Polar Night
+	case theme.ColorNameForeground:
+		return color.RGBA{R: 216, G: 222, B: 233, A: 255} // Nord4 - Snow Storm
+	case theme.ColorNameButton:
+		return color.RGBA{R: 59, G: 66, B: 82, A: 255} // Nord1
+	case theme.ColorNameHover:
+		return color.RGBA{R: 67, G: 76, B: 94, A: 255} // Nord2
+	case theme.ColorNamePressed:
+		return color.RGBA{R: 76, G: 86, B: 106, A: 255} // Nord3
+	case theme.ColorNamePrimary:
+		return color.RGBA{R: 136, G: 192, B: 208, A: 255} // Nord8 - Frost
+	case theme.ColorNameSuccess:
+		return color.RGBA{R: 163, G: 190, B: 140, A: 255} // Nord14 - Aurora Green
+	case theme.ColorNameWarning:
+		return color.RGBA{R: 235, G: 203, B: 139, A: 255} // Nord13 - Aurora Yellow
+	case theme.ColorNameError:
+		return color.RGBA{R: 191, G: 97, B: 106, A: 255} // Nord11 - Aurora Red
+	case theme.ColorNameHyperlink:
+		return color.RGBA{R: 129, G: 161, B: 193, A: 255} // Nord9
+	case theme.ColorNameInputBackground:
+		return color.RGBA{R: 59, G: 66, B: 82, A: 255} // Nord1
+	case theme.ColorNameInputBorder:
+		return color.RGBA{R: 76, G: 86, B: 106, A: 255} // Nord3
+	case theme.ColorNameSelection:
+		return color.RGBA{R: 76, G: 86, B: 106, A: 200} // Nord3
+	case theme.ColorNameScrollBar:
+		return color.RGBA{R: 76, G: 86, B: 106, A: 255} // Nord3
+	case "heading1", "heading2":
+		return color.RGBA{R: 136, G: 192, B: 208, A: 255} // Nord8
+	case "heading3", "heading4":
+		return color.RGBA{R: 235, G: 203, B: 139, A: 255} // Nord13
+	case "math":
+		return color.RGBA{R: 180, G: 142, B: 173, A: 255} // Nord15 - Purple
+	default:
+		return theme.DefaultTheme().Color(name, theme.VariantDark)
+	}
+}
+
+// solarizedLightColor returns colors for Solarized Light theme
+func (m *MarkViewTheme) solarizedLightColor(name fyne.ThemeColorName) color.Color {
+	switch name {
+	case theme.ColorNameBackground:
+		return color.RGBA{R: 253, G: 246, B: 227, A: 255} // Base3
+	case theme.ColorNameForeground:
+		return color.RGBA{R: 101, G: 123, B: 131, A: 255} // Base00
+	case theme.ColorNameButton:
+		return color.RGBA{R: 238, G: 232, B: 213, A: 255} // Base2
+	case theme.ColorNameHover:
+		return color.RGBA{R: 227, G: 221, B: 202, A: 255}
+	case theme.ColorNamePressed:
+		return color.RGBA{R: 216, G: 210, B: 191, A: 255}
+	case theme.ColorNamePrimary:
+		return color.RGBA{R: 38, G: 139, B: 210, A: 255} // Blue
+	case theme.ColorNameSuccess:
+		return color.RGBA{R: 133, G: 153, B: 0, A: 255} // Green
+	case theme.ColorNameWarning:
+		return color.RGBA{R: 181, G: 137, B: 0, A: 255} // Yellow
+	case theme.ColorNameError:
+		return color.RGBA{R: 220, G: 50, B: 47, A: 255} // Red
+	case theme.ColorNameHyperlink:
+		return color.RGBA{R: 38, G: 139, B: 210, A: 255} // Blue
+	case theme.ColorNameInputBackground:
+		return color.RGBA{R: 238, G: 232, B: 213, A: 255} // Base2
+	case theme.ColorNameInputBorder:
+		return color.RGBA{R: 147, G: 161, B: 161, A: 255} // Base1
+	case "heading1", "heading2":
+		return color.RGBA{R: 38, G: 139, B: 210, A: 255} // Blue
+	case "heading3", "heading4":
+		return color.RGBA{R: 181, G: 137, B: 0, A: 255} // Yellow
+	case "math":
+		return color.RGBA{R: 108, G: 113, B: 196, A: 255} // Violet
+	default:
+		return theme.DefaultTheme().Color(name, theme.VariantLight)
+	}
+}
+
+// solarizedDarkColor returns colors for Solarized Dark theme
+func (m *MarkViewTheme) solarizedDarkColor(name fyne.ThemeColorName) color.Color {
+	switch name {
+	case theme.ColorNameBackground:
+		return color.RGBA{R: 0, G: 43, B: 54, A: 255} // Base03
+	case theme.ColorNameForeground:
+		return color.RGBA{R: 131, G: 148, B: 150, A: 255} // Base0
+	case theme.ColorNameButton:
+		return color.RGBA{R: 7, G: 54, B: 66, A: 255} // Base02
+	case theme.ColorNameHover:
+		return color.RGBA{R: 27, G: 74, B: 86, A: 255}
+	case theme.ColorNamePressed:
+		return color.RGBA{R: 47, G: 94, B: 106, A: 255}
+	case theme.ColorNamePrimary:
+		return color.RGBA{R: 38, G: 139, B: 210, A: 255} // Blue
+	case theme.ColorNameSuccess:
+		return color.RGBA{R: 133, G: 153, B: 0, A: 255} // Green
+	case theme.ColorNameWarning:
+		return color.RGBA{R: 181, G: 137, B: 0, A: 255} // Yellow
+	case theme.ColorNameError:
+		return color.RGBA{R: 220, G: 50, B: 47, A: 255} // Red
+	case theme.ColorNameHyperlink:
+		return color.RGBA{R: 38, G: 139, B: 210, A: 255} // Blue
+	case theme.ColorNameInputBackground:
+		return color.RGBA{R: 7, G: 54, B: 66, A: 255} // Base02
+	case theme.ColorNameInputBorder:
+		return color.RGBA{R: 88, G: 110, B: 117, A: 255} // Base01
+	case theme.ColorNameSelection:
+		return color.RGBA{R: 7, G: 54, B: 66, A: 200} // Base02
+	case theme.ColorNameScrollBar:
+		return color.RGBA{R: 88, G: 110, B: 117, A: 255} // Base01
+	case "heading1", "heading2":
+		return color.RGBA{R: 38, G: 139, B: 210, A: 255} // Blue
+	case "heading3", "heading4":
+		return color.RGBA{R: 181, G: 137, B: 0, A: 255} // Yellow
+	case "math":
+		return color.RGBA{R: 108, G: 113, B: 196, A: 255} // Violet
+	default:
+		return theme.DefaultTheme().Color(name, theme.VariantDark)
+	}
+}
+
+// monokaiColor returns colors for Monokai theme
+func (m *MarkViewTheme) monokaiColor(name fyne.ThemeColorName) color.Color {
+	switch name {
+	case theme.ColorNameBackground:
+		return color.RGBA{R: 39, G: 40, B: 34, A: 255} // Background
+	case theme.ColorNameForeground:
+		return color.RGBA{R: 248, G: 248, B: 242, A: 255} // Foreground
+	case theme.ColorNameButton:
+		return color.RGBA{R: 55, G: 56, B: 50, A: 255}
+	case theme.ColorNameHover:
+		return color.RGBA{R: 70, G: 71, B: 65, A: 255}
+	case theme.ColorNamePressed:
+		return color.RGBA{R: 85, G: 86, B: 80, A: 255}
+	case theme.ColorNamePrimary:
+		return color.RGBA{R: 102, G: 217, B: 239, A: 255} // Cyan
+	case theme.ColorNameSuccess:
+		return color.RGBA{R: 166, G: 226, B: 46, A: 255} // Green
+	case theme.ColorNameWarning:
+		return color.RGBA{R: 253, G: 151, B: 31, A: 255} // Orange
+	case theme.ColorNameError:
+		return color.RGBA{R: 249, G: 38, B: 114, A: 255} // Pink/Red
+	case theme.ColorNameHyperlink:
+		return color.RGBA{R: 102, G: 217, B: 239, A: 255} // Cyan
+	case theme.ColorNameInputBackground:
+		return color.RGBA{R: 55, G: 56, B: 50, A: 255}
+	case theme.ColorNameInputBorder:
+		return color.RGBA{R: 117, G: 113, B: 94, A: 255}
+	case theme.ColorNameSelection:
+		return color.RGBA{R: 73, G: 72, B: 62, A: 200}
+	case theme.ColorNameScrollBar:
+		return color.RGBA{R: 117, G: 113, B: 94, A: 255}
+	case "heading1", "heading2":
+		return color.RGBA{R: 249, G: 38, B: 114, A: 255} // Pink
+	case "heading3", "heading4":
+		return color.RGBA{R: 253, G: 151, B: 31, A: 255} // Orange
+	case "math":
+		return color.RGBA{R: 174, G: 129, B: 255, A: 255} // Purple
+	default:
+		return theme.DefaultTheme().Color(name, theme.VariantDark)
+	}
+}
+
+// gruvboxDarkColor returns colors for Gruvbox Dark theme
+func (m *MarkViewTheme) gruvboxDarkColor(name fyne.ThemeColorName) color.Color {
+	switch name {
+	case theme.ColorNameBackground:
+		return color.RGBA{R: 40, G: 40, B: 40, A: 255} // bg0
+	case theme.ColorNameForeground:
+		return color.RGBA{R: 235, G: 219, B: 178, A: 255} // fg
+	case theme.ColorNameButton:
+		return color.RGBA{R: 60, G: 56, B: 54, A: 255} // bg1
+	case theme.ColorNameHover:
+		return color.RGBA{R: 80, G: 73, B: 69, A: 255} // bg2
+	case theme.ColorNamePressed:
+		return color.RGBA{R: 102, G: 92, B: 84, A: 255} // bg3
+	case theme.ColorNamePrimary:
+		return color.RGBA{R: 131, G: 165, B: 152, A: 255} // Aqua
+	case theme.ColorNameSuccess:
+		return color.RGBA{R: 184, G: 187, B: 38, A: 255} // Green
+	case theme.ColorNameWarning:
+		return color.RGBA{R: 250, G: 189, B: 47, A: 255} // Yellow
+	case theme.ColorNameError:
+		return color.RGBA{R: 251, G: 73, B: 52, A: 255} // Red
+	case theme.ColorNameHyperlink:
+		return color.RGBA{R: 131, G: 165, B: 152, A: 255} // Aqua
+	case theme.ColorNameInputBackground:
+		return color.RGBA{R: 60, G: 56, B: 54, A: 255} // bg1
+	case theme.ColorNameInputBorder:
+		return color.RGBA{R: 102, G: 92, B: 84, A: 255} // bg3
+	case theme.ColorNameSelection:
+		return color.RGBA{R: 80, G: 73, B: 69, A: 200} // bg2
+	case theme.ColorNameScrollBar:
+		return color.RGBA{R: 102, G: 92, B: 84, A: 255} // bg3
+	case "heading1", "heading2":
+		return color.RGBA{R: 131, G: 165, B: 152, A: 255} // Aqua
+	case "heading3", "heading4":
+		return color.RGBA{R: 250, G: 189, B: 47, A: 255} // Yellow
+	case "math":
+		return color.RGBA{R: 211, G: 134, B: 155, A: 255} // Purple
+	default:
+		return theme.DefaultTheme().Color(name, theme.VariantDark)
+	}
+}
+
+// oneDarkColor returns colors for One Dark theme
+func (m *MarkViewTheme) oneDarkColor(name fyne.ThemeColorName) color.Color {
+	switch name {
+	case theme.ColorNameBackground:
+		return color.RGBA{R: 40, G: 44, B: 52, A: 255} // Background
+	case theme.ColorNameForeground:
+		return color.RGBA{R: 171, G: 178, B: 191, A: 255} // Foreground
+	case theme.ColorNameButton:
+		return color.RGBA{R: 50, G: 54, B: 62, A: 255}
+	case theme.ColorNameHover:
+		return color.RGBA{R: 60, G: 64, B: 72, A: 255}
+	case theme.ColorNamePressed:
+		return color.RGBA{R: 70, G: 74, B: 82, A: 255}
+	case theme.ColorNamePrimary:
+		return color.RGBA{R: 97, G: 175, B: 239, A: 255} // Blue
+	case theme.ColorNameSuccess:
+		return color.RGBA{R: 152, G: 195, B: 121, A: 255} // Green
+	case theme.ColorNameWarning:
+		return color.RGBA{R: 229, G: 192, B: 123, A: 255} // Yellow
+	case theme.ColorNameError:
+		return color.RGBA{R: 224, G: 108, B: 117, A: 255} // Red
+	case theme.ColorNameHyperlink:
+		return color.RGBA{R: 97, G: 175, B: 239, A: 255} // Blue
+	case theme.ColorNameInputBackground:
+		return color.RGBA{R: 50, G: 54, B: 62, A: 255}
+	case theme.ColorNameInputBorder:
+		return color.RGBA{R: 76, G: 82, B: 99, A: 255}
+	case theme.ColorNameSelection:
+		return color.RGBA{R: 62, G: 68, B: 81, A: 200}
+	case theme.ColorNameScrollBar:
+		return color.RGBA{R: 76, G: 82, B: 99, A: 255}
+	case "heading1", "heading2":
+		return color.RGBA{R: 97, G: 175, B: 239, A: 255} // Blue
+	case "heading3", "heading4":
+		return color.RGBA{R: 229, G: 192, B: 123, A: 255} // Yellow
+	case "math":
+		return color.RGBA{R: 198, G: 120, B: 221, A: 255} // Purple
 	default:
 		return theme.DefaultTheme().Color(name, theme.VariantDark)
 	}
@@ -343,6 +717,16 @@ func IconNewFile() fyne.Resource {
 // IconSaveAs returns a save as icon
 func IconSaveAs() fyne.Resource {
 	return theme.NewThemedResource(resourceSaveAsSvg)
+}
+
+// IconTable returns a table icon
+func IconTable() fyne.Resource {
+	return theme.NewThemedResource(resourceTableSvg)
+}
+
+// IconLibrary returns a library/book icon
+func IconLibrary() fyne.Resource {
+	return theme.NewThemedResource(resourceLibrarySvg)
 }
 
 // GetCodeColors returns syntax highlighting colors for the current theme

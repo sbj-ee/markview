@@ -73,3 +73,13 @@ var resourceSaveAsSvg = &fyne.StaticResource{
 	StaticName:    "saveas.svg",
 	StaticContent: []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M18.172 7H6v6h12V7.828L16.172 6H6V4h11l3 3v12.993A1 1 0 0 1 18.993 21H5.007A1.001 1.001 0 0 1 4 19.993V4.007C4 3.451 4.449 3 5.007 3h11.586l1.707 1.707L20 6.414V8h-2V7h.172zM8 15v4h8v-4H8z"/></svg>`),
 }
+
+var resourceTableSvg = &fyne.StaticResource{
+	StaticName:    "table.svg",
+	StaticContent: []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M4 8h16V5H4v3zm10 11v-9h-4v9h4zm2 0h4v-9h-4v9zm-8 0v-9H4v9h4zM3 3h18a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/></svg>`),
+}
+
+var resourceLibrarySvg = &fyne.StaticResource{
+	StaticName:    "library.svg",
+	StaticContent: []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18.5V5a3 3 0 0 1 3-3h14a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5A3.5 3.5 0 0 1 3 18.5zM19 20v-3H6.5a1.5 1.5 0 0 0 0 3H19zM5 15.337A3.486 3.486 0 0 1 6.5 15H19V4H6a1 1 0 0 0-1 1v10.337z"/></svg>`),
+}

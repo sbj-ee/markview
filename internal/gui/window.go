@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
+	"github.com/sbj-ee/markview/internal/library"
 	"github.com/sbj-ee/markview/internal/markdown"
 	"github.com/sbj-ee/markview/internal/themes"
 	"github.com/sbj-ee/markview/internal/toc"
@@ -43,6 +45,7 @@ type Window struct {
 	currentDir     string
 	fileWatcher    *watcher.FileWatcher
 	currentTheme   themes.ThemeType
+	currentFont    themes.FontFamily
 
 	// Edit mode
 	editMode      bool
@@ -60,10 +63,20 @@ type Window struct {
 	// Edit toolbar (shown in edit mode)
 	editToolbar *widget.Toolbar
 
+	// Outline view (shown in edit mode)
+	outline       *Outline
+	outlineScroll *container.Scroll
+
 	// Status bar
 	statusBar   *widget.Label
 	wordCount   *widget.Label
 	cursorPos   *widget.Label
+
+	// Library mode
+	libraryMode   bool
+	libraryView   *LibraryView
+	docLibrary    *library.DocumentLibrary
+	libraryScroll *container.Scroll
 }
 
 // NewWindow creates a new application window
@@ -81,11 +94,24 @@ func NewWindow(app fyne.App, logger *zap.Logger) *Window {
 		parser:       markdown.NewParser(logger),
 		logger:       logger,
 		fileWatcher:  fw,
-		currentTheme: themes.ThemeDark, // Start with dark theme
+		currentTheme: themes.ThemeDark,   // Start with dark theme
+		currentFont:  themes.FontDefault, // Start with default font
 	}
 
-	// Apply custom theme
-	app.Settings().SetTheme(themes.NewMarkViewTheme(w.currentTheme))
+	// Load saved theme preference
+	savedTheme := app.Preferences().String("theme")
+	if savedTheme != "" {
+		w.currentTheme = themes.ThemeFromName(savedTheme)
+	}
+
+	// Load saved font preference
+	savedFont := app.Preferences().String("font")
+	if savedFont != "" {
+		w.currentFont = themes.FontFamily(savedFont)
+	}
+
+	// Apply custom theme with font
+	app.Settings().SetTheme(themes.NewMarkViewThemeWithFont(w.currentTheme, w.currentFont))
 
 	w.setupUI()
 	w.fyneWindow.Resize(fyne.NewSize(1200, 800))
@@ -133,6 +159,23 @@ func (w *Window) setupUI() {
 	w.editorScroll = container.NewScroll(w.editor)
 	w.editorScroll.Hide()
 
+	// Create outline view (hidden by default)
+	w.outline = NewOutline(func(line int) {
+		w.navigateToLine(line)
+	})
+	w.outlineScroll = container.NewScroll(w.outline.GetContainer())
+	w.outlineScroll.Hide()
+
+	// Create library view (hidden by default)
+	w.libraryView = NewLibraryView(func(path string) {
+		w.checkUnsavedChanges(func() {
+			w.toggleLibraryMode() // Exit library mode
+			w.loadFile(path)
+		})
+	})
+	w.libraryScroll = container.NewScroll(w.libraryView.GetContainer())
+	w.libraryScroll.Hide()
+
 	// Create file tree with filter
 	w.fileTree = NewFileTree(func(path string) {
 		w.checkUnsavedChanges(func() {
@@ -150,16 +193,18 @@ func (w *Window) setupUI() {
 	)
 	w.tocScroll = container.NewScroll(w.tocTree)
 
-	// Create three-pane layout: File Tree | TOC | Content
-	// Left split: File Tree | TOC
+	// Create three-pane layout: File Tree | TOC/Outline | Content
+	// Left split: File Tree | TOC (or Outline in edit mode)
+	// Use a stack for TOC and Outline - only one visible at a time
+	tocOutlineStack := container.NewStack(w.tocScroll, w.outlineScroll)
 	w.leftSplit = container.NewHSplit(
 		w.fileTreeScroll,
-		w.tocScroll,
+		tocOutlineStack,
 	)
-	w.leftSplit.Offset = 0.5 // Equal split between file tree and TOC
+	w.leftSplit.Offset = 0.5 // Equal split between file tree and TOC/Outline
 
-	// Content area: stack of rendered view and editor (only one visible at a time)
-	w.contentStack = container.NewStack(w.scrollContent, w.editorScroll)
+	// Content area: stack of rendered view, editor, and library (only one visible at a time)
+	w.contentStack = container.NewStack(w.scrollContent, w.editorScroll, w.libraryScroll)
 
 	// Main split: (File Tree | TOC) | Content
 	w.mainSplit = container.NewHSplit(
@@ -265,6 +310,10 @@ func (w *Window) createToolbar() *widget.Toolbar {
 		w.toggleTheme()
 	})
 
+	toggleLibraryAction := newToolbarAction(themes.IconLibrary(), func() {
+		w.toggleLibraryMode()
+	})
+
 	toolbar := widget.NewToolbar(
 		newFileAction,
 		openFileAction,
@@ -276,6 +325,7 @@ func (w *Window) createToolbar() *widget.Toolbar {
 		widget.NewToolbarSeparator(),
 		refreshAction,
 		widget.NewToolbarSpacer(),
+		toggleLibraryAction,
 		toggleFileTreeAction,
 		toggleTOCAction,
 		toggleThemeAction,
@@ -284,13 +334,48 @@ func (w *Window) createToolbar() *widget.Toolbar {
 	return toolbar
 }
 
-// toggleTheme switches between light and dark themes
+// toggleTheme shows settings dialog with theme and font selection
 func (w *Window) toggleTheme() {
-	if w.currentTheme == themes.ThemeDark {
-		w.setTheme(themes.ThemeLight)
-	} else {
-		w.setTheme(themes.ThemeDark)
+	themeNames := themes.ThemeNames()
+	fontNames := themes.FontFamilyNames()
+
+	// Create radio group for theme selection
+	currentThemeName := w.currentTheme.Name()
+	themeRadio := widget.NewRadioGroup(themeNames, func(selected string) {
+		newTheme := themes.ThemeFromName(selected)
+		w.setTheme(newTheme)
+	})
+	themeRadio.SetSelected(currentThemeName)
+
+	// Create radio group for font selection
+	var currentFontName string
+	switch w.currentFont {
+	case themes.FontMonospace:
+		currentFontName = "Monospace"
+	case themes.FontSerif:
+		currentFontName = "Serif"
+	case themes.FontSansSerif:
+		currentFontName = "Sans Serif"
+	default:
+		currentFontName = "System Default"
 	}
+	fontRadio := widget.NewRadioGroup(fontNames, func(selected string) {
+		newFont := themes.FontFamilyFromName(selected)
+		w.setFont(newFont)
+	})
+	fontRadio.SetSelected(currentFontName)
+
+	content := container.NewVBox(
+		widget.NewLabel("Theme:"),
+		themeRadio,
+		widget.NewSeparator(),
+		widget.NewLabel("Font:"),
+		fontRadio,
+	)
+
+	d := dialog.NewCustom("Appearance Settings", "Close", content, w.fyneWindow)
+	d.Resize(fyne.NewSize(300, 500))
+	d.Show()
 }
 
 // createEditToolbar creates the markdown editing toolbar
@@ -320,7 +405,14 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 	})
 
 	imageAction := newToolbarAction(themes.IconImage(), func() {
-		w.editor.WrapSelection("![", "](image_url)")
+		// Get base directory for relative paths
+		baseDir := ""
+		if w.currentFile != "" {
+			baseDir = filepath.Dir(w.currentFile)
+		}
+		ShowImageInsertDialog(w.fyneWindow, baseDir, func(markdown string) {
+			w.editor.InsertAtCursor(markdown)
+		})
 	})
 
 	codeAction := newToolbarAction(themes.IconCode(), func() {
@@ -343,6 +435,12 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 		w.editor.InsertAtCursor("\n---\n")
 	})
 
+	tableAction := newToolbarAction(themes.IconTable(), func() {
+		ShowTableEditorDialog(w.fyneWindow, func(markdown string) {
+			w.editor.InsertAtCursor("\n" + markdown)
+		})
+	})
+
 	return widget.NewToolbar(
 		boldAction,
 		italicAction,
@@ -353,6 +451,7 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 		widget.NewToolbarSeparator(),
 		linkAction,
 		imageAction,
+		tableAction,
 		widget.NewToolbarSeparator(),
 		codeAction,
 		codeBlockAction,
@@ -473,6 +572,39 @@ func (w *Window) toggleTOC() {
 	}
 }
 
+// toggleLibraryMode toggles between library mode and normal mode
+func (w *Window) toggleLibraryMode() {
+	if w.libraryMode {
+		// Exit library mode
+		w.libraryMode = false
+		w.libraryScroll.Hide()
+		w.scrollContent.Show()
+		w.fyneWindow.SetTitle("MarkView")
+		w.updateWindowTitle()
+	} else {
+		// Enter library mode
+		if w.currentDir == "" {
+			dialog.ShowInformation("Library Mode", "Please open a folder first to use library mode.", w.fyneWindow)
+			return
+		}
+
+		w.libraryMode = true
+
+		// Initialize or refresh library
+		if w.docLibrary == nil || w.docLibrary.RootPath != w.currentDir {
+			w.docLibrary = library.NewDocumentLibrary(w.currentDir)
+		}
+		w.docLibrary.Scan()
+		w.libraryView.SetLibrary(w.docLibrary)
+
+		// Update UI
+		w.scrollContent.Hide()
+		w.editorScroll.Hide()
+		w.libraryScroll.Show()
+		w.fyneWindow.SetTitle("MarkView - Library")
+	}
+}
+
 // showFolderDialog shows the folder selection dialog
 func (w *Window) showFolderDialog() {
 	fd := dialog.NewFolderOpen(func(uri fyne.ListableURI, err error) {
@@ -524,7 +656,10 @@ func (w *Window) printDocument() {
 // setTheme changes the application theme
 func (w *Window) setTheme(themeType themes.ThemeType) {
 	w.currentTheme = themeType
-	w.app.Settings().SetTheme(themes.NewMarkViewTheme(themeType))
+	w.app.Settings().SetTheme(themes.NewMarkViewThemeWithFont(themeType, w.currentFont))
+
+	// Save theme preference
+	w.app.Preferences().SetString("theme", themeType.Name())
 
 	// Reload current file to apply new theme to syntax highlighting
 	if w.currentFile != "" {
@@ -532,6 +667,22 @@ func (w *Window) setTheme(themeType themes.ThemeType) {
 	}
 
 	w.logger.Info("Theme changed", zap.String("theme", w.getThemeName()))
+}
+
+// setFont changes the application font
+func (w *Window) setFont(fontFamily themes.FontFamily) {
+	w.currentFont = fontFamily
+	w.app.Settings().SetTheme(themes.NewMarkViewThemeWithFont(w.currentTheme, fontFamily))
+
+	// Save font preference
+	w.app.Preferences().SetString("font", string(fontFamily))
+
+	// Refresh content
+	if w.currentFile != "" {
+		w.loadFile(w.currentFile)
+	}
+
+	w.logger.Info("Font changed", zap.String("font", string(fontFamily)))
 }
 
 // getThemeName returns the current theme name
@@ -687,10 +838,17 @@ func (w *Window) switchToEditMode() {
 	// Set editor content
 	w.editor.SetText(w.contentBuffer)
 
+	// Update outline
+	w.outline.UpdateFromText(w.contentBuffer)
+
 	// Update UI
 	w.scrollContent.Hide()
 	w.editorScroll.Show()
 	w.editToolbar.Show()
+
+	// Show outline in TOC area
+	w.tocScroll.Hide()
+	w.outlineScroll.Show()
 
 	// Update toolbar icon to show "View" action
 	w.editAction.SetIcon(themes.IconView())
@@ -736,6 +894,10 @@ func (w *Window) switchToViewMode() {
 	w.scrollContent.Show()
 	w.editToolbar.Hide()
 
+	// Hide outline, show TOC
+	w.outlineScroll.Hide()
+	w.tocScroll.Show()
+
 	// Update toolbar icon to show "Edit" action
 	w.editAction.SetIcon(themes.IconEdit())
 
@@ -772,8 +934,34 @@ func (w *Window) onEditorChanged(content string) {
 		w.updateWindowTitle()
 	}
 
+	// Update outline (debounced - only update occasionally)
+	w.outline.UpdateFromText(content)
+
 	// Update status bar
 	w.updateStatusBar()
+}
+
+// navigateToLine navigates the editor to a specific line
+func (w *Window) navigateToLine(line int) {
+	if !w.editMode || w.editor == nil {
+		return
+	}
+
+	// Get the text content
+	text := w.editor.GetText()
+	lines := strings.Split(text, "\n")
+
+	// Calculate position at start of the target line
+	pos := 0
+	for i := 0; i < line && i < len(lines); i++ {
+		pos += len(lines[i]) + 1 // +1 for newline
+	}
+
+	// Set cursor position
+	w.editor.setCursorPosition(pos)
+
+	// Focus the editor
+	w.editor.Focus(w.fyneWindow.Canvas())
 }
 
 // updateStatusBar updates the status bar with current info
@@ -1004,7 +1192,7 @@ func (w *Window) GetMarkdown() *markdown.Parser {
 func (w *Window) showPrintDialog() {
 	// Create print options dialog
 	content := container.NewVBox(
-		widget.NewLabel("Print Options"),
+		widget.NewLabel("Export Options"),
 		widget.NewSeparator(),
 		widget.NewLabel(fmt.Sprintf("File: %s", filepath.Base(w.currentFile))),
 	)
@@ -1014,25 +1202,166 @@ func (w *Window) showPrintDialog() {
 		w.exportToHTML()
 	})
 
+	// Export to PDF button
+	exportPDFBtn := widget.NewButton("Export to PDF", func() {
+		w.exportToPDF()
+	})
+
+	// Export to DOCX button (via pandoc)
+	exportDOCXBtn := widget.NewButton("Export to DOCX", func() {
+		w.exportWithPandoc("docx")
+	})
+
+	// Export to RTF button (via pandoc)
+	exportRTFBtn := widget.NewButton("Export to RTF", func() {
+		w.exportWithPandoc("rtf")
+	})
+
 	// Print button (opens system print dialog via HTML export)
 	printBtn := widget.NewButton("Print (via Browser)", func() {
 		w.printViaBrowser()
 	})
 
-	buttons := container.NewHBox(
+	row1 := container.NewHBox(
 		exportHTMLBtn,
+		exportPDFBtn,
+	)
+	row2 := container.NewHBox(
+		exportDOCXBtn,
+		exportRTFBtn,
+	)
+	row3 := container.NewHBox(
 		printBtn,
 	)
 
 	dialogContent := container.NewVBox(
 		content,
 		widget.NewSeparator(),
-		buttons,
+		row1,
+		row2,
+		row3,
 	)
 
-	d := dialog.NewCustom("Print Document", "Cancel", dialogContent, w.fyneWindow)
-	d.Resize(fyne.NewSize(400, 200))
+	d := dialog.NewCustom("Export Document", "Cancel", dialogContent, w.fyneWindow)
+	d.Resize(fyne.NewSize(450, 280))
 	d.Show()
+}
+
+// exportWithPandoc exports using pandoc to various formats (docx, rtf, etc.)
+func (w *Window) exportWithPandoc(format string) {
+	if w.currentFile == "" {
+		return
+	}
+
+	// Check if pandoc is available
+	_, err := exec.LookPath("pandoc")
+	if err != nil {
+		dialog.ShowError(fmt.Errorf("Export to %s requires pandoc.\n\nInstall with:\n  macOS: brew install pandoc\n  Linux: sudo apt install pandoc\n  Windows: choco install pandoc", strings.ToUpper(format)), w.fyneWindow)
+		return
+	}
+
+	// Show save dialog
+	fd := dialog.NewFileSave(func(writer fyne.URIWriteCloser, err error) {
+		if err != nil {
+			dialog.ShowError(err, w.fyneWindow)
+			return
+		}
+		if writer == nil {
+			return
+		}
+		writer.Close() // Close immediately, we'll write via pandoc
+
+		outputPath := writer.URI().Path()
+
+		// Run pandoc
+		cmd := exec.Command("pandoc", "-f", "markdown", "-t", format, "-o", outputPath, w.currentFile)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("Pandoc conversion failed: %s\n%s", err, string(output)), w.fyneWindow)
+			return
+		}
+
+		dialog.ShowInformation("Export Complete", fmt.Sprintf("%s file saved successfully.", strings.ToUpper(format)), w.fyneWindow)
+	}, w.fyneWindow)
+
+	// Suggest filename
+	baseName := filepath.Base(w.currentFile)
+	outputName := baseName[:len(baseName)-len(filepath.Ext(baseName))] + "." + format
+	fd.SetFileName(outputName)
+	fd.SetFilter(storage.NewExtensionFileFilter([]string{"." + format}))
+	fd.Resize(fyne.NewSize(800, 600))
+	fd.Show()
+}
+
+// exportToPDF exports the current markdown to PDF
+func (w *Window) exportToPDF() {
+	if w.currentFile == "" {
+		return
+	}
+
+	// Check if wkhtmltopdf is available
+	_, err := exec.LookPath("wkhtmltopdf")
+	if err != nil {
+		dialog.ShowError(fmt.Errorf("PDF export requires wkhtmltopdf.\n\nInstall with:\n  macOS: brew install wkhtmltopdf\n  Linux: sudo apt install wkhtmltopdf"), w.fyneWindow)
+		return
+	}
+
+	// Read the markdown file
+	data, err := os.ReadFile(w.currentFile)
+	if err != nil {
+		dialog.ShowError(fmt.Errorf("failed to read file: %w", err), w.fyneWindow)
+		return
+	}
+
+	// Convert to HTML
+	html := w.markdownToHTML(data)
+
+	// Show save dialog for PDF
+	fd := dialog.NewFileSave(func(writer fyne.URIWriteCloser, err error) {
+		if err != nil {
+			dialog.ShowError(err, w.fyneWindow)
+			return
+		}
+		if writer == nil {
+			return
+		}
+		writer.Close() // Close immediately, we'll write via wkhtmltopdf
+
+		pdfPath := writer.URI().Path()
+
+		// Write HTML to temp file
+		tmpFile, err := os.CreateTemp("", "markview-export-*.html")
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("failed to create temp file: %w", err), w.fyneWindow)
+			return
+		}
+		defer os.Remove(tmpFile.Name())
+
+		_, err = tmpFile.WriteString(html)
+		tmpFile.Close()
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("failed to write temp file: %w", err), w.fyneWindow)
+			return
+		}
+
+		// Run wkhtmltopdf
+		cmd := exec.Command("wkhtmltopdf", "--quiet", tmpFile.Name(), pdfPath)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("PDF conversion failed: %s\n%s", err, string(output)), w.fyneWindow)
+			return
+		}
+
+		dialog.ShowInformation("Export Complete", "PDF file saved successfully.", w.fyneWindow)
+	}, w.fyneWindow)
+
+	// Suggest filename
+	baseName := filepath.Base(w.currentFile)
+	pdfName := baseName[:len(baseName)-len(filepath.Ext(baseName))] + ".pdf"
+	fd.SetFileName(pdfName)
+	fd.SetFilter(storage.NewExtensionFileFilter([]string{".pdf"}))
+	fd.Resize(fyne.NewSize(800, 600))
+	fd.Show()
 }
 
 // exportToHTML exports the current markdown to HTML
@@ -1204,11 +1533,18 @@ func (w *Window) markdownToHTML(data []byte) string {
         th { background-color: #f7fafc; }
         a { color: #4299e1; }
         hr { border: none; border-top: 1px solid #e2e8f0; }
+        .mermaid { text-align: center; }
         @media print {
             body { max-width: none; }
             pre { white-space: pre-wrap; }
         }
     </style>
+    <!-- Mermaid for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
+    <!-- MathJax for math rendering -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </head>
 <body>
 %s

@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	mathjax "github.com/litao91/goldmark-mathjax"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
@@ -107,6 +108,11 @@ func (r *Renderer) renderNodeAsWidget(node ast.Node) {
 		return
 
 	default:
+		// Check for math blocks
+		if node.Kind() == mathjax.KindMathBlock {
+			r.renderMathBlockAsWidget(node)
+			return
+		}
 		r.renderChildrenAsWidgets(node)
 	}
 }
@@ -474,9 +480,21 @@ func (r *Renderer) renderInlineNode(node ast.Node) []widget.RichTextSegment {
 		}
 
 	default:
-		// Recursively handle children
-		for child := node.FirstChild(); child != nil; child = child.NextSibling() {
-			segments = append(segments, r.renderInlineNode(child)...)
+		// Check for inline math
+		if node.Kind() == mathjax.KindInlineMath {
+			mathText := r.extractInlineText(node)
+			segments = append(segments, &widget.TextSegment{
+				Text: "⟨" + mathText + "⟩",
+				Style: widget.RichTextStyle{
+					TextStyle: fyne.TextStyle{Monospace: true, Italic: true},
+					ColorName: "math",
+				},
+			})
+		} else {
+			// Recursively handle children
+			for child := node.FirstChild(); child != nil; child = child.NextSibling() {
+				segments = append(segments, r.renderInlineNode(child)...)
+			}
 		}
 	}
 
@@ -684,6 +702,16 @@ func (r *Renderer) renderCodeBlockAsWidget(node ast.Node, fenced bool) {
 		language = "text"
 	}
 
+	// Check for special code block types
+	if IsMermaidCodeBlock(language) {
+		// Render as mermaid diagram block
+		mermaidBlock := NewMermaidBlock(code)
+		r.widgets = append(r.widgets, NewSpacer(8))
+		r.widgets = append(r.widgets, mermaidBlock)
+		r.widgets = append(r.widgets, NewSpacer(8))
+		return
+	}
+
 	// Get syntax highlighted segments (no fence markers)
 	highlightedSegments := r.highlighter.Highlight(code, language)
 
@@ -785,5 +813,36 @@ func (r *Renderer) renderChildrenAsWidgets(node ast.Node) {
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
 		r.renderNodeAsWidget(child)
 	}
+}
+
+// renderMathBlockAsWidget renders a math block with special styling
+func (r *Renderer) renderMathBlockAsWidget(node ast.Node) {
+	// Extract math content from the node
+	var buf bytes.Buffer
+	for c := node.FirstChild(); c != nil; c = c.NextSibling() {
+		if text, ok := c.(*ast.Text); ok {
+			buf.Write(text.Segment.Value(r.source))
+		}
+	}
+
+	// If no children, try to get text directly from Lines
+	if buf.Len() == 0 {
+		lines := node.Lines()
+		for i := 0; i < lines.Len(); i++ {
+			line := lines.At(i)
+			buf.Write(line.Value(r.source))
+		}
+	}
+
+	mathContent := strings.TrimSpace(buf.String())
+
+	// Create math display widget
+	mathWidget := NewMathBlock(mathContent)
+
+	// Add spacing before math block
+	r.widgets = append(r.widgets, NewSpacer(8))
+	r.widgets = append(r.widgets, mathWidget)
+	// Add spacing after math block
+	r.widgets = append(r.widgets, NewSpacer(8))
 }
 

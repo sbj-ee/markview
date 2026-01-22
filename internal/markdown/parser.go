@@ -3,6 +3,7 @@ package markdown
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
+	mathjax "github.com/litao91/goldmark-mathjax"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
@@ -20,8 +21,12 @@ type Parser struct {
 func NewParser(logger *zap.Logger) *Parser {
 	md := goldmark.New(
 		goldmark.WithExtensions(
-			extension.GFM,          // GitHub Flavored Markdown
-			extension.Typographer,  // Smart quotes, dashes
+			extension.GFM,            // GitHub Flavored Markdown
+			extension.Typographer,    // Smart quotes, dashes
+			extension.Footnote,       // Footnotes support
+			extension.DefinitionList, // Definition lists
+			extension.Strikethrough,  // Strikethrough text
+			mathjax.MathJax,          // Math formula support (LaTeX/KaTeX style)
 		),
 		goldmark.WithParserOptions(
 			parser.WithAutoHeadingID(), // Auto-generate heading IDs
