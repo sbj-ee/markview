@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"html"
+	"regexp"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -13,12 +14,35 @@ import (
 	"github.com/yuin/goldmark/ast"
 )
 
+var (
+	whitespaceRegex = regexp.MustCompile(`[\s\n\r\t]+`)
+	// Remove ALL control characters and line breaks
+	controlCharsRegex = regexp.MustCompile(`[\x00-\x1F\x7F]+`)
+)
+
 // Renderer converts Goldmark AST to Fyne widgets
 type Renderer struct {
 	source      []byte
 	segments    []widget.RichTextSegment
 	widgets     []fyne.CanvasObject
 	highlighter *SyntaxHighlighter
+}
+
+// normalizeText aggressively removes all newlines and normalizes whitespace
+func normalizeText(text string) string {
+	// First remove ALL control characters (includes \n, \r, \t, and other control codes)
+	text = controlCharsRegex.ReplaceAllString(text, " ")
+
+	// Decode HTML entities (before final normalization)
+	text = html.UnescapeString(text)
+
+	// Use regex to replace ALL remaining whitespace with single space
+	text = whitespaceRegex.ReplaceAllString(text, " ")
+
+	// Trim leading/trailing whitespace
+	text = strings.TrimSpace(text)
+
+	return text
 }
 
 // NewRenderer creates a new AST to Fyne renderer
@@ -339,22 +363,36 @@ func (r *Renderer) renderInlineNode(node ast.Node) []widget.RichTextSegment {
 
 	switch n := node.(type) {
 	case *ast.Text:
-		text := string(n.Segment.Value(r.source))
-		if n.SoftLineBreak() {
-			text += " "
-		} else if n.HardLineBreak() {
-			text += "\n"
+		rawText := string(n.Segment.Value(r.source))
+
+		// Normalize the text (removes all control characters and whitespace)
+		text := normalizeText(rawText)
+
+		// For hard line break, use actual newline (rare case - two spaces at end of line)
+		if n.HardLineBreak() {
+			text = text + "\n"
+		} else if n.SoftLineBreak() && text == "" {
+			// If soft line break and text is now empty after normalization, it was just a newline
+			text = " "
 		}
-		segments = append(segments, &widget.TextSegment{
-			Text:  text,
-			Style: widget.RichTextStyle{},
-		})
+
+		// Only add non-empty segments
+		if text != "" {
+			segments = append(segments, &widget.TextSegment{
+				Text:  text,
+				Style: widget.RichTextStyle{},
+			})
+		}
 
 	case *ast.String:
-		segments = append(segments, &widget.TextSegment{
-			Text:  string(n.Value),
-			Style: widget.RichTextStyle{},
-		})
+		text := normalizeText(string(n.Value))
+
+		if text != "" {
+			segments = append(segments, &widget.TextSegment{
+				Text:  text,
+				Style: widget.RichTextStyle{},
+			})
+		}
 
 	case *ast.Emphasis:
 		style := widget.RichTextStyle{}
@@ -370,7 +408,10 @@ func (r *Renderer) renderInlineNode(node ast.Node) []widget.RichTextSegment {
 		})
 
 	case *ast.CodeSpan:
+		// For code spans, don't normalize whitespace as much (preserve internal spacing)
 		text := string(n.Text(r.source))
+		// But do decode HTML entities
+		text = html.UnescapeString(text)
 		segments = append(segments, &widget.TextSegment{
 			Text: text,
 			Style: widget.RichTextStyle{
@@ -442,20 +483,20 @@ func (r *Renderer) extractInlineText(node ast.Node) string {
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
 		switch n := child.(type) {
 		case *ast.Text:
-			buf.Write(n.Segment.Value(r.source))
+			buf.WriteString(string(n.Segment.Value(r.source)))
 			if n.SoftLineBreak() {
 				buf.WriteString(" ")
 			}
 		case *ast.String:
-			buf.Write(n.Value)
+			buf.WriteString(string(n.Value))
 		default:
 			// Recursively extract text from nested elements
 			buf.WriteString(r.extractInlineText(child))
 		}
 	}
 
-	// Decode HTML entities (e.g., &ldquo; → ", &rdquo; → ", &mdash; → —)
-	return html.UnescapeString(buf.String())
+	// Normalize all text at the end
+	return normalizeText(buf.String())
 }
 
 // Widget rendering methods
@@ -484,19 +525,13 @@ func (r *Renderer) renderHeadingAsWidget(node *ast.Heading) {
 
 // renderParagraphAsWidget renders paragraph as RichText
 func (r *Renderer) renderParagraphAsWidget(node *ast.Paragraph) {
-	// Collect inline segments for this paragraph
-	var texts []widget.RichTextSegment
+	// Try a simpler approach: extract all text as plain text and use Label
+	text := r.extractInlineText(node)
 
-	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
-		texts = append(texts, r.renderInlineNode(child)...)
-	}
-
-	if len(texts) > 0 {
-		rt := widget.NewRichText(&widget.ParagraphSegment{
-			Texts: texts,
-		})
-		rt.Wrapping = fyne.TextWrapWord
-		r.widgets = append(r.widgets, rt)
+	if text != "" {
+		label := widget.NewLabel(text)
+		label.Wrapping = fyne.TextWrapWord
+		r.widgets = append(r.widgets, label)
 	}
 }
 
@@ -594,22 +629,19 @@ func (r *Renderer) renderListItemAsWidget(node *ast.ListItem, isOrdered bool, nu
 		bullet = "• "
 	}
 
-	// Build the complete text for the list item
-	var itemText strings.Builder
-	itemText.WriteString(indent)
-	itemText.WriteString(bullet)
+	// Build text for the list item (simpler approach)
+	var itemText string
 
 	// Extract content from the list item
 	for itemChild := node.FirstChild(); itemChild != nil; itemChild = itemChild.NextSibling() {
 		switch child := itemChild.(type) {
 		case *ast.Paragraph:
-			// Extract text from paragraph
-			text := r.extractInlineText(child)
-			itemText.WriteString(text)
+			// Extract all text from paragraph
+			itemText += r.extractInlineText(child)
 		case *ast.List:
-			// Render current item first
-			if itemText.Len() > len(indent+bullet) {
-				label := widget.NewLabel(itemText.String())
+			// Render current item first if we have text
+			if itemText != "" {
+				label := widget.NewLabel(indent + bullet + itemText)
 				label.Wrapping = fyne.TextWrapWord
 				r.widgets = append(r.widgets, label)
 			}
@@ -617,12 +649,15 @@ func (r *Renderer) renderListItemAsWidget(node *ast.ListItem, isOrdered bool, nu
 			// Render nested list
 			r.renderNestedList(child, depth+1)
 			return
+		case *ast.TextBlock:
+			// Handle text blocks
+			itemText += r.extractInlineText(child)
 		}
 	}
 
 	// Render the list item
-	if itemText.Len() > len(indent+bullet) {
-		label := widget.NewLabel(itemText.String())
+	if itemText != "" {
+		label := widget.NewLabel(indent + bullet + itemText)
 		label.Wrapping = fyne.TextWrapWord
 		r.widgets = append(r.widgets, label)
 	}
