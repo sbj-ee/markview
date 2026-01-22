@@ -16,10 +16,13 @@
 - **Full Markdown Support** - CommonMark and GitHub Flavored Markdown (GFM)
 - **Syntax Highlighting** - 250+ languages via Chroma with beautiful color schemes
 - **Live Reload** - Auto-refresh on file changes (300ms debounce)
+- **File Browser** - Built-in file tree for easy navigation and file selection
 - **Table of Contents** - Hierarchical navigation with click-to-scroll
-- **Split View** - Resizable TOC sidebar with content area
+- **Three-Pane Layout** - File Tree | TOC | Content with resizable panels
+- **Print Support** - Export to HTML or print via browser with styled formatting
 - **Custom Themes** - Beautiful light and dark themes with instant switching
 - **Smart Typography** - Automatic smart quotes, em-dashes, and proper character rendering
+- **Keyboard Shortcuts** - Cmd+O (Open), Cmd+P (Print), Cmd+R (Refresh)
 - **Cross-Platform** - Native performance on macOS and Linux
 
 ### Markdown Features Supported
@@ -90,12 +93,16 @@ markview -version
 
 | Action | Method |
 |--------|--------|
-| **Open File** | Click "Open File" button or File → Open |
-| **Refresh** | Click "Refresh" button or File → Refresh |
+| **Open File** | File → Open File or Cmd+O |
+| **Open Folder** | File → Open Folder (sets file tree root) |
+| **Refresh** | File → Refresh or Cmd+R |
+| **Print** | File → Print or Cmd+P |
+| **Toggle File Tree** | View → Toggle File Tree |
 | **Toggle TOC** | View → Toggle TOC |
 | **Switch Theme** | View → Light Theme / Dark Theme |
 | **Navigate** | Click TOC entries to jump to sections |
-| **Resize TOC** | Drag the split divider |
+| **Browse Files** | Click files in the file tree pane |
+| **Resize Panes** | Drag the split dividers |
 | **Quit** | File → Quit or Cmd+Q (macOS) / Ctrl+Q (Linux) |
 
 ### Live Reload
@@ -268,7 +275,8 @@ markview/
 │   └── main.go             # CLI parsing and app initialization
 ├── internal/
 │   ├── gui/                # User interface
-│   │   └── window.go       # Main window, menus, toolbar
+│   │   ├── window.go       # Main window, menus, toolbar, print support
+│   │   └── filetree.go     # File browser tree widget
 │   ├── markdown/           # Markdown processing
 │   │   ├── parser.go       # Goldmark wrapper
 │   │   ├── renderer.go     # AST to Fyne conversion

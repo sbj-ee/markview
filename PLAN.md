@@ -91,16 +91,17 @@ container.NewVBox(widgets...) → displayed in ScrollContainer
 - `internal/markdown/codeblock_test.go` - CodeBlock tests
 - `internal/markdown/blockquote.go` - Custom Blockquote widget
 - `internal/markdown/blockquote_test.go` - Blockquote tests
+- `internal/gui/filetree.go` - File tree browser widget
 
 ### Modified Files
 - `internal/markdown/renderer.go` - Heading colors, spacing, text normalization
 - `internal/markdown/renderer_test.go` - Additional tests for normalizeText
 - `internal/themes/themes.go` - Color scheme, font sizes, icon helpers
 - `internal/toc/navigation.go` - Smaller TOC font using RichText
-- `internal/gui/window.go` - Compact toolbar with icons
+- `internal/gui/window.go` - Three-pane layout, print support, keyboard shortcuts
 - `README.md` - Removed emojis for Fyne Label compatibility
 
-## Visual Improvements Completed
+## Features Completed
 
 | Feature | Status | Implementation |
 |---------|--------|----------------|
@@ -113,6 +114,9 @@ container.NewVBox(widgets...) → displayed in ScrollContainer
 | Compact toolbar | ✅ | Icon buttons with LowImportance |
 | Dark theme colors | ✅ | Charcoal bg, cyan/orange accents |
 | Link styling | ✅ | Cyan color (not clickable yet) |
+| File tree pane | ✅ | Three-pane layout with directory browser |
+| Print support | ✅ | HTML export, browser printing |
+| Keyboard shortcuts | ✅ | Cmd+O, Cmd+P, Cmd+R |
 
 ## Known Limitations
 
@@ -122,29 +126,40 @@ container.NewVBox(widgets...) → displayed in ScrollContainer
 
 3. **Inline formatting in paragraphs**: Paragraphs use plain Label widgets to avoid line break issues, which means bold/italic formatting within paragraphs is lost. Only heading text preserves bold styling.
 
+## Recently Implemented Features
+
+### File Tree Pane (Completed)
+
+- Three-pane layout: File Tree | TOC | Content
+- Directory tree showing folders containing markdown files
+- Filters to show only .md and .markdown files
+- Click to open files
+- Auto-sets directory when opening a file
+- Open Folder menu option to browse directories
+- Toggle visibility via View menu
+
+### Print Support (Completed)
+
+- File menu: Print option
+- Keyboard shortcut: Cmd+P / Ctrl+P
+- Export to HTML with styled formatting
+- Print via Browser option (opens system print dialog)
+- Preserves heading colors, code block styling, blockquotes
+- Print-friendly CSS styling
+
+### Keyboard Shortcuts (Completed)
+
+- Cmd/Ctrl+O: Open file
+- Cmd/Ctrl+P: Print document
+- Cmd/Ctrl+R: Refresh current file
+
 ## Future Improvements
-
-### High Priority
-
-1. **File Tree Pane** - Add a file browser pane on the far left for directory navigation and file selection
-   - Show directory tree structure
-   - Filter to show only markdown files (.md, .markdown)
-   - Click to open files
-   - Remember last opened directory
-   - Layout: File Tree | TOC | Content (three-pane design)
-
-2. **Print Support** - Add ability to print the rendered formatted markdown
-   - File menu: Print option
-   - Keyboard shortcut: Cmd+P / Ctrl+P
-   - Print preview dialog
-   - Preserve formatting (headings, code blocks, etc.)
-   - Consider PDF export as alternative
 
 ### Medium Priority
 
-3. **Clickable links** - Implement tap handlers or use Hyperlink segments
-4. **Inline formatting** - Explore RichText improvements to preserve bold/italic in paragraphs
-5. **Image rendering** - Display actual images instead of alt text
+1. **Clickable links** - Implement tap handlers or use Hyperlink segments
+2. **Inline formatting** - Explore RichText improvements to preserve bold/italic in paragraphs
+3. **Image rendering** - Display actual images instead of alt text
 
 ### Low Priority
 
