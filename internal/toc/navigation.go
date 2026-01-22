@@ -177,9 +177,9 @@ func (n *Navigator) scrollToHeading(entry *TOCEntry) {
 		return
 	}
 
-	// Get the VBox container with all rendered widgets
-	vbox, ok := n.scrollContent.Content.(*fyne.Container)
-	if !ok {
+	// Get the content container - may be wrapped in padding/border containers
+	vbox := n.findContentVBox(n.scrollContent.Content)
+	if vbox == nil {
 		return
 	}
 
@@ -187,42 +187,90 @@ func (n *Navigator) scrollToHeading(entry *TOCEntry) {
 	var targetOffset float32 = 0
 	found := false
 
-	for _, obj := range vbox.Objects {
-		if found {
-			break
-		}
-
-		// Check if this is a RichText widget (headings are RichText)
-		if rt, ok := obj.(*widget.RichText); ok {
-			// Check if the text matches our heading
-			for _, seg := range rt.Segments {
-				if para, ok := seg.(*widget.ParagraphSegment); ok {
-					for _, text := range para.Texts {
-						if textSeg, ok := text.(*widget.TextSegment); ok {
-							if textSeg.Text == entry.Text {
-								found = true
-								break
-							}
-						}
-					}
-				}
-				if found {
-					break
-				}
-			}
-		}
-
-		if !found {
-			// Add this widget's height to the offset
-			targetOffset += obj.MinSize().Height
-		}
-	}
+	n.searchForHeading(vbox.Objects, entry.Text, &targetOffset, &found)
 
 	if found {
 		// Scroll to the calculated offset
 		n.scrollContent.Offset = fyne.NewPos(0, targetOffset)
 		n.scrollContent.Refresh()
 	}
+}
+
+// findContentVBox recursively finds the VBox with the actual content
+func (n *Navigator) findContentVBox(obj fyne.CanvasObject) *fyne.Container {
+	container, ok := obj.(*fyne.Container)
+	if !ok {
+		return nil
+	}
+
+	// Check if this container has RichText children (actual content)
+	for _, child := range container.Objects {
+		if _, ok := child.(*widget.RichText); ok {
+			return container
+		}
+	}
+
+	// Otherwise, search nested containers
+	for _, child := range container.Objects {
+		if found := n.findContentVBox(child); found != nil {
+			return found
+		}
+	}
+
+	return nil
+}
+
+// searchForHeading recursively searches for a heading in the widget tree
+func (n *Navigator) searchForHeading(objects []fyne.CanvasObject, targetText string, offset *float32, found *bool) {
+	for _, obj := range objects {
+		if *found {
+			return
+		}
+
+		// Check if this is a RichText widget (headings are RichText)
+		if rt, ok := obj.(*widget.RichText); ok {
+			// Check if the text matches our heading
+			if n.richTextContains(rt, targetText) {
+				*found = true
+				return
+			}
+		}
+
+		// Check nested containers
+		if container, ok := obj.(*fyne.Container); ok {
+			n.searchForHeading(container.Objects, targetText, offset, found)
+			if *found {
+				return
+			}
+		}
+
+		if !*found {
+			// Add this widget's height to the offset
+			*offset += obj.MinSize().Height
+		}
+	}
+}
+
+// richTextContains checks if a RichText widget contains the target text
+func (n *Navigator) richTextContains(rt *widget.RichText, targetText string) bool {
+	for _, seg := range rt.Segments {
+		if para, ok := seg.(*widget.ParagraphSegment); ok {
+			for _, text := range para.Texts {
+				if textSeg, ok := text.(*widget.TextSegment); ok {
+					if textSeg.Text == targetText {
+						return true
+					}
+				}
+			}
+		}
+		// Also check direct TextSegments
+		if textSeg, ok := seg.(*widget.TextSegment); ok {
+			if textSeg.Text == targetText {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // Update updates the navigator with new TOC entries
