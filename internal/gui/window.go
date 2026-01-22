@@ -51,9 +51,9 @@ type Window struct {
 	contentBuffer string // Original content for dirty checking
 
 	// Toolbar actions
-	editAction    *widget.ToolbarAction
-	saveAction    *widget.ToolbarAction
-	discardAction *widget.ToolbarAction
+	editAction    *tooltipToolbarAction
+	saveAction    *tooltipToolbarAction
+	discardAction *tooltipToolbarAction
 }
 
 // NewWindow creates a new application window
@@ -157,44 +157,120 @@ func (w *Window) setupUI() {
 	w.fyneWindow.SetContent(mainContent)
 }
 
+// tooltipButton is a button with tooltip support
+type tooltipButton struct {
+	widget.Button
+	tooltip string
+	popup   *widget.PopUp
+}
+
+// newTooltipButton creates a button with an icon and tooltip
+func newTooltipButton(icon fyne.Resource, tooltip string, onTap func()) *tooltipButton {
+	btn := &tooltipButton{
+		tooltip: tooltip,
+	}
+	btn.ExtendBaseWidget(btn)
+	btn.Icon = icon
+	btn.OnTapped = onTap
+	btn.Importance = widget.LowImportance
+	return btn
+}
+
+// MouseIn shows the tooltip
+func (b *tooltipButton) MouseIn(e *desktop.MouseEvent) {
+	b.Button.MouseIn(e)
+
+	if b.tooltip == "" {
+		return
+	}
+
+	canvas := fyne.CurrentApp().Driver().CanvasForObject(b)
+	if canvas == nil {
+		return
+	}
+
+	label := widget.NewLabel(b.tooltip)
+	b.popup = widget.NewPopUp(
+		container.NewPadded(label),
+		canvas,
+	)
+
+	pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(b)
+	b.popup.ShowAtPosition(fyne.NewPos(pos.X, pos.Y+b.Size().Height+2))
+}
+
+// MouseOut hides the tooltip
+func (b *tooltipButton) MouseOut() {
+	b.Button.MouseOut()
+
+	if b.popup != nil {
+		b.popup.Hide()
+		b.popup = nil
+	}
+}
+
+// tooltipToolbarAction is a custom toolbar item with tooltip support
+type tooltipToolbarAction struct {
+	button *tooltipButton
+}
+
+// newTooltipToolbarAction creates a toolbar action with a tooltip
+func newTooltipToolbarAction(icon fyne.Resource, tooltip string, onTap func()) *tooltipToolbarAction {
+	return &tooltipToolbarAction{
+		button: newTooltipButton(icon, tooltip, onTap),
+	}
+}
+
+// ToolbarObject implements widget.ToolbarItem
+func (t *tooltipToolbarAction) ToolbarObject() fyne.CanvasObject {
+	// Add horizontal padding around each button for more spacing
+	return container.NewPadded(t.button)
+}
+
+// SetIcon updates the icon of the toolbar action
+func (t *tooltipToolbarAction) SetIcon(icon fyne.Resource) {
+	t.button.Icon = icon
+	t.button.Refresh()
+}
+
 // createToolbar creates the application toolbar
 func (w *Window) createToolbar() *widget.Toolbar {
-	// Create toolbar actions
-	openFileAction := widget.NewToolbarAction(themes.IconDocument(), func() {
+	// Create toolbar actions with tooltips
+	openFileAction := newTooltipToolbarAction(themes.IconDocument(), "Open File (Cmd+O)", func() {
 		w.showOpenDialog()
 	})
 
-	openFolderAction := widget.NewToolbarAction(themes.IconFolder(), func() {
+	openFolderAction := newTooltipToolbarAction(themes.IconFolder(), "Open Folder", func() {
 		w.showFolderDialog()
 	})
 
-	w.saveAction = widget.NewToolbarAction(themes.IconSave(), func() {
+	w.saveAction = newTooltipToolbarAction(themes.IconSave(), "Save (Cmd+S)", func() {
 		w.saveFile()
 	})
 
-	w.discardAction = widget.NewToolbarAction(themes.IconUndo(), func() {
+	w.discardAction = newTooltipToolbarAction(themes.IconUndo(), "Discard Changes", func() {
 		w.discardChanges()
 	})
 
-	w.editAction = widget.NewToolbarAction(themes.IconEdit(), func() {
+	w.editAction = newTooltipToolbarAction(themes.IconEdit(), "Edit Mode (Cmd+E)", func() {
 		w.toggleEditMode()
 	})
 
-	refreshAction := widget.NewToolbarAction(themes.IconRefresh(), func() {
+	refreshAction := newTooltipToolbarAction(themes.IconRefresh(), "Refresh (Cmd+R)", func() {
 		if w.currentFile != "" {
 			w.loadFile(w.currentFile)
 		}
 	})
 
-	toggleFileTreeAction := widget.NewToolbarAction(themes.IconFileTree(), func() {
+	toggleFileTreeAction := newTooltipToolbarAction(themes.IconFileTree(), "Toggle File Tree", func() {
 		w.toggleFileTree()
 	})
 
-	toggleTOCAction := widget.NewToolbarAction(themes.IconTOC(), func() {
+	toggleTOCAction := newTooltipToolbarAction(themes.IconTOC(), "Toggle Table of Contents", func() {
 		w.toggleTOC()
 	})
 
-	toggleThemeAction := widget.NewToolbarAction(themes.IconTheme(), func() {
+	toggleThemeAction := newTooltipToolbarAction(themes.IconTheme(), "Toggle Theme", func() {
 		w.toggleTheme()
 	})
 
@@ -213,16 +289,7 @@ func (w *Window) createToolbar() *widget.Toolbar {
 		toggleThemeAction,
 	)
 
-	// Initially hide save and discard (shown in edit mode)
-	w.updateToolbarForMode()
-
 	return toolbar
-}
-
-// updateToolbarForMode updates toolbar visibility based on edit mode
-func (w *Window) updateToolbarForMode() {
-	// Toolbar actions don't have show/hide, so we rebuild or use a different approach
-	// For now, the actions are always visible but only functional in appropriate modes
 }
 
 // toggleTheme switches between light and dark themes
