@@ -310,6 +310,11 @@ func IconHorizontalRule() fyne.Resource {
 	return theme.NewThemedResource(resourceHrSvg)
 }
 
+// IconImage returns an image icon
+func IconImage() fyne.Resource {
+	return theme.NewThemedResource(resourceImageSvg)
+}
+
 // GetCodeColors returns syntax highlighting colors for the current theme
 func (m *MarkViewTheme) GetCodeColors() CodeColors {
 	if m.themeType == ThemeDark {

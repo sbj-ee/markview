@@ -280,6 +280,10 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 		w.editor.WrapSelection("[", "](url)")
 	})
 
+	imageAction := newToolbarAction(themes.IconImage(), func() {
+		w.editor.WrapSelection("![", "](image_url)")
+	})
+
 	codeAction := newToolbarAction(themes.IconCode(), func() {
 		w.editor.WrapSelection("`", "`")
 	})
@@ -309,6 +313,8 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 		h3Action,
 		widget.NewToolbarSeparator(),
 		linkAction,
+		imageAction,
+		widget.NewToolbarSeparator(),
 		codeAction,
 		codeBlockAction,
 		widget.NewToolbarSeparator(),
