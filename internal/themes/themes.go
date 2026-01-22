@@ -58,7 +58,7 @@ func (m *MarkViewTheme) Size(name fyne.ThemeSizeName) float32 {
 	case theme.SizeNameCaptionText:
 		return 12 // Smaller text for TOC and captions
 	case theme.SizeNameInlineIcon:
-		return 14 // Smaller icons in file lists
+		return 14 // Icons in toolbar and lists
 	case theme.SizeNamePadding:
 		return 2 // Minimal padding for tight spacing
 	case theme.SizeNameInnerPadding:
