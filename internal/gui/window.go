@@ -277,7 +277,7 @@ func (w *Window) setupUI() {
 	w.wordCount = widget.NewLabel("")
 	w.cursorPos = widget.NewLabel("")
 	w.statusBar = widget.NewLabel("")
-	statusContainer := container.NewHBox(
+	statusInfo := container.NewHBox(
 		w.statusBar,
 		widget.NewSeparator(),
 		w.wordCount,
@@ -285,8 +285,23 @@ func (w *Window) setupUI() {
 		w.cursorPos,
 	)
 
+	// Create footer with logo on left, status in middle, version on right
+	logoIcon := canvas.NewImageFromResource(themes.AppLogo())
+	logoIcon.SetMinSize(fyne.NewSize(20, 20))
+	logoIcon.FillMode = canvas.ImageFillContain
+
+	versionLabel := widget.NewLabel("v0.1.0")
+	versionLabel.TextStyle = fyne.TextStyle{Italic: true}
+
+	footer := container.NewBorder(
+		nil, nil,
+		container.NewHBox(logoIcon, widget.NewLabel("MarkView")), // Left: logo + name
+		versionLabel, // Right: version
+		statusInfo,   // Center: status info
+	)
+
 	// Create main layout
-	mainContent := container.NewBorder(toolbarContainer, statusContainer, nil, nil, w.mainSplit)
+	mainContent := container.NewBorder(toolbarContainer, footer, nil, nil, w.mainSplit)
 
 	// Set up keyboard shortcuts
 	w.setupShortcuts()
