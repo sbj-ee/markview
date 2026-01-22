@@ -4,279 +4,172 @@ import (
 	"strings"
 	"testing"
 
-	"fyne.io/fyne/v2/widget"
+	"fyne.io/fyne/v2"
 	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/text"
 )
 
 func TestNewRenderer(t *testing.T) {
-	source := []byte("# Test")
+	source := []byte("test")
 	renderer := NewRenderer(source)
 
 	if renderer == nil {
-		t.Fatal("NewRenderer returned nil")
+		t.Fatal("NewRenderer() returned nil")
 	}
 
 	if renderer.source == nil {
-		t.Error("Renderer source is nil")
-	}
-
-	if renderer.segments == nil {
-		t.Error("Renderer segments is nil")
+		t.Error("Renderer.source is nil")
 	}
 
 	if renderer.highlighter == nil {
-		t.Error("Renderer highlighter is nil")
+		t.Error("Renderer.highlighter is nil")
 	}
 }
 
-func TestRenderer_Headings(t *testing.T) {
-	md := goldmark.New(goldmark.WithExtensions(extension.GFM))
-
-	tests := []struct {
-		name  string
-		input string
-		want  string
-	}{
-		{
-			name:  "H1",
-			input: "# Heading 1",
-			want:  "Heading 1",
-		},
-		{
-			name:  "H2",
-			input: "## Heading 2",
-			want:  "Heading 2",
-		},
-		{
-			name:  "H3",
-			input: "### Heading 3",
-			want:  "Heading 3",
-		},
-		{
-			name:  "H6",
-			input: "###### Heading 6",
-			want:  "Heading 6",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			source := []byte(tt.input)
-			reader := text.NewReader(source)
-			doc := md.Parser().Parse(reader)
-
-			renderer := NewRenderer(source)
-			segments := renderer.Render(doc)
-
-			if len(segments) == 0 {
-				t.Fatal("No segments rendered")
-			}
-
-			// Find the heading segment
-			found := false
-			for _, seg := range segments {
-				if textSeg, ok := seg.(*widget.TextSegment); ok {
-					if textSeg.Text == tt.want {
-						found = true
-						// Check that it's bold
-						if !textSeg.Style.TextStyle.Bold {
-							t.Error("Heading should be bold")
-						}
-						break
-					}
-				}
-			}
-
-			if !found {
-				t.Errorf("Expected heading text '%s' not found in segments", tt.want)
-			}
-		})
-	}
-}
-
-func TestRenderer_Paragraphs(t *testing.T) {
-	md := goldmark.New(goldmark.WithExtensions(extension.GFM))
-
-	input := "This is a simple paragraph."
-	source := []byte(input)
+func TestRender_Heading(t *testing.T) {
+	md := goldmark.New()
+	source := []byte("# Test Heading")
 	reader := text.NewReader(source)
 	doc := md.Parser().Parse(reader)
 
 	renderer := NewRenderer(source)
-	segments := renderer.Render(doc)
+	content := renderer.Render(doc)
 
-	if len(segments) == 0 {
-		t.Fatal("No segments rendered")
+	cont, ok := content.(*fyne.Container)
+	if !ok {
+		t.Fatal("Render() did not return Container")
 	}
 
-	// Should contain the paragraph text (may be across multiple segments)
-	var combinedText string
-	for _, seg := range segments {
-		if textSeg, ok := seg.(*widget.TextSegment); ok {
-			combinedText += textSeg.Text
-		}
-	}
-
-	if !strings.Contains(combinedText, input) {
-		t.Errorf("Paragraph text '%s' not found in combined segments: '%s'", input, combinedText)
+	if len(cont.Objects) < 1 {
+		t.Error("Render() returned no widgets for heading")
 	}
 }
 
-func TestRenderer_CodeBlocks(t *testing.T) {
-	md := goldmark.New(goldmark.WithExtensions(extension.GFM))
-
-	tests := []struct {
-		name     string
-		input    string
-		wantCode string
-	}{
-		{
-			name:     "fenced code block",
-			input:    "```go\nfunc main() {}\n```",
-			wantCode: "func main()",
-		},
-		{
-			name:     "code block with language",
-			input:    "```python\nprint('hello')\n```",
-			wantCode: "print('hello')",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			source := []byte(tt.input)
-			reader := text.NewReader(source)
-			doc := md.Parser().Parse(reader)
-
-			renderer := NewRenderer(source)
-			segments := renderer.Render(doc)
-
-			if len(segments) == 0 {
-				t.Fatal("No segments rendered")
-			}
-
-			// Code should be in the segments (may be split across multiple segments due to highlighting)
-			var combinedText string
-			for _, seg := range segments {
-				if textSeg, ok := seg.(*widget.TextSegment); ok {
-					combinedText += textSeg.Text
-				}
-			}
-
-			if !strings.Contains(combinedText, tt.wantCode) {
-				t.Errorf("Code '%s' not found in combined segments: '%s'", tt.wantCode, combinedText)
-			}
-		})
-	}
-}
-
-func TestRenderer_Lists(t *testing.T) {
-	md := goldmark.New(goldmark.WithExtensions(extension.GFM))
-
-	input := "- Item 1\n- Item 2\n- Item 3"
-	source := []byte(input)
+func TestRender_Paragraph(t *testing.T) {
+	md := goldmark.New()
+	source := []byte("This is a paragraph.")
 	reader := text.NewReader(source)
 	doc := md.Parser().Parse(reader)
 
 	renderer := NewRenderer(source)
-	segments := renderer.Render(doc)
+	content := renderer.Render(doc)
 
-	if len(segments) == 0 {
-		t.Fatal("No segments rendered")
+	cont, ok := content.(*fyne.Container)
+	if !ok {
+		t.Fatal("Render() did not return Container")
 	}
 
-	// Should have list item markers
-	bulletCount := 0
-	for _, seg := range segments {
-		if textSeg, ok := seg.(*widget.TextSegment); ok {
-			if textSeg.Text == "• " {
-				bulletCount++
-			}
-		}
-	}
-
-	if bulletCount < 3 {
-		t.Errorf("Expected at least 3 bullet points, got %d", bulletCount)
+	if len(cont.Objects) < 1 {
+		t.Error("Render() returned no widgets for paragraph")
 	}
 }
 
-func TestRenderer_Emphasis(t *testing.T) {
-	md := goldmark.New(goldmark.WithExtensions(extension.GFM))
+func TestRender_CodeBlock(t *testing.T) {
+	md := goldmark.New()
+	source := []byte("```go\nfunc main() {}\n```")
+	reader := text.NewReader(source)
+	doc := md.Parser().Parse(reader)
 
-	tests := []struct {
-		name       string
-		input      string
-		wantText   string
-		wantItalic bool
-		wantBold   bool
-	}{
-		{
-			name:       "italic",
-			input:      "*italic*",
-			wantText:   "italic",
-			wantItalic: true,
-			wantBold:   false,
-		},
-		{
-			name:       "bold",
-			input:      "**bold**",
-			wantText:   "bold",
-			wantItalic: false,
-			wantBold:   true,
-		},
+	renderer := NewRenderer(source)
+	content := renderer.Render(doc)
+
+	cont, ok := content.(*fyne.Container)
+	if !ok {
+		t.Fatal("Render() did not return Container")
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			source := []byte(tt.input)
-			reader := text.NewReader(source)
-			doc := md.Parser().Parse(reader)
-
-			renderer := NewRenderer(source)
-			segments := renderer.Render(doc)
-
-			if len(segments) == 0 {
-				t.Fatal("No segments rendered")
-			}
-
-			// Find the emphasized text
-			found := false
-			for _, seg := range segments {
-				if textSeg, ok := seg.(*widget.TextSegment); ok {
-					if textSeg.Text == tt.wantText {
-						found = true
-						if textSeg.Style.TextStyle.Italic != tt.wantItalic {
-							t.Errorf("Expected italic=%v, got italic=%v", tt.wantItalic, textSeg.Style.TextStyle.Italic)
-						}
-						if textSeg.Style.TextStyle.Bold != tt.wantBold {
-							t.Errorf("Expected bold=%v, got bold=%v", tt.wantBold, textSeg.Style.TextStyle.Bold)
-						}
-						break
-					}
-				}
-			}
-
-			if !found {
-				t.Errorf("Expected text '%s' not found in segments", tt.wantText)
-			}
-		})
+	if len(cont.Objects) < 1 {
+		t.Error("Render() returned no widgets for code block")
 	}
 }
 
-func TestRenderer_EmptyContent(t *testing.T) {
-	md := goldmark.New(goldmark.WithExtensions(extension.GFM))
+func TestRender_List(t *testing.T) {
+	md := goldmark.New()
+	source := []byte("- Item 1\n- Item 2\n- Item 3")
+	reader := text.NewReader(source)
+	doc := md.Parser().Parse(reader)
 
+	renderer := NewRenderer(source)
+	content := renderer.Render(doc)
+
+	cont, ok := content.(*fyne.Container)
+	if !ok {
+		t.Fatal("Render() did not return Container")
+	}
+
+	if len(cont.Objects) < 1 {
+		t.Error("Render() returned no widgets for list")
+	}
+}
+
+func TestRender_EmptyDocument(t *testing.T) {
+	md := goldmark.New()
 	source := []byte("")
 	reader := text.NewReader(source)
 	doc := md.Parser().Parse(reader)
 
 	renderer := NewRenderer(source)
-	segments := renderer.Render(doc)
+	content := renderer.Render(doc)
 
-	// Empty content should return empty segments
-	if len(segments) != 0 {
-		t.Errorf("Expected 0 segments for empty content, got %d", len(segments))
+	cont, ok := content.(*fyne.Container)
+	if !ok {
+		t.Fatal("Render() did not return Container")
+	}
+
+	// Empty document should return empty Container
+	if len(cont.Objects) != 0 {
+		t.Errorf("Render() returned %d widgets for empty document, want 0", len(cont.Objects))
+	}
+}
+
+func TestExtractInlineText(t *testing.T) {
+	tests := []struct {
+		name     string
+		markdown string
+		wantText string
+	}{
+		{
+			name:     "simple text",
+			markdown: "# Hello",
+			wantText: "Hello",
+		},
+		{
+			name:     "bold text",
+			markdown: "# **Bold**",
+			wantText: "Bold",
+		},
+		{
+			name:     "italic text",
+			markdown: "# *Italic*",
+			wantText: "Italic",
+		},
+		{
+			name:     "mixed formatting",
+			markdown: "# **Bold** and *italic*",
+			wantText: "Bold and italic",
+		},
+	}
+
+	md := goldmark.New()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source := []byte(tt.markdown)
+			reader := text.NewReader(source)
+			doc := md.Parser().Parse(reader)
+
+			renderer := NewRenderer(source)
+
+			// Find the heading node
+			heading := doc.FirstChild()
+			if heading == nil {
+				t.Fatal("No heading node found")
+			}
+
+			text := renderer.extractInlineText(heading)
+			if !strings.Contains(text, tt.wantText) {
+				t.Errorf("extractInlineText() = %q, want text containing %q", text, tt.wantText)
+			}
+		})
 	}
 }

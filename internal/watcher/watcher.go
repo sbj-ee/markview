@@ -49,6 +49,9 @@ func (fw *FileWatcher) Watch(filePath string, onChange func()) error {
 		fw.stopWatch()
 	}
 
+	// Create new stop channel for this watch session
+	fw.stopChan = make(chan struct{})
+
 	fw.filePath = filePath
 	fw.onChange = onChange
 

@@ -108,23 +108,34 @@ The file watcher uses a 300ms debounce to prevent rapid re-renders during saves.
 
 ### Beautiful Themes
 
-MarkView includes two carefully crafted themes:
+MarkView includes two carefully crafted themes with enhanced typography:
 
 #### 🌙 Dark Theme (Default)
 - Dracula-inspired color palette
 - Deep purple-gray background (#282A36)
 - Vibrant syntax highlighting
+- **Large, blue-colored headings** for excellent hierarchy
 - Easy on the eyes for extended reading sessions
 - Perfect for low-light environments
 
 #### ☀️ Light Theme
 - GitHub-inspired clean design
 - Pure white background with professional colors
+- **Blue headings with increased font sizes** (H1: 28pt, H2: 22pt)
 - High contrast for readability
 - Ideal for daytime use and printing
 - Easy on battery life
 
 **Switch themes instantly** via View → Light Theme / Dark Theme menu.
+
+### Typography & Rendering
+
+- **Larger headings** with visual hierarchy (H1 @ 28pt, H2 @ 22pt, H3 @ 21pt)
+- **Colored headings** in professional blue shades
+- **Bold heading styling** for improved scannability
+- **Clean rendering** without markdown syntax symbols
+- **Proper spacing** between elements
+- **Widget-based rendering** for precise control over appearance
 
 ---
 
@@ -441,7 +452,7 @@ A: Go to View → Light Theme or View → Dark Theme. The entire interface updat
 
 ## License
 
-[Specify your license here - e.g., MIT, Apache 2.0, GPLv3]
+MIT License - see [LICENSE](LICENSE) file for details
 
 ---
 

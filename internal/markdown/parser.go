@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
@@ -33,15 +34,28 @@ func NewParser(logger *zap.Logger) *Parser {
 	}
 }
 
-// Parse parses markdown content and returns Fyne RichText segments
-func (p *Parser) Parse(content []byte) ([]widget.RichTextSegment, error) {
+// Parse parses markdown content and returns a Fyne CanvasObject
+func (p *Parser) Parse(content []byte) (fyne.CanvasObject, error) {
+	// Parse markdown to AST
+	reader := text.NewReader(content)
+	doc := p.md.Parser().Parse(reader)
+
+	// Convert AST to Fyne widgets using renderer
+	renderer := NewRenderer(content)
+	container := renderer.Render(doc)
+
+	return container, nil
+}
+
+// ParseLegacy parses markdown content and returns Fyne RichText segments (for compatibility)
+func (p *Parser) ParseLegacy(content []byte) ([]widget.RichTextSegment, error) {
 	// Parse markdown to AST
 	reader := text.NewReader(content)
 	doc := p.md.Parser().Parse(reader)
 
 	// Convert AST to Fyne segments using renderer
 	renderer := NewRenderer(content)
-	segments := renderer.Render(doc)
+	segments := renderer.RenderSegments(doc)
 
 	return segments, nil
 }

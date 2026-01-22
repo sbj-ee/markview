@@ -38,3 +38,4 @@ fyne-cross/
 # Temporary files
 tmp/
 temp/
+/.claude/

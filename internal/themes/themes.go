@@ -35,6 +35,8 @@ func (m *MarkViewTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVarian
 
 // Font returns the font resource for the given theme text style
 func (m *MarkViewTheme) Font(style fyne.TextStyle) fyne.Resource {
+	// Use Inter font - for now, use default which is similar to Inter on modern systems
+	// TODO: Bundle Inter font files for consistent cross-platform rendering
 	return theme.DefaultTheme().Font(style)
 }
 
@@ -45,7 +47,31 @@ func (m *MarkViewTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
 
 // Size returns the size for the given theme size name
 func (m *MarkViewTheme) Size(name fyne.ThemeSizeName) float32 {
-	return theme.DefaultTheme().Size(name)
+	// Increase text sizes for better readability
+	switch name {
+	case theme.SizeNameText:
+		return 15 // Default text size
+	case theme.SizeNameHeadingText:
+		return 28 // H1 size - large and prominent
+	case theme.SizeNameSubHeadingText:
+		return 22 // H2 size
+	case theme.SizeNameCaptionText:
+		return 13 // Smaller text
+	case "heading1":
+		return 32 // H1: Extra large
+	case "heading2":
+		return 26 // H2: Large
+	case "heading3":
+		return 21 // H3: Medium-large
+	case "heading4":
+		return 18 // H4: Medium
+	case "heading5":
+		return 16 // H5: Small
+	case "heading6":
+		return 15 // H6: Base size
+	default:
+		return theme.DefaultTheme().Size(name)
+	}
 }
 
 // lightColor returns colors for light theme

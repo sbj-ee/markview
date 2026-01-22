@@ -25,7 +25,6 @@ type Window struct {
 	app           fyne.App
 	parser        *markdown.Parser
 	logger        *zap.Logger
-	content       *widget.RichText
 	tocTree       *widget.Tree
 	tocScroll     *container.Scroll
 	scrollContent *container.Scroll
@@ -71,10 +70,8 @@ func NewWindow(app fyne.App, logger *zap.Logger) *Window {
 
 // setupUI sets up the user interface
 func (w *Window) setupUI() {
-	// Create content display
-	w.content = widget.NewRichText()
-	w.content.Wrapping = fyne.TextWrapWord
-	w.scrollContent = container.NewScroll(w.content)
+	// Create content display area (will be updated with parsed content)
+	w.scrollContent = container.NewScroll(container.NewVBox())
 
 	// Create placeholder TOC
 	w.tocTree = widget.NewTree(
@@ -226,7 +223,7 @@ func (w *Window) loadFile(filePath string) {
 	}
 
 	// Parse markdown
-	segments, err := w.parser.Parse(data)
+	content, err := w.parser.Parse(data)
 	if err != nil {
 		w.logger.Error("Failed to parse markdown", zap.Error(err))
 		dialog.ShowError(fmt.Errorf("failed to parse markdown: %w", err), w.fyneWindow)
@@ -234,8 +231,8 @@ func (w *Window) loadFile(filePath string) {
 	}
 
 	// Update content
-	w.content.Segments = segments
-	w.content.Refresh()
+	w.scrollContent.Content = content
+	w.scrollContent.Refresh()
 
 	// Generate TOC
 	w.updateTOC(data)
@@ -247,6 +244,7 @@ func (w *Window) loadFile(filePath string) {
 func (w *Window) updateTOC(data []byte) {
 	// Parse markdown to get AST
 	reader := text.NewReader(data)
+	w.logger.Debug("Updating TOC")
 	doc := w.parser.GetMarkdown().Parser().Parse(reader)
 
 	// Generate TOC
