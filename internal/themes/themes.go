@@ -270,6 +270,46 @@ func IconTheme() fyne.Resource {
 	return theme.ColorPaletteIcon()
 }
 
+// IconBold returns a bold text icon
+func IconBold() fyne.Resource {
+	return theme.NewThemedResource(resourceBoldSvg)
+}
+
+// IconItalic returns an italic text icon
+func IconItalic() fyne.Resource {
+	return theme.NewThemedResource(resourceItalicSvg)
+}
+
+// IconHeading returns a heading icon
+func IconHeading() fyne.Resource {
+	return theme.NewThemedResource(resourceHeadingSvg)
+}
+
+// IconLink returns a link icon
+func IconLink() fyne.Resource {
+	return theme.NewThemedResource(resourceLinkSvg)
+}
+
+// IconCode returns a code icon
+func IconCode() fyne.Resource {
+	return theme.NewThemedResource(resourceCodeSvg)
+}
+
+// IconQuote returns a blockquote icon
+func IconQuote() fyne.Resource {
+	return theme.NewThemedResource(resourceQuoteSvg)
+}
+
+// IconList returns a list icon
+func IconList() fyne.Resource {
+	return theme.ListIcon()
+}
+
+// IconHorizontalRule returns a horizontal rule icon
+func IconHorizontalRule() fyne.Resource {
+	return theme.NewThemedResource(resourceHrSvg)
+}
+
 // GetCodeColors returns syntax highlighting colors for the current theme
 func (m *MarkViewTheme) GetCodeColors() CodeColors {
 	if m.themeType == ThemeDark {

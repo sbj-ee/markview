@@ -62,3 +62,121 @@ func (e *MarkdownEditor) TypedRune(r rune) {
 func (e *MarkdownEditor) MinSize() fyne.Size {
 	return e.entry.MinSize()
 }
+
+// WrapSelection wraps the selected text with prefix and suffix, or inserts at cursor
+func (e *MarkdownEditor) WrapSelection(prefix, suffix string) {
+	text := e.entry.Text
+	// Get cursor position
+	col := e.entry.CursorColumn
+	row := e.entry.CursorRow
+
+	// Find position in text
+	pos := 0
+	lines := splitLines(text)
+	for i := 0; i < row && i < len(lines); i++ {
+		pos += len(lines[i]) + 1 // +1 for newline
+	}
+	pos += col
+
+	// Check if there's a selection by looking at selected text
+	selected := e.entry.SelectedText()
+	if selected != "" {
+		// Find selection in text and wrap it
+		selStart := findSelectionStart(text, selected, pos)
+		if selStart >= 0 {
+			newText := text[:selStart] + prefix + selected + suffix + text[selStart+len(selected):]
+			e.entry.SetText(newText)
+			return
+		}
+	}
+
+	// No selection, insert at cursor
+	if pos > len(text) {
+		pos = len(text)
+	}
+	newText := text[:pos] + prefix + suffix + text[pos:]
+	e.entry.SetText(newText)
+}
+
+// InsertAtCursor inserts text at the current cursor position
+func (e *MarkdownEditor) InsertAtCursor(insert string) {
+	text := e.entry.Text
+	col := e.entry.CursorColumn
+	row := e.entry.CursorRow
+
+	// Find position in text
+	pos := 0
+	lines := splitLines(text)
+	for i := 0; i < row && i < len(lines); i++ {
+		pos += len(lines[i]) + 1
+	}
+	pos += col
+
+	if pos > len(text) {
+		pos = len(text)
+	}
+	newText := text[:pos] + insert + text[pos:]
+	e.entry.SetText(newText)
+}
+
+// InsertAtLineStart inserts text at the beginning of the current line
+func (e *MarkdownEditor) InsertAtLineStart(prefix string) {
+	text := e.entry.Text
+	row := e.entry.CursorRow
+
+	lines := splitLines(text)
+	if row < len(lines) {
+		lines[row] = prefix + lines[row]
+	}
+	e.entry.SetText(joinLines(lines))
+}
+
+// splitLines splits text into lines
+func splitLines(text string) []string {
+	if text == "" {
+		return []string{""}
+	}
+	var lines []string
+	start := 0
+	for i, c := range text {
+		if c == '\n' {
+			lines = append(lines, text[start:i])
+			start = i + 1
+		}
+	}
+	lines = append(lines, text[start:])
+	return lines
+}
+
+// joinLines joins lines with newlines
+func joinLines(lines []string) string {
+	result := ""
+	for i, line := range lines {
+		if i > 0 {
+			result += "\n"
+		}
+		result += line
+	}
+	return result
+}
+
+// findSelectionStart finds the start position of selected text near cursor
+func findSelectionStart(text, selected string, cursorPos int) int {
+	// Search backwards from cursor first
+	searchStart := cursorPos - len(selected)
+	if searchStart < 0 {
+		searchStart = 0
+	}
+	for i := searchStart; i <= cursorPos && i+len(selected) <= len(text); i++ {
+		if text[i:i+len(selected)] == selected {
+			return i
+		}
+	}
+	// Search forwards from cursor
+	for i := cursorPos; i+len(selected) <= len(text); i++ {
+		if text[i:i+len(selected)] == selected {
+			return i
+		}
+	}
+	return -1
+}

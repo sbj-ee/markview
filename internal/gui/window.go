@@ -54,6 +54,9 @@ type Window struct {
 	editAction    *tooltipToolbarAction
 	saveAction    *tooltipToolbarAction
 	discardAction *tooltipToolbarAction
+
+	// Edit toolbar (shown in edit mode)
+	editToolbar *widget.Toolbar
 }
 
 // NewWindow creates a new application window
@@ -145,8 +148,15 @@ func (w *Window) setupUI() {
 	// Create toolbar
 	toolbar := w.createToolbar()
 
+	// Create edit toolbar (hidden by default)
+	w.editToolbar = w.createEditToolbar()
+	w.editToolbar.Hide()
+
+	// Create toolbar container with both toolbars
+	toolbarContainer := container.NewVBox(toolbar, w.editToolbar)
+
 	// Create main layout
-	mainContent := container.NewBorder(toolbar, nil, nil, nil, w.mainSplit)
+	mainContent := container.NewBorder(toolbarContainer, nil, nil, nil, w.mainSplit)
 
 	// Set up keyboard shortcuts
 	w.setupShortcuts()
@@ -296,6 +306,70 @@ func (w *Window) toggleTheme() {
 	} else {
 		w.setTheme(themes.ThemeDark)
 	}
+}
+
+// createEditToolbar creates the markdown editing toolbar
+func (w *Window) createEditToolbar() *widget.Toolbar {
+	boldAction := newTooltipToolbarAction(themes.IconBold(), "Bold (Cmd+B)", func() {
+		w.editor.WrapSelection("**", "**")
+	})
+
+	italicAction := newTooltipToolbarAction(themes.IconItalic(), "Italic (Cmd+I)", func() {
+		w.editor.WrapSelection("*", "*")
+	})
+
+	h1Action := newTooltipToolbarAction(themes.IconHeading(), "Heading 1", func() {
+		w.editor.InsertAtLineStart("# ")
+	})
+
+	h2Action := newTooltipToolbarAction(themes.IconHeading(), "Heading 2", func() {
+		w.editor.InsertAtLineStart("## ")
+	})
+
+	h3Action := newTooltipToolbarAction(themes.IconHeading(), "Heading 3", func() {
+		w.editor.InsertAtLineStart("### ")
+	})
+
+	linkAction := newTooltipToolbarAction(themes.IconLink(), "Link", func() {
+		w.editor.WrapSelection("[", "](url)")
+	})
+
+	codeAction := newTooltipToolbarAction(themes.IconCode(), "Inline Code", func() {
+		w.editor.WrapSelection("`", "`")
+	})
+
+	codeBlockAction := newTooltipToolbarAction(themes.IconCode(), "Code Block", func() {
+		w.editor.InsertAtCursor("\n```\n\n```\n")
+	})
+
+	quoteAction := newTooltipToolbarAction(themes.IconQuote(), "Blockquote", func() {
+		w.editor.InsertAtLineStart("> ")
+	})
+
+	listAction := newTooltipToolbarAction(themes.IconList(), "Bullet List", func() {
+		w.editor.InsertAtLineStart("- ")
+	})
+
+	hrAction := newTooltipToolbarAction(themes.IconHorizontalRule(), "Horizontal Rule", func() {
+		w.editor.InsertAtCursor("\n---\n")
+	})
+
+	return widget.NewToolbar(
+		boldAction,
+		italicAction,
+		widget.NewToolbarSeparator(),
+		h1Action,
+		h2Action,
+		h3Action,
+		widget.NewToolbarSeparator(),
+		linkAction,
+		codeAction,
+		codeBlockAction,
+		widget.NewToolbarSeparator(),
+		quoteAction,
+		listAction,
+		hrAction,
+	)
 }
 
 // setupShortcuts sets up keyboard shortcuts
@@ -588,6 +662,7 @@ func (w *Window) switchToEditMode() {
 	// Update UI
 	w.scrollContent.Hide()
 	w.editorScroll.Show()
+	w.editToolbar.Show()
 
 	// Update toolbar icon to show "View" action
 	w.editAction.SetIcon(themes.IconView())
@@ -630,6 +705,7 @@ func (w *Window) switchToViewMode() {
 	// Update UI
 	w.editorScroll.Hide()
 	w.scrollContent.Show()
+	w.editToolbar.Hide()
 
 	// Update toolbar icon to show "Edit" action
 	w.editAction.SetIcon(themes.IconEdit())
