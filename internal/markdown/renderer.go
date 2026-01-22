@@ -505,6 +505,11 @@ func (r *Renderer) extractInlineText(node ast.Node) string {
 func (r *Renderer) renderHeadingAsWidget(node *ast.Heading) {
 	text := r.extractInlineText(node)
 
+	// Add spacing before heading (not for first element)
+	if len(r.widgets) > 0 {
+		r.widgets = append(r.widgets, NewSpacer(16))
+	}
+
 	// Use hyperlink color which is a nice shade of blue
 	rt := widget.NewRichText(&widget.ParagraphSegment{
 		Texts: []widget.RichTextSegment{
@@ -521,6 +526,9 @@ func (r *Renderer) renderHeadingAsWidget(node *ast.Heading) {
 	rt.Wrapping = fyne.TextWrapWord
 
 	r.widgets = append(r.widgets, rt)
+
+	// Add spacing after heading
+	r.widgets = append(r.widgets, NewSpacer(8))
 }
 
 // renderParagraphAsWidget renders paragraph as RichText
@@ -532,6 +540,9 @@ func (r *Renderer) renderParagraphAsWidget(node *ast.Paragraph) {
 		label := widget.NewLabel(text)
 		label.Wrapping = fyne.TextWrapWord
 		r.widgets = append(r.widgets, label)
+
+		// Add spacing after paragraph
+		r.widgets = append(r.widgets, NewSpacer(8))
 	}
 }
 
@@ -570,7 +581,11 @@ func (r *Renderer) renderCodeBlockAsWidget(node ast.Node, fenced bool) {
 	// Don't wrap code - let it scroll horizontally
 	rt.Wrapping = fyne.TextWrapOff
 
+	// Add spacing before code block
+	r.widgets = append(r.widgets, NewSpacer(8))
 	r.widgets = append(r.widgets, rt)
+	// Add spacing after code block
+	r.widgets = append(r.widgets, NewSpacer(8))
 }
 
 // renderBlockquoteAsWidget renders blockquote
@@ -588,13 +603,20 @@ func (r *Renderer) renderBlockquoteAsWidget(node *ast.Blockquote) {
 	label.Wrapping = fyne.TextWrapWord
 	label.TextStyle = fyne.TextStyle{Italic: true}
 
+	// Add spacing before blockquote
+	r.widgets = append(r.widgets, NewSpacer(8))
 	r.widgets = append(r.widgets, label)
+	// Add spacing after blockquote
+	r.widgets = append(r.widgets, NewSpacer(8))
 }
 
 // renderListAsWidget renders list items as individual paragraphs with bullets
 func (r *Renderer) renderListAsWidget(node *ast.List) {
 	isOrdered := node.IsOrdered()
 	itemNum := 1
+
+	// Add spacing before list
+	r.widgets = append(r.widgets, NewSpacer(4))
 
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
 		if listItem, ok := child.(*ast.ListItem); ok {
@@ -604,6 +626,9 @@ func (r *Renderer) renderListAsWidget(node *ast.List) {
 			}
 		}
 	}
+
+	// Add spacing after list
+	r.widgets = append(r.widgets, NewSpacer(8))
 }
 
 // renderListItemAsWidget renders a single list item with proper indentation
