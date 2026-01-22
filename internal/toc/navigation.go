@@ -149,17 +149,56 @@ func (n *Navigator) getNodeID(parentID string, index int) string {
 
 // scrollToHeading scrolls the content to show the specified heading
 func (n *Navigator) scrollToHeading(entry *TOCEntry) {
-	// This is a placeholder implementation
-	// In a real implementation, we would:
-	// 1. Track the position of each heading in the rendered content
-	// 2. Calculate the scroll offset to bring the heading into view
-	// 3. Scroll to that offset
+	if n.scrollContent == nil || n.scrollContent.Content == nil {
+		return
+	}
 
-	// For now, we'll just scroll to the top as a basic implementation
-	n.scrollContent.ScrollToTop()
+	// Get the VBox container with all rendered widgets
+	vbox, ok := n.scrollContent.Content.(*fyne.Container)
+	if !ok {
+		return
+	}
 
-	// TODO: Implement proper scroll-to-heading functionality
-	// This requires tracking heading positions during rendering
+	// Search for the widget with matching heading text
+	var targetOffset float32 = 0
+	found := false
+
+	for _, obj := range vbox.Objects {
+		if found {
+			break
+		}
+
+		// Check if this is a RichText widget (headings are RichText)
+		if rt, ok := obj.(*widget.RichText); ok {
+			// Check if the text matches our heading
+			for _, seg := range rt.Segments {
+				if para, ok := seg.(*widget.ParagraphSegment); ok {
+					for _, text := range para.Texts {
+						if textSeg, ok := text.(*widget.TextSegment); ok {
+							if textSeg.Text == entry.Text {
+								found = true
+								break
+							}
+						}
+					}
+				}
+				if found {
+					break
+				}
+			}
+		}
+
+		if !found {
+			// Add this widget's height to the offset
+			targetOffset += obj.MinSize().Height
+		}
+	}
+
+	if found {
+		// Scroll to the calculated offset
+		n.scrollContent.Offset = fyne.NewPos(0, targetOffset)
+		n.scrollContent.Refresh()
+	}
 }
 
 // Update updates the navigator with new TOC entries

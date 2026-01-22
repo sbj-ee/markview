@@ -197,6 +197,10 @@ func (w *Window) showOpenDialog() {
 	}, w.fyneWindow)
 
 	fd.SetFilter(storage.NewExtensionFileFilter([]string{".md", ".markdown"}))
+
+	// Make the file dialog 1.75x larger
+	fd.Resize(fyne.NewSize(1050, 700))
+
 	fd.Show()
 }
 

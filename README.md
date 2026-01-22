@@ -16,9 +16,10 @@
 - ✅ **Full Markdown Support** - CommonMark and GitHub Flavored Markdown (GFM)
 - ✅ **Syntax Highlighting** - 250+ languages via Chroma with beautiful color schemes
 - ✅ **Live Reload** - Auto-refresh on file changes (300ms debounce)
-- ✅ **Table of Contents** - Hierarchical navigation from document headings
+- ✅ **Table of Contents** - Hierarchical navigation with click-to-scroll
 - ✅ **Split View** - Resizable TOC sidebar with content area
 - ✅ **Custom Themes** - Beautiful light and dark themes with instant switching
+- ✅ **Smart Typography** - Automatic smart quotes, em-dashes, and proper character rendering
 - ✅ **Cross-Platform** - Native performance on macOS and Linux
 
 ### Markdown Features Supported
@@ -133,7 +134,9 @@ MarkView includes two carefully crafted themes with enhanced typography:
 - **Larger headings** with visual hierarchy (H1 @ 28pt, H2 @ 22pt, H3 @ 21pt)
 - **Colored headings** in professional blue shades
 - **Bold heading styling** for improved scannability
-- **Clean rendering** without markdown syntax symbols
+- **Smart typography** - Automatic conversion of quotes and dashes (e.g., "smart quotes", em-dashes)
+- **Clean rendering** without markdown syntax symbols (no fence markers shown)
+- **Proper code formatting** - Syntax highlighted code blocks with no line wrapping
 - **Proper spacing** between elements
 - **Widget-based rendering** for precise control over appearance
 
@@ -324,26 +327,27 @@ Abstract Syntax Tree (AST)
 ## Roadmap
 
 ### ✅ Implemented (v0.1.0)
-- Basic markdown rendering
-- Syntax highlighting with beautiful colors
-- Live file reload
-- Table of contents
-- Split view layout
-- File operations
+- Basic markdown rendering with smart typography
+- Syntax highlighting with beautiful colors (no line wrapping in code blocks)
+- Live file reload with auto-watch
+- Table of contents with click-to-scroll navigation
+- Split view layout with resizable panels
+- File operations (open, refresh)
 - Custom light and dark themes
-- Theme switching
+- Theme switching with instant reload
+- HTML entity rendering (smart quotes, em-dashes, etc.)
+- Clean code block display (no fence markers)
 
 ### 🚧 In Progress
 - Image rendering (local files)
-- Improved scroll-to-heading
 - Additional theme options (Nord, Solarized, etc.)
 
 ### 📋 Planned
 - **v0.2.0**
   - Full image support (local + remote)
-  - Scroll-to-heading with position tracking
   - Keyboard shortcuts (Ctrl+O, Ctrl+R, etc.)
   - Additional themes (Nord, Solarized, Monokai, etc.)
+  - Enhanced TOC with current position tracking
 
 - **v0.3.0**
   - Export to HTML/PDF

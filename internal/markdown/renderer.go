@@ -3,6 +3,7 @@ package markdown
 import (
 	"bytes"
 	"fmt"
+	"html"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -434,7 +435,7 @@ func (r *Renderer) renderChildren(node ast.Node) {
 	}
 }
 
-// extractInlineText extracts text from inline elements
+// extractInlineText extracts text from inline elements and decodes HTML entities
 func (r *Renderer) extractInlineText(node ast.Node) string {
 	var buf bytes.Buffer
 
@@ -453,7 +454,8 @@ func (r *Renderer) extractInlineText(node ast.Node) string {
 		}
 	}
 
-	return buf.String()
+	// Decode HTML entities (e.g., &ldquo; → ", &rdquo; → ", &mdash; → —)
+	return html.UnescapeString(buf.String())
 }
 
 // Widget rendering methods
@@ -523,33 +525,16 @@ func (r *Renderer) renderCodeBlockAsWidget(node ast.Node, fenced bool) {
 		language = "text"
 	}
 
-	// Build code block segments
-	var texts []widget.RichTextSegment
-	if fenced && language != "text" {
-		texts = append(texts, &widget.TextSegment{
-			Text: "```" + language + "\n",
-			Style: widget.RichTextStyle{
-				TextStyle: fyne.TextStyle{Monospace: true, Italic: true},
-			},
-		})
-	}
-
+	// Get syntax highlighted segments (no fence markers)
 	highlightedSegments := r.highlighter.Highlight(code, language)
-	texts = append(texts, highlightedSegments...)
-
-	if fenced && language != "text" {
-		texts = append(texts, &widget.TextSegment{
-			Text: "\n```",
-			Style: widget.RichTextStyle{
-				TextStyle: fyne.TextStyle{Monospace: true, Italic: true},
-			},
-		})
-	}
 
 	rt := widget.NewRichText(&widget.ParagraphSegment{
-		Texts: texts,
+		Texts: highlightedSegments,
 	})
-	rt.Wrapping = fyne.TextWrapWord
+
+	// Don't wrap code - let it scroll horizontally
+	rt.Wrapping = fyne.TextWrapOff
+
 	r.widgets = append(r.widgets, rt)
 }
 
@@ -583,34 +568,78 @@ func (r *Renderer) renderBlockquoteAsWidget(node *ast.Blockquote) {
 	r.widgets = append(r.widgets, rt)
 }
 
-// renderListAsWidget renders list as RichText with ListSegment
+// renderListAsWidget renders list items as individual paragraphs with bullets
 func (r *Renderer) renderListAsWidget(node *ast.List) {
-	var items []widget.RichTextSegment
+	isOrdered := node.IsOrdered()
+	itemNum := 1
 
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
 		if listItem, ok := child.(*ast.ListItem); ok {
-			var text strings.Builder
-			for itemChild := listItem.FirstChild(); itemChild != nil; itemChild = itemChild.NextSibling() {
-				if para, ok := itemChild.(*ast.Paragraph); ok {
-					text.WriteString(r.extractInlineText(para))
-				}
+			r.renderListItemAsWidget(listItem, isOrdered, itemNum, 0)
+			if isOrdered {
+				itemNum++
+			}
+		}
+	}
+}
+
+// renderListItemAsWidget renders a single list item with proper indentation
+func (r *Renderer) renderListItemAsWidget(node *ast.ListItem, isOrdered bool, number int, depth int) {
+	indent := strings.Repeat("    ", depth)
+
+	var bullet string
+	if isOrdered {
+		bullet = fmt.Sprintf("%d. ", number)
+	} else {
+		bullet = "• "
+	}
+
+	// Build the complete text for the list item
+	var itemText strings.Builder
+	itemText.WriteString(indent)
+	itemText.WriteString(bullet)
+
+	// Extract content from the list item
+	for itemChild := node.FirstChild(); itemChild != nil; itemChild = itemChild.NextSibling() {
+		switch child := itemChild.(type) {
+		case *ast.Paragraph:
+			// Extract text from paragraph
+			text := r.extractInlineText(child)
+			itemText.WriteString(text)
+		case *ast.List:
+			// Render current item first
+			if itemText.Len() > len(indent+bullet) {
+				label := widget.NewLabel(itemText.String())
+				label.Wrapping = fyne.TextWrapWord
+				r.widgets = append(r.widgets, label)
 			}
 
-			items = append(items, &widget.TextSegment{
-				Text:  text.String(),
-				Style: widget.RichTextStyle{},
-			})
+			// Render nested list
+			r.renderNestedList(child, depth+1)
+			return
 		}
 	}
 
-	if len(items) > 0 {
-		listSeg := &widget.ListSegment{
-			Items:   items,
-			Ordered: node.IsOrdered(),
+	// Render the list item
+	if itemText.Len() > len(indent+bullet) {
+		label := widget.NewLabel(itemText.String())
+		label.Wrapping = fyne.TextWrapWord
+		r.widgets = append(r.widgets, label)
+	}
+}
+
+// renderNestedList renders nested lists with proper indentation
+func (r *Renderer) renderNestedList(node *ast.List, depth int) {
+	isOrdered := node.IsOrdered()
+	itemNum := 1
+
+	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
+		if listItem, ok := child.(*ast.ListItem); ok {
+			r.renderListItemAsWidget(listItem, isOrdered, itemNum, depth)
+			if isOrdered {
+				itemNum++
+			}
 		}
-		rt := widget.NewRichText(listSeg)
-		rt.Wrapping = fyne.TextWrapWord
-		r.widgets = append(r.widgets, rt)
 	}
 }
 
