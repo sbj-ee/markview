@@ -629,37 +629,19 @@ func (r *Renderer) renderListItemAsWidget(node *ast.ListItem, isOrdered bool, nu
 		bullet = "• "
 	}
 
-	// Build text for the list item (simpler approach)
-	var itemText string
-
-	// Extract content from the list item
-	for itemChild := node.FirstChild(); itemChild != nil; itemChild = itemChild.NextSibling() {
-		switch child := itemChild.(type) {
-		case *ast.Paragraph:
-			// Extract all text from paragraph
-			itemText += r.extractInlineText(child)
-		case *ast.List:
-			// Render current item first if we have text
-			if itemText != "" {
-				label := widget.NewLabel(indent + bullet + itemText)
-				label.Wrapping = fyne.TextWrapWord
-				r.widgets = append(r.widgets, label)
-			}
-
-			// Render nested list
-			r.renderNestedList(child, depth+1)
-			return
-		case *ast.TextBlock:
-			// Handle text blocks
-			itemText += r.extractInlineText(child)
-		}
-	}
+	// Build text for the list item - try direct text extraction first
+	itemText := r.extractInlineText(node)
 
 	// Render the list item
-	if itemText != "" {
-		label := widget.NewLabel(indent + bullet + itemText)
-		label.Wrapping = fyne.TextWrapWord
-		r.widgets = append(r.widgets, label)
+	label := widget.NewLabel(indent + bullet + itemText)
+	label.Wrapping = fyne.TextWrapWord
+	r.widgets = append(r.widgets, label)
+
+	// Handle nested lists separately
+	for itemChild := node.FirstChild(); itemChild != nil; itemChild = itemChild.NextSibling() {
+		if nestedList, ok := itemChild.(*ast.List); ok {
+			r.renderNestedList(nestedList, depth+1)
+		}
 	}
 }
 
