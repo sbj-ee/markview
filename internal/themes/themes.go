@@ -84,6 +84,68 @@ const (
 	FontSansSerif  FontFamily = "sans-serif"
 )
 
+// FontSize represents a font size option (scale factor)
+type FontSize string
+
+const (
+	FontSizeSmall      FontSize = "small"      // 0.85x
+	FontSizeNormal     FontSize = "normal"     // 1.0x
+	FontSizeLarge      FontSize = "large"      // 1.15x
+	FontSizeExtraLarge FontSize = "xlarge"     // 1.30x
+)
+
+// FontSizeNames returns all available font size names
+func FontSizeNames() []string {
+	return []string{
+		"Small",
+		"Normal",
+		"Large",
+		"Extra Large",
+	}
+}
+
+// FontSizeFromName returns the FontSize for a given name
+func FontSizeFromName(name string) FontSize {
+	switch name {
+	case "Small":
+		return FontSizeSmall
+	case "Large":
+		return FontSizeLarge
+	case "Extra Large":
+		return FontSizeExtraLarge
+	default:
+		return FontSizeNormal
+	}
+}
+
+// FontSizeName returns the display name for a FontSize
+func (f FontSize) Name() string {
+	switch f {
+	case FontSizeSmall:
+		return "Small"
+	case FontSizeLarge:
+		return "Large"
+	case FontSizeExtraLarge:
+		return "Extra Large"
+	default:
+		return "Normal"
+	}
+}
+
+// Scale returns the scale factor for the font size
+func (f FontSize) Scale() float32 {
+	switch f {
+	case FontSizeSmall:
+		return 0.85
+	case FontSizeLarge:
+		return 1.15
+	case FontSizeExtraLarge:
+		return 1.30
+	default:
+		return 1.0
+	}
+}
+
 // FontFamilyNames returns all available font family names
 func FontFamilyNames() []string {
 	return []string{
@@ -112,16 +174,22 @@ func FontFamilyFromName(name string) FontFamily {
 type MarkViewTheme struct {
 	themeType  ThemeType
 	fontFamily FontFamily
+	fontSize   FontSize
 }
 
 // NewMarkViewTheme creates a new MarkView theme
 func NewMarkViewTheme(themeType ThemeType) fyne.Theme {
-	return &MarkViewTheme{themeType: themeType, fontFamily: FontDefault}
+	return &MarkViewTheme{themeType: themeType, fontFamily: FontDefault, fontSize: FontSizeNormal}
 }
 
 // NewMarkViewThemeWithFont creates a new MarkView theme with custom font
 func NewMarkViewThemeWithFont(themeType ThemeType, fontFamily FontFamily) fyne.Theme {
-	return &MarkViewTheme{themeType: themeType, fontFamily: fontFamily}
+	return &MarkViewTheme{themeType: themeType, fontFamily: fontFamily, fontSize: FontSizeNormal}
+}
+
+// NewMarkViewThemeWithOptions creates a new MarkView theme with all options
+func NewMarkViewThemeWithOptions(themeType ThemeType, fontFamily FontFamily, fontSize FontSize) fyne.Theme {
+	return &MarkViewTheme{themeType: themeType, fontFamily: fontFamily, fontSize: fontSize}
 }
 
 // Color returns the color for the given theme color name
@@ -169,36 +237,38 @@ func (m *MarkViewTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
 
 // Size returns the size for the given theme size name
 func (m *MarkViewTheme) Size(name fyne.ThemeSizeName) float32 {
+	scale := m.fontSize.Scale()
+
 	// Increase text sizes for better readability
 	switch name {
 	case theme.SizeNameText:
-		return 14 // Compact text size for dialogs and lists
+		return 14 * scale // Compact text size for dialogs and lists
 	case theme.SizeNameHeadingText:
-		return 28 // H1 size - large and prominent
+		return 28 * scale // H1 size - large and prominent
 	case theme.SizeNameSubHeadingText:
-		return 22 // H2 size
+		return 22 * scale // H2 size
 	case theme.SizeNameCaptionText:
-		return 12 // Smaller text for TOC and captions
+		return 12 * scale // Smaller text for TOC and captions
 	case theme.SizeNameInlineIcon:
-		return 20 // Icons in toolbar and lists
+		return 20 // Icons - don't scale
 	case theme.SizeNamePadding:
-		return 2 // Minimal padding for tight spacing
+		return 2 // Minimal padding - don't scale
 	case theme.SizeNameInnerPadding:
-		return 2 // Minimal inner padding
+		return 2 // Minimal inner padding - don't scale
 	case theme.SizeNameLineSpacing:
 		return 0 // No extra line spacing
 	case "heading1":
-		return 32 // H1: Extra large
+		return 32 * scale // H1: Extra large
 	case "heading2":
-		return 26 // H2: Large
+		return 26 * scale // H2: Large
 	case "heading3":
-		return 21 // H3: Medium-large
+		return 21 * scale // H3: Medium-large
 	case "heading4":
-		return 18 // H4: Medium
+		return 18 * scale // H4: Medium
 	case "heading5":
-		return 16 // H5: Small
+		return 16 * scale // H5: Small
 	case "heading6":
-		return 15 // H6: Base size
+		return 15 * scale // H6: Base size
 	default:
 		return theme.DefaultTheme().Size(name)
 	}

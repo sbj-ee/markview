@@ -46,8 +46,9 @@ type Window struct {
 	currentFile    string
 	currentDir     string
 	fileWatcher    *watcher.FileWatcher
-	currentTheme   themes.ThemeType
-	currentFont    themes.FontFamily
+	currentTheme    themes.ThemeType
+	currentFont     themes.FontFamily
+	currentFontSize themes.FontSize
 
 	// Edit mode
 	editMode      bool
@@ -105,13 +106,14 @@ func NewWindow(app fyne.App, logger *zap.Logger) *Window {
 	}
 
 	w := &Window{
-		fyneWindow:   app.NewWindow("MarkView"),
-		app:          app,
-		parser:       markdown.NewParser(logger),
-		logger:       logger,
-		fileWatcher:  fw,
-		currentTheme: themes.ThemeDark,   // Start with dark theme
-		currentFont:  themes.FontDefault, // Start with default font
+		fyneWindow:      app.NewWindow("MarkView"),
+		app:             app,
+		parser:          markdown.NewParser(logger),
+		logger:          logger,
+		fileWatcher:     fw,
+		currentTheme:    themes.ThemeDark,       // Start with dark theme
+		currentFont:     themes.FontDefault,     // Start with default font
+		currentFontSize: themes.FontSizeNormal,  // Start with normal font size
 	}
 
 	// Load saved theme preference
@@ -126,8 +128,14 @@ func NewWindow(app fyne.App, logger *zap.Logger) *Window {
 		w.currentFont = themes.FontFamily(savedFont)
 	}
 
-	// Apply custom theme with font
-	app.Settings().SetTheme(themes.NewMarkViewThemeWithFont(w.currentTheme, w.currentFont))
+	// Load saved font size preference
+	savedFontSize := app.Preferences().String("fontSize")
+	if savedFontSize != "" {
+		w.currentFontSize = themes.FontSize(savedFontSize)
+	}
+
+	// Apply custom theme with all options
+	app.Settings().SetTheme(themes.NewMarkViewThemeWithOptions(w.currentTheme, w.currentFont, w.currentFontSize))
 
 	// Set window icon
 	w.fyneWindow.SetIcon(themes.AppLogo())
@@ -418,6 +426,7 @@ func (w *Window) createToolbar() *widget.Toolbar {
 func (w *Window) toggleTheme() {
 	themeNames := themes.ThemeNames()
 	fontNames := themes.FontFamilyNames()
+	fontSizeNames := themes.FontSizeNames()
 
 	// Create radio group for theme selection
 	currentThemeName := w.currentTheme.Name()
@@ -445,16 +454,27 @@ func (w *Window) toggleTheme() {
 	})
 	fontRadio.SetSelected(currentFontName)
 
+	// Create radio group for font size selection
+	currentFontSizeName := w.currentFontSize.Name()
+	fontSizeRadio := widget.NewRadioGroup(fontSizeNames, func(selected string) {
+		newFontSize := themes.FontSizeFromName(selected)
+		w.setFontSize(newFontSize)
+	})
+	fontSizeRadio.SetSelected(currentFontSizeName)
+
 	content := container.NewVBox(
 		widget.NewLabel("Theme:"),
 		themeRadio,
 		widget.NewSeparator(),
 		widget.NewLabel("Font:"),
 		fontRadio,
+		widget.NewSeparator(),
+		widget.NewLabel("Font Size:"),
+		fontSizeRadio,
 	)
 
 	d := dialog.NewCustom("Appearance Settings", "Close", content, w.fyneWindow)
-	d.Resize(fyne.NewSize(300, 500))
+	d.Resize(fyne.NewSize(300, 600))
 	d.Show()
 }
 
@@ -1124,7 +1144,7 @@ func (w *Window) printDocument() {
 // setTheme changes the application theme
 func (w *Window) setTheme(themeType themes.ThemeType) {
 	w.currentTheme = themeType
-	w.app.Settings().SetTheme(themes.NewMarkViewThemeWithFont(themeType, w.currentFont))
+	w.app.Settings().SetTheme(themes.NewMarkViewThemeWithOptions(themeType, w.currentFont, w.currentFontSize))
 
 	// Save theme preference
 	w.app.Preferences().SetString("theme", themeType.Name())
@@ -1140,7 +1160,7 @@ func (w *Window) setTheme(themeType themes.ThemeType) {
 // setFont changes the application font
 func (w *Window) setFont(fontFamily themes.FontFamily) {
 	w.currentFont = fontFamily
-	w.app.Settings().SetTheme(themes.NewMarkViewThemeWithFont(w.currentTheme, fontFamily))
+	w.app.Settings().SetTheme(themes.NewMarkViewThemeWithOptions(w.currentTheme, fontFamily, w.currentFontSize))
 
 	// Save font preference
 	w.app.Preferences().SetString("font", string(fontFamily))
@@ -1151,6 +1171,22 @@ func (w *Window) setFont(fontFamily themes.FontFamily) {
 	}
 
 	w.logger.Info("Font changed", zap.String("font", string(fontFamily)))
+}
+
+// setFontSize changes the application font size
+func (w *Window) setFontSize(fontSize themes.FontSize) {
+	w.currentFontSize = fontSize
+	w.app.Settings().SetTheme(themes.NewMarkViewThemeWithOptions(w.currentTheme, w.currentFont, fontSize))
+
+	// Save font size preference
+	w.app.Preferences().SetString("fontSize", string(fontSize))
+
+	// Refresh content
+	if w.currentFile != "" {
+		w.loadFile(w.currentFile)
+	}
+
+	w.logger.Info("Font size changed", zap.String("fontSize", string(fontSize)))
 }
 
 // getThemeName returns the current theme name
