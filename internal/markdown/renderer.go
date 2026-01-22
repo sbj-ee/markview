@@ -575,32 +575,20 @@ func (r *Renderer) renderCodeBlockAsWidget(node ast.Node, fenced bool) {
 
 // renderBlockquoteAsWidget renders blockquote
 func (r *Renderer) renderBlockquoteAsWidget(node *ast.Blockquote) {
-	var texts []widget.RichTextSegment
-
-	texts = append(texts, &widget.TextSegment{
-		Text: "│ ",
-		Style: widget.RichTextStyle{
-			ColorName: widget.RichTextStyleInline.ColorName,
-		},
-	})
-
+	// Extract all text from blockquote
+	var quoteText string
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
 		if para, ok := child.(*ast.Paragraph); ok {
-			text := r.extractInlineText(para)
-			texts = append(texts, &widget.TextSegment{
-				Text: text,
-				Style: widget.RichTextStyle{
-					TextStyle: fyne.TextStyle{Italic: true},
-				},
-			})
+			quoteText += r.extractInlineText(para)
 		}
 	}
 
-	rt := widget.NewRichText(&widget.ParagraphSegment{
-		Texts: texts,
-	})
-	rt.Wrapping = fyne.TextWrapWord
-	r.widgets = append(r.widgets, rt)
+	// Create label with quote marker and italic text
+	label := widget.NewLabel("│ " + quoteText)
+	label.Wrapping = fyne.TextWrapWord
+	label.TextStyle = fyne.TextStyle{Italic: true}
+
+	r.widgets = append(r.widgets, label)
 }
 
 // renderListAsWidget renders list items as individual paragraphs with bullets
