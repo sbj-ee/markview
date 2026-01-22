@@ -1203,8 +1203,8 @@ func (w *Window) loadFile(filePath string) {
 		return
 	}
 
-	// Update content
-	w.scrollContent.Content = content
+	// Update content with left padding
+	w.scrollContent.Content = container.NewPadded(content)
 	w.scrollContent.Refresh()
 
 	// Update editor content if in edit mode
@@ -1323,8 +1323,8 @@ func (w *Window) switchToViewMode() {
 		return
 	}
 
-	// Update content
-	w.scrollContent.Content = content
+	// Update content with left padding
+	w.scrollContent.Content = container.NewPadded(content)
 	w.scrollContent.Refresh()
 
 	// Update TOC
@@ -1404,7 +1404,7 @@ func (w *Window) updateSplitViewPreview(content string) {
 		return // Silently fail for preview updates
 	}
 
-	w.scrollContent.Content = parsedContent
+	w.scrollContent.Content = container.NewPadded(parsedContent)
 	w.scrollContent.Refresh()
 }
 
