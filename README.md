@@ -335,9 +335,9 @@ markview/
 │   ├── watcher/            # File monitoring
 │   │   ├── watcher.go      # fsnotify wrapper
 │   │   └── debounce.go     # Change debouncing
-│   ├── themes/             # Custom themes
-│   │   └── themes.go       # Light and dark theme definitions
-│   └── images/             # Image handling (future)
+│   └── themes/             # Custom themes
+│       ├── themes.go       # Light and dark theme definitions
+│       └── icons.go        # SVG icons for toolbar
 ├── testdata/               # Sample markdown files
 ├── assets/                 # Application assets
 ├── Makefile                # Build automation
