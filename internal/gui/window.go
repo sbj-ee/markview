@@ -350,8 +350,8 @@ func (w *Window) loadFile(filePath string) {
 		return
 	}
 
-	// Parse markdown
-	content, err := w.parser.Parse(data)
+	// Parse markdown with base path for relative images
+	content, err := w.parser.ParseWithBasePath(data, fileDir)
 	if err != nil {
 		w.logger.Error("Failed to parse markdown", zap.Error(err))
 		dialog.ShowError(fmt.Errorf("failed to parse markdown: %w", err), w.fyneWindow)

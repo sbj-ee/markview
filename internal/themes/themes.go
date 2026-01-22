@@ -50,13 +50,21 @@ func (m *MarkViewTheme) Size(name fyne.ThemeSizeName) float32 {
 	// Increase text sizes for better readability
 	switch name {
 	case theme.SizeNameText:
-		return 18 // Default text size - larger for better readability
+		return 14 // Compact text size for dialogs and lists
 	case theme.SizeNameHeadingText:
 		return 28 // H1 size - large and prominent
 	case theme.SizeNameSubHeadingText:
 		return 22 // H2 size
 	case theme.SizeNameCaptionText:
-		return 13 // Smaller text for TOC and captions
+		return 12 // Smaller text for TOC and captions
+	case theme.SizeNameInlineIcon:
+		return 14 // Smaller icons in file lists
+	case theme.SizeNamePadding:
+		return 2 // Minimal padding for tight spacing
+	case theme.SizeNameInnerPadding:
+		return 2 // Minimal inner padding
+	case theme.SizeNameLineSpacing:
+		return 0 // No extra line spacing
 	case "heading1":
 		return 32 // H1: Extra large
 	case "heading2":

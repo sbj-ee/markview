@@ -26,6 +26,7 @@ type Renderer struct {
 	segments    []widget.RichTextSegment
 	widgets     []fyne.CanvasObject
 	highlighter *SyntaxHighlighter
+	imageLoader *ImageLoader
 }
 
 // normalizeText aggressively removes all newlines and normalizes whitespace
@@ -52,7 +53,13 @@ func NewRenderer(source []byte) *Renderer {
 		segments:    make([]widget.RichTextSegment, 0),
 		widgets:     make([]fyne.CanvasObject, 0),
 		highlighter: NewSyntaxHighlighter(),
+		imageLoader: NewImageLoader(""),
 	}
+}
+
+// SetBasePath sets the base path for resolving relative image paths
+func (r *Renderer) SetBasePath(basePath string) {
+	r.imageLoader.SetBasePath(basePath)
 }
 
 // Render converts the AST node to a Fyne container with properly sized widgets
@@ -570,6 +577,12 @@ func (r *Renderer) renderHeadingAsWidget(node *ast.Heading) {
 
 // renderParagraphAsWidget renders paragraph as RichText
 func (r *Renderer) renderParagraphAsWidget(node *ast.Paragraph) {
+	// Check if paragraph contains only an image (common markdown pattern)
+	if r.isImageOnlyParagraph(node) {
+		r.renderParagraphImages(node)
+		return
+	}
+
 	// Extract text as plain text (to avoid line break issues)
 	text := r.extractInlineText(node)
 
@@ -581,6 +594,51 @@ func (r *Renderer) renderParagraphAsWidget(node *ast.Paragraph) {
 		// Add spacing after paragraph
 		r.widgets = append(r.widgets, NewSpacer(8))
 	}
+}
+
+// isImageOnlyParagraph checks if a paragraph contains only image(s)
+func (r *Renderer) isImageOnlyParagraph(node *ast.Paragraph) bool {
+	hasImage := false
+	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
+		switch child.(type) {
+		case *ast.Image:
+			hasImage = true
+		case *ast.Text:
+			// Allow whitespace-only text nodes
+			text := string(child.(*ast.Text).Segment.Value(r.source))
+			if strings.TrimSpace(text) != "" {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return hasImage
+}
+
+// renderParagraphImages renders all images in a paragraph as block elements
+func (r *Renderer) renderParagraphImages(node *ast.Paragraph) {
+	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
+		if img, ok := child.(*ast.Image); ok {
+			r.renderImageAsWidget(img)
+		}
+	}
+}
+
+// renderImageAsWidget renders an image as a widget
+func (r *Renderer) renderImageAsWidget(node *ast.Image) {
+	src := string(node.Destination)
+	altText := r.extractInlineText(node)
+
+	// Add spacing before image
+	r.widgets = append(r.widgets, NewSpacer(8))
+
+	// Load and add the image
+	imgWidget := r.imageLoader.LoadImage(src, altText)
+	r.widgets = append(r.widgets, imgWidget)
+
+	// Add spacing after image
+	r.widgets = append(r.widgets, NewSpacer(8))
 }
 
 // renderCodeBlockAsWidget renders code block with syntax highlighting and background

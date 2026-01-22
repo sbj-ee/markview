@@ -33,9 +33,8 @@ func NewFileTree(onFileSelect func(path string)) *FileTree {
 func (ft *FileTree) SetRootPath(path string) {
 	ft.rootPath = path
 	ft.pathMap = make(map[string]string)
-	ft.pathMap[""] = path
+	// Don't map "" to path - "" is a virtual hidden root
 	ft.tree.Refresh()
-	ft.tree.OpenBranch("")
 }
 
 // GetTree returns the underlying tree widget
@@ -47,7 +46,13 @@ func (ft *FileTree) GetTree() *widget.Tree {
 func (ft *FileTree) createTree() *widget.Tree {
 	tree := &widget.Tree{
 		ChildUIDs: func(uid string) []string {
-			path := ft.getPath(uid)
+			// For virtual root "", use rootPath directly
+			var path string
+			if uid == "" {
+				path = ft.rootPath
+			} else {
+				path = ft.getPath(uid)
+			}
 			if path == "" {
 				return []string{}
 			}
@@ -89,9 +94,13 @@ func (ft *FileTree) createTree() *widget.Tree {
 			return append(dirs, files...)
 		},
 		IsBranch: func(uid string) bool {
+			// Virtual root "" is a branch but hidden
+			if uid == "" {
+				return true
+			}
 			path := ft.getPath(uid)
 			if path == "" {
-				return true
+				return false
 			}
 			info, err := os.Stat(path)
 			if err != nil {
@@ -104,6 +113,11 @@ func (ft *FileTree) createTree() *widget.Tree {
 		},
 		UpdateNode: func(uid string, branch bool, node fyne.CanvasObject) {
 			label := node.(*widget.Label)
+			// Hide the root node - only show its children
+			if uid == "" {
+				label.SetText("")
+				return
+			}
 			path := ft.getPath(uid)
 			if path == "" {
 				label.SetText("")
@@ -132,8 +146,9 @@ func (ft *FileTree) createTree() *widget.Tree {
 
 // getPath returns the file path for a given UID
 func (ft *FileTree) getPath(uid string) string {
+	// "" is virtual root with no path - use rootPath in ChildUIDs instead
 	if uid == "" {
-		return ft.rootPath
+		return ""
 	}
 	if path, ok := ft.pathMap[uid]; ok {
 		return path

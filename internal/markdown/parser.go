@@ -36,12 +36,20 @@ func NewParser(logger *zap.Logger) *Parser {
 
 // Parse parses markdown content and returns a Fyne CanvasObject
 func (p *Parser) Parse(content []byte) (fyne.CanvasObject, error) {
+	return p.ParseWithBasePath(content, "")
+}
+
+// ParseWithBasePath parses markdown content with a base path for resolving relative images
+func (p *Parser) ParseWithBasePath(content []byte, basePath string) (fyne.CanvasObject, error) {
 	// Parse markdown to AST
 	reader := text.NewReader(content)
 	doc := p.md.Parser().Parse(reader)
 
 	// Convert AST to Fyne widgets using renderer
 	renderer := NewRenderer(content)
+	if basePath != "" {
+		renderer.SetBasePath(basePath)
+	}
 	container := renderer.Render(doc)
 
 	return container, nil
