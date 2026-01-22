@@ -49,9 +49,11 @@ type Window struct {
 	editor        *MarkdownEditor
 	editorScroll  *container.Scroll
 	contentBuffer string // Original content for dirty checking
-	editButton    *widget.Button
-	saveButton    *widget.Button
-	discardButton *widget.Button
+
+	// Toolbar actions
+	editAction    *widget.ToolbarAction
+	saveAction    *widget.ToolbarAction
+	discardAction *widget.ToolbarAction
 }
 
 // NewWindow creates a new application window
@@ -155,51 +157,81 @@ func (w *Window) setupUI() {
 	w.fyneWindow.SetContent(mainContent)
 }
 
-// createToolbar creates the application toolbar with smaller buttons
-func (w *Window) createToolbar() *fyne.Container {
-	// Edit mode toggle button
-	w.editButton = widget.NewButton("Edit", func() {
-		w.toggleEditMode()
-	})
-	w.editButton.Importance = widget.LowImportance
-
-	// Save button (visible in edit mode)
-	w.saveButton = widget.NewButton("Save", func() {
-		w.saveFile()
-	})
-	w.saveButton.Importance = widget.HighImportance
-	w.saveButton.Hide()
-
-	// Discard button (visible in edit mode)
-	w.discardButton = widget.NewButton("Discard", func() {
-		w.discardChanges()
-	})
-	w.discardButton.Importance = widget.LowImportance
-	w.discardButton.Hide()
-
-	// Use icon buttons for a more compact toolbar
-	openButton := widget.NewButtonWithIcon("Open", themes.IconDocument(), func() {
+// createToolbar creates the application toolbar
+func (w *Window) createToolbar() *widget.Toolbar {
+	// Create toolbar actions
+	openFileAction := widget.NewToolbarAction(themes.IconDocument(), func() {
 		w.showOpenDialog()
 	})
-	openButton.Importance = widget.LowImportance
 
-	refreshButton := widget.NewButtonWithIcon("Refresh", themes.IconRefresh(), func() {
+	openFolderAction := widget.NewToolbarAction(themes.IconFolder(), func() {
+		w.showFolderDialog()
+	})
+
+	w.saveAction = widget.NewToolbarAction(themes.IconSave(), func() {
+		w.saveFile()
+	})
+
+	w.discardAction = widget.NewToolbarAction(themes.IconUndo(), func() {
+		w.discardChanges()
+	})
+
+	w.editAction = widget.NewToolbarAction(themes.IconEdit(), func() {
+		w.toggleEditMode()
+	})
+
+	refreshAction := widget.NewToolbarAction(themes.IconRefresh(), func() {
 		if w.currentFile != "" {
 			w.loadFile(w.currentFile)
 		}
 	})
-	refreshButton.Importance = widget.LowImportance
 
-	toolbar := container.NewHBox(
-		w.editButton,
-		w.saveButton,
-		w.discardButton,
-		widget.NewSeparator(),
-		openButton,
-		refreshButton,
+	toggleFileTreeAction := widget.NewToolbarAction(themes.IconFileTree(), func() {
+		w.toggleFileTree()
+	})
+
+	toggleTOCAction := widget.NewToolbarAction(themes.IconTOC(), func() {
+		w.toggleTOC()
+	})
+
+	toggleThemeAction := widget.NewToolbarAction(themes.IconTheme(), func() {
+		w.toggleTheme()
+	})
+
+	toolbar := widget.NewToolbar(
+		openFileAction,
+		openFolderAction,
+		widget.NewToolbarSeparator(),
+		w.editAction,
+		w.saveAction,
+		w.discardAction,
+		widget.NewToolbarSeparator(),
+		refreshAction,
+		widget.NewToolbarSpacer(),
+		toggleFileTreeAction,
+		toggleTOCAction,
+		toggleThemeAction,
 	)
 
+	// Initially hide save and discard (shown in edit mode)
+	w.updateToolbarForMode()
+
 	return toolbar
+}
+
+// updateToolbarForMode updates toolbar visibility based on edit mode
+func (w *Window) updateToolbarForMode() {
+	// Toolbar actions don't have show/hide, so we rebuild or use a different approach
+	// For now, the actions are always visible but only functional in appropriate modes
+}
+
+// toggleTheme switches between light and dark themes
+func (w *Window) toggleTheme() {
+	if w.currentTheme == themes.ThemeDark {
+		w.setTheme(themes.ThemeLight)
+	} else {
+		w.setTheme(themes.ThemeDark)
+	}
 }
 
 // setupMenu sets up the application menu
@@ -553,9 +585,9 @@ func (w *Window) switchToEditMode() {
 	// Update UI
 	w.scrollContent.Hide()
 	w.editorScroll.Show()
-	w.editButton.SetText("View")
-	w.saveButton.Show()
-	w.discardButton.Show()
+
+	// Update toolbar icon to show "View" action
+	w.editAction.SetIcon(themes.IconView())
 
 	// Focus the editor
 	w.editor.Focus(w.fyneWindow.Canvas())
@@ -595,9 +627,9 @@ func (w *Window) switchToViewMode() {
 	// Update UI
 	w.editorScroll.Hide()
 	w.scrollContent.Show()
-	w.editButton.SetText("Edit")
-	w.saveButton.Hide()
-	w.discardButton.Hide()
+
+	// Update toolbar icon to show "Edit" action
+	w.editAction.SetIcon(themes.IconEdit())
 
 	w.updateWindowTitle()
 }

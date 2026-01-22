@@ -225,9 +225,49 @@ func IconDocument() fyne.Resource {
 	return theme.DocumentIcon()
 }
 
+// IconFolder returns a folder icon
+func IconFolder() fyne.Resource {
+	return theme.FolderOpenIcon()
+}
+
 // IconRefresh returns a refresh icon
 func IconRefresh() fyne.Resource {
 	return theme.ViewRefreshIcon()
+}
+
+// IconEdit returns an edit/content icon
+func IconEdit() fyne.Resource {
+	return theme.DocumentCreateIcon()
+}
+
+// IconView returns a view/visibility icon
+func IconView() fyne.Resource {
+	return theme.VisibilityIcon()
+}
+
+// IconSave returns a save icon (using storage/download as proxy)
+func IconSave() fyne.Resource {
+	return theme.DocumentSaveIcon()
+}
+
+// IconUndo returns an undo/cancel icon
+func IconUndo() fyne.Resource {
+	return theme.ContentUndoIcon()
+}
+
+// IconFileTree returns a list/tree icon
+func IconFileTree() fyne.Resource {
+	return theme.ListIcon()
+}
+
+// IconTOC returns a menu/TOC icon
+func IconTOC() fyne.Resource {
+	return theme.MenuIcon()
+}
+
+// IconTheme returns a color/theme icon
+func IconTheme() fyne.Resource {
+	return theme.ColorPaletteIcon()
 }
 
 // GetCodeColors returns syntax highlighting colors for the current theme
