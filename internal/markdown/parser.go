@@ -22,11 +22,12 @@ func NewParser(logger *zap.Logger) *Parser {
 	md := goldmark.New(
 		goldmark.WithExtensions(
 			extension.GFM,            // GitHub Flavored Markdown
-			extension.Typographer,    // Smart quotes, dashes
 			extension.Footnote,       // Footnotes support
 			extension.DefinitionList, // Definition lists
 			extension.Strikethrough,  // Strikethrough text
 			mathjax.MathJax,          // Math formula support (LaTeX/KaTeX style)
+			// Note: Typographer extension disabled - it produces HTML entities
+			// like &rsquo; that don't render correctly in Fyne widgets
 		),
 		goldmark.WithParserOptions(
 			parser.WithAutoHeadingID(), // Auto-generate heading IDs
