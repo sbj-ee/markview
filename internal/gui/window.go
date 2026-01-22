@@ -27,21 +27,31 @@ import (
 
 // Window represents the main application window
 type Window struct {
-	fyneWindow    fyne.Window
-	app           fyne.App
-	parser        *markdown.Parser
-	logger        *zap.Logger
-	fileTree      *FileTree
+	fyneWindow     fyne.Window
+	app            fyne.App
+	parser         *markdown.Parser
+	logger         *zap.Logger
+	fileTree       *FileTree
 	fileTreeScroll *container.Scroll
-	tocTree       *widget.Tree
-	tocScroll     *container.Scroll
-	scrollContent *container.Scroll
-	leftSplit     *container.Split  // File Tree | TOC
-	mainSplit     *container.Split  // (File Tree | TOC) | Content
-	currentFile   string
-	currentDir    string
-	fileWatcher   *watcher.FileWatcher
-	currentTheme  themes.ThemeType
+	tocTree        *widget.Tree
+	tocScroll      *container.Scroll
+	scrollContent  *container.Scroll
+	leftSplit      *container.Split // File Tree | TOC
+	mainSplit      *container.Split // (File Tree | TOC) | Content
+	currentFile    string
+	currentDir     string
+	fileWatcher    *watcher.FileWatcher
+	currentTheme   themes.ThemeType
+
+	// Edit mode
+	editMode      bool
+	isDirty       bool
+	editor        *MarkdownEditor
+	editorScroll  *container.Scroll
+	contentBuffer string // Original content for dirty checking
+	editButton    *widget.Button
+	saveButton    *widget.Button
+	discardButton *widget.Button
 }
 
 // NewWindow creates a new application window
@@ -68,6 +78,11 @@ func NewWindow(app fyne.App, logger *zap.Logger) *Window {
 	w.setupUI()
 	w.fyneWindow.Resize(fyne.NewSize(1200, 800))
 
+	// Handle close with unsaved changes check
+	w.fyneWindow.SetCloseIntercept(func() {
+		w.handleClose()
+	})
+
 	// Clean up file watcher on close
 	w.fyneWindow.SetOnClosed(func() {
 		if w.fileWatcher != nil {
@@ -83,11 +98,20 @@ func (w *Window) setupUI() {
 	// Create content display area (will be updated with parsed content)
 	w.scrollContent = container.NewScroll(container.NewVBox())
 
-	// Create file tree
-	w.fileTree = NewFileTree(func(path string) {
-		w.loadFile(path)
+	// Create editor (hidden by default)
+	w.editor = NewMarkdownEditor(func(content string) {
+		w.onEditorChanged(content)
 	})
-	w.fileTreeScroll = container.NewScroll(w.fileTree.GetTree())
+	w.editorScroll = container.NewScroll(w.editor)
+	w.editorScroll.Hide()
+
+	// Create file tree with filter
+	w.fileTree = NewFileTree(func(path string) {
+		w.checkUnsavedChanges(func() {
+			w.loadFile(path)
+		})
+	})
+	w.fileTreeScroll = container.NewScroll(w.fileTree.GetContainer())
 
 	// Create placeholder TOC
 	w.tocTree = widget.NewTree(
@@ -106,10 +130,13 @@ func (w *Window) setupUI() {
 	)
 	w.leftSplit.Offset = 0.5 // Equal split between file tree and TOC
 
+	// Content area: stack of rendered view and editor (only one visible at a time)
+	contentStack := container.NewStack(w.scrollContent, w.editorScroll)
+
 	// Main split: (File Tree | TOC) | Content
 	w.mainSplit = container.NewHSplit(
 		w.leftSplit,
-		w.scrollContent,
+		contentStack,
 	)
 	w.mainSplit.Offset = 0.30 // Left panes take 30% of width
 
@@ -130,6 +157,26 @@ func (w *Window) setupUI() {
 
 // createToolbar creates the application toolbar with smaller buttons
 func (w *Window) createToolbar() *fyne.Container {
+	// Edit mode toggle button
+	w.editButton = widget.NewButton("Edit", func() {
+		w.toggleEditMode()
+	})
+	w.editButton.Importance = widget.LowImportance
+
+	// Save button (visible in edit mode)
+	w.saveButton = widget.NewButton("Save", func() {
+		w.saveFile()
+	})
+	w.saveButton.Importance = widget.HighImportance
+	w.saveButton.Hide()
+
+	// Discard button (visible in edit mode)
+	w.discardButton = widget.NewButton("Discard", func() {
+		w.discardChanges()
+	})
+	w.discardButton.Importance = widget.LowImportance
+	w.discardButton.Hide()
+
 	// Use icon buttons for a more compact toolbar
 	openButton := widget.NewButtonWithIcon("Open", themes.IconDocument(), func() {
 		w.showOpenDialog()
@@ -144,6 +191,10 @@ func (w *Window) createToolbar() *fyne.Container {
 	refreshButton.Importance = widget.LowImportance
 
 	toolbar := container.NewHBox(
+		w.editButton,
+		w.saveButton,
+		w.discardButton,
+		widget.NewSeparator(),
 		openButton,
 		refreshButton,
 	)
@@ -160,6 +211,11 @@ func (w *Window) setupMenu() {
 		fyne.NewMenuItem("Open Folder...", func() {
 			w.showFolderDialog()
 		}),
+		fyne.NewMenuItem("Save", func() {
+			if w.editMode {
+				w.saveFile()
+			}
+		}),
 		fyne.NewMenuItem("Refresh", func() {
 			if w.currentFile != "" {
 				w.loadFile(w.currentFile)
@@ -172,6 +228,18 @@ func (w *Window) setupMenu() {
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItem("Quit", func() {
 			w.fyneWindow.Close()
+		}),
+	)
+
+	editMenu := fyne.NewMenu("Edit",
+		fyne.NewMenuItem("Toggle Edit Mode", func() {
+			w.toggleEditMode()
+		}),
+		fyne.NewMenuItemSeparator(),
+		fyne.NewMenuItem("Discard Changes", func() {
+			if w.editMode {
+				w.discardChanges()
+			}
 		}),
 	)
 
@@ -191,7 +259,7 @@ func (w *Window) setupMenu() {
 		}),
 	)
 
-	mainMenu := fyne.NewMainMenu(fileMenu, viewMenu)
+	mainMenu := fyne.NewMainMenu(fileMenu, editMenu, viewMenu)
 	w.fyneWindow.SetMainMenu(mainMenu)
 }
 
@@ -221,6 +289,51 @@ func (w *Window) setupShortcuts() {
 		if w.currentFile != "" {
 			w.loadFile(w.currentFile)
 		}
+	})
+
+	// Cmd/Ctrl+F - Focus file filter
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyF,
+		Modifier: fyne.KeyModifierSuper,
+	}, func(shortcut fyne.Shortcut) {
+		w.fileTree.FocusFilter(w.fyneWindow.Canvas())
+	})
+
+	// Cmd/Ctrl+E - Toggle edit mode
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyE,
+		Modifier: fyne.KeyModifierSuper,
+	}, func(shortcut fyne.Shortcut) {
+		w.toggleEditMode()
+	})
+
+	// Cmd/Ctrl+S - Save file
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyS,
+		Modifier: fyne.KeyModifierSuper,
+	}, func(shortcut fyne.Shortcut) {
+		if w.editMode {
+			w.saveFile()
+		}
+	})
+
+	// Escape - Clear filter or exit edit mode (if not dirty)
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName: fyne.KeyEscape,
+	}, func(shortcut fyne.Shortcut) {
+		if w.editMode && !w.isDirty {
+			w.switchToViewMode()
+		} else {
+			w.fileTree.ClearFilter()
+		}
+	})
+
+	// Alt+Up - Navigate to parent directory
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyUp,
+		Modifier: fyne.KeyModifierAlt,
+	}, func(shortcut fyne.Shortcut) {
+		w.fileTree.NavigateUp()
 	})
 }
 
@@ -300,25 +413,27 @@ func (w *Window) getThemeName() string {
 
 // showOpenDialog shows the file open dialog
 func (w *Window) showOpenDialog() {
-	fd := dialog.NewFileOpen(func(reader fyne.URIReadCloser, err error) {
-		if err != nil {
-			dialog.ShowError(err, w.fyneWindow)
-			return
-		}
-		if reader == nil {
-			return
-		}
-		defer reader.Close()
+	w.checkUnsavedChanges(func() {
+		fd := dialog.NewFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil {
+				dialog.ShowError(err, w.fyneWindow)
+				return
+			}
+			if reader == nil {
+				return
+			}
+			defer reader.Close()
 
-		w.loadFile(reader.URI().Path())
-	}, w.fyneWindow)
+			w.loadFile(reader.URI().Path())
+		}, w.fyneWindow)
 
-	fd.SetFilter(storage.NewExtensionFileFilter([]string{".md", ".markdown"}))
+		fd.SetFilter(storage.NewExtensionFileFilter([]string{".md", ".markdown"}))
 
-	// Make the file dialog 1.75x larger
-	fd.Resize(fyne.NewSize(1050, 700))
+		// Make the file dialog 1.75x larger
+		fd.Resize(fyne.NewSize(1050, 700))
 
-	fd.Show()
+		fd.Show()
+	})
 }
 
 // LoadFile loads and displays a markdown file
@@ -350,6 +465,10 @@ func (w *Window) loadFile(filePath string) {
 		return
 	}
 
+	// Store content buffer for edit mode
+	w.contentBuffer = string(data)
+	w.isDirty = false
+
 	// Parse markdown with base path for relative images
 	content, err := w.parser.ParseWithBasePath(data, fileDir)
 	if err != nil {
@@ -361,6 +480,11 @@ func (w *Window) loadFile(filePath string) {
 	// Update content
 	w.scrollContent.Content = content
 	w.scrollContent.Refresh()
+
+	// Update editor content if in edit mode
+	if w.editMode {
+		w.editor.SetText(w.contentBuffer)
+	}
 
 	// Generate TOC
 	w.updateTOC(data)
@@ -387,8 +511,8 @@ func (w *Window) updateTOC(data []byte) {
 	w.tocScroll.Content = w.tocTree
 	w.tocScroll.Refresh()
 
-	// Start watching the file for changes
-	if w.fileWatcher != nil {
+	// Start watching the file for changes (only if not in edit mode)
+	if w.fileWatcher != nil && !w.editMode {
 		err := w.fileWatcher.Watch(w.currentFile, func() {
 			w.logger.Info("File changed, reloading", zap.String("path", w.currentFile))
 			w.loadFile(w.currentFile)
@@ -397,6 +521,208 @@ func (w *Window) updateTOC(data []byte) {
 			w.logger.Error("Failed to watch file", zap.Error(err))
 		}
 	}
+}
+
+// toggleEditMode toggles between edit and view mode
+func (w *Window) toggleEditMode() {
+	if w.editMode {
+		w.switchToViewMode()
+	} else {
+		w.switchToEditMode()
+	}
+}
+
+// switchToEditMode switches to edit mode
+func (w *Window) switchToEditMode() {
+	if w.currentFile == "" {
+		dialog.ShowInformation("Edit Mode", "No file is currently open.", w.fyneWindow)
+		return
+	}
+
+	w.editMode = true
+	w.logger.Info("Switching to edit mode")
+
+	// Pause file watching
+	if w.fileWatcher != nil {
+		w.fileWatcher.Pause()
+	}
+
+	// Set editor content
+	w.editor.SetText(w.contentBuffer)
+
+	// Update UI
+	w.scrollContent.Hide()
+	w.editorScroll.Show()
+	w.editButton.SetText("View")
+	w.saveButton.Show()
+	w.discardButton.Show()
+
+	// Focus the editor
+	w.editor.Focus(w.fyneWindow.Canvas())
+
+	w.updateWindowTitle()
+}
+
+// switchToViewMode switches to view mode
+func (w *Window) switchToViewMode() {
+	w.editMode = false
+	w.logger.Info("Switching to view mode")
+
+	// Resume file watching
+	if w.fileWatcher != nil {
+		w.fileWatcher.Resume()
+	}
+
+	// Update content buffer from editor
+	w.contentBuffer = w.editor.GetText()
+
+	// Re-render the markdown
+	fileDir := filepath.Dir(w.currentFile)
+	content, err := w.parser.ParseWithBasePath([]byte(w.contentBuffer), fileDir)
+	if err != nil {
+		w.logger.Error("Failed to parse markdown", zap.Error(err))
+		dialog.ShowError(fmt.Errorf("failed to parse markdown: %w", err), w.fyneWindow)
+		return
+	}
+
+	// Update content
+	w.scrollContent.Content = content
+	w.scrollContent.Refresh()
+
+	// Update TOC
+	w.updateTOCOnly([]byte(w.contentBuffer))
+
+	// Update UI
+	w.editorScroll.Hide()
+	w.scrollContent.Show()
+	w.editButton.SetText("Edit")
+	w.saveButton.Hide()
+	w.discardButton.Hide()
+
+	w.updateWindowTitle()
+}
+
+// updateTOCOnly updates the TOC without restarting the file watcher
+func (w *Window) updateTOCOnly(data []byte) {
+	reader := text.NewReader(data)
+	w.logger.Debug("Updating TOC")
+	doc := w.parser.GetMarkdown().Parser().Parse(reader)
+
+	tocGen := toc.NewGenerator(data)
+	entries := tocGen.Generate(doc)
+
+	navigator := toc.NewNavigator(entries, w.scrollContent)
+	w.tocTree = navigator.GetTree()
+
+	w.tocScroll.Content = w.tocTree
+	w.tocScroll.Refresh()
+}
+
+// onEditorChanged handles content changes in the editor
+func (w *Window) onEditorChanged(content string) {
+	wasDirty := w.isDirty
+	w.isDirty = content != w.contentBuffer
+
+	if wasDirty != w.isDirty {
+		w.updateWindowTitle()
+	}
+}
+
+// updateWindowTitle updates the window title with dirty indicator
+func (w *Window) updateWindowTitle() {
+	if w.currentFile == "" {
+		w.fyneWindow.SetTitle("MarkView")
+		return
+	}
+
+	fileName := filepath.Base(w.currentFile)
+	modeIndicator := ""
+	if w.editMode {
+		modeIndicator = " [Edit]"
+	}
+	dirtyIndicator := ""
+	if w.isDirty {
+		dirtyIndicator = " *"
+	}
+	w.fyneWindow.SetTitle(fmt.Sprintf("MarkView - %s%s%s", fileName, modeIndicator, dirtyIndicator))
+}
+
+// saveFile saves the current editor content to the file
+func (w *Window) saveFile() {
+	if w.currentFile == "" {
+		return
+	}
+
+	content := w.editor.GetText()
+
+	err := os.WriteFile(w.currentFile, []byte(content), 0644)
+	if err != nil {
+		w.logger.Error("Failed to save file", zap.Error(err))
+		dialog.ShowError(fmt.Errorf("failed to save file: %w", err), w.fyneWindow)
+		return
+	}
+
+	w.contentBuffer = content
+	w.isDirty = false
+	w.updateWindowTitle()
+
+	w.logger.Info("File saved", zap.String("path", w.currentFile))
+}
+
+// discardChanges discards unsaved changes and reverts to original content
+func (w *Window) discardChanges() {
+	if !w.isDirty {
+		w.switchToViewMode()
+		return
+	}
+
+	dialog.ShowConfirm("Discard Changes",
+		"Are you sure you want to discard your changes?",
+		func(discard bool) {
+			if discard {
+				w.editor.SetText(w.contentBuffer)
+				w.isDirty = false
+				w.switchToViewMode()
+			}
+		}, w.fyneWindow)
+}
+
+// handleClose handles window close with unsaved changes check
+func (w *Window) handleClose() {
+	if !w.isDirty {
+		w.fyneWindow.Close()
+		return
+	}
+
+	dialog.ShowConfirm("Unsaved Changes",
+		"You have unsaved changes. Do you want to close without saving?",
+		func(close bool) {
+			if close {
+				w.isDirty = false // Prevent re-prompt
+				w.fyneWindow.Close()
+			}
+		}, w.fyneWindow)
+}
+
+// checkUnsavedChanges prompts the user about unsaved changes before a file switch
+// Returns true if the caller should proceed, false if they should wait for user input
+func (w *Window) checkUnsavedChanges(onProceed func()) {
+	if !w.isDirty {
+		onProceed()
+		return
+	}
+
+	dialog.ShowConfirm("Unsaved Changes",
+		"You have unsaved changes. Do you want to switch files without saving?",
+		func(proceed bool) {
+			if proceed {
+				w.isDirty = false
+				if w.editMode {
+					w.switchToViewMode()
+				}
+				onProceed()
+			}
+		}, w.fyneWindow)
 }
 
 // Show shows the window

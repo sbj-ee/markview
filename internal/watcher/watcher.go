@@ -18,6 +18,7 @@ type FileWatcher struct {
 	debouncer    *Debouncer
 	mu           sync.Mutex
 	running      bool
+	paused       bool
 	stopChan     chan struct{}
 	debounceTime time.Duration
 }
@@ -82,6 +83,29 @@ func (fw *FileWatcher) Stop() {
 	}
 }
 
+// Pause pauses file watching without stopping it
+func (fw *FileWatcher) Pause() {
+	fw.mu.Lock()
+	defer fw.mu.Unlock()
+	fw.paused = true
+	fw.logger.Info("File watching paused", zap.String("path", fw.filePath))
+}
+
+// Resume resumes file watching after pause
+func (fw *FileWatcher) Resume() {
+	fw.mu.Lock()
+	defer fw.mu.Unlock()
+	fw.paused = false
+	fw.logger.Info("File watching resumed", zap.String("path", fw.filePath))
+}
+
+// IsPaused returns true if file watching is paused
+func (fw *FileWatcher) IsPaused() bool {
+	fw.mu.Lock()
+	defer fw.mu.Unlock()
+	return fw.paused
+}
+
 // stopWatch stops the watch loop (must be called with lock held)
 func (fw *FileWatcher) stopWatch() {
 	close(fw.stopChan)
@@ -122,6 +146,18 @@ func (fw *FileWatcher) watchLoop() {
 
 // handleEvent processes a file system event
 func (fw *FileWatcher) handleEvent(event fsnotify.Event) {
+	fw.mu.Lock()
+	paused := fw.paused
+	fw.mu.Unlock()
+
+	if paused {
+		fw.logger.Debug("File event ignored (paused)",
+			zap.String("event", event.Op.String()),
+			zap.String("file", event.Name),
+		)
+		return
+	}
+
 	fw.logger.Debug("File event",
 		zap.String("event", event.Op.String()),
 		zap.String("file", event.Name),

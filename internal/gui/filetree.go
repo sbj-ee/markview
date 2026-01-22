@@ -7,16 +7,53 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
+const (
+	parentDirUID = ".."
+)
+
+// fileTreeNode is a custom widget for tree nodes with icon and label
+type fileTreeNode struct {
+	widget.BaseWidget
+	icon  *widget.Icon
+	label *widget.Label
+	box   *fyne.Container
+}
+
+func newFileTreeNode() *fileTreeNode {
+	icon := widget.NewIcon(theme.FileIcon())
+	label := widget.NewLabel("")
+	n := &fileTreeNode{
+		icon:  icon,
+		label: label,
+		box:   container.NewBorder(nil, nil, icon, nil, label),
+	}
+	n.ExtendBaseWidget(n)
+	return n
+}
+
+func (n *fileTreeNode) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(n.box)
+}
+
+func (n *fileTreeNode) SetContent(icon fyne.Resource, text string) {
+	n.icon.SetResource(icon)
+	n.label.SetText(text)
+}
+
 // FileTree represents a file browser tree widget
 type FileTree struct {
-	tree        *widget.Tree
-	rootPath    string
+	tree         *widget.Tree
+	rootPath     string
 	onFileSelect func(path string)
-	pathMap     map[string]string // uid -> path mapping
+	pathMap      map[string]string // uid -> path mapping
+	filter       string            // current filter text
+	filterEntry  *widget.Entry     // search entry widget
+	container    *fyne.Container   // container with search + tree
 }
 
 // NewFileTree creates a new file tree browser
@@ -24,22 +61,51 @@ func NewFileTree(onFileSelect func(path string)) *FileTree {
 	ft := &FileTree{
 		onFileSelect: onFileSelect,
 		pathMap:      make(map[string]string),
+		filter:       "",
 	}
 	ft.tree = ft.createTree()
+	ft.filterEntry = ft.createFilterEntry()
+	ft.container = container.NewBorder(ft.filterEntry, nil, nil, nil, ft.tree)
 	return ft
+}
+
+// createFilterEntry creates the search/filter entry
+func (ft *FileTree) createFilterEntry() *widget.Entry {
+	entry := widget.NewEntry()
+	entry.SetPlaceHolder("Filter files...")
+	entry.OnChanged = func(text string) {
+		ft.filter = strings.ToLower(text)
+		ft.tree.Refresh()
+	}
+	return entry
 }
 
 // SetRootPath sets the root directory for the file tree
 func (ft *FileTree) SetRootPath(path string) {
 	ft.rootPath = path
 	ft.pathMap = make(map[string]string)
-	// Don't map "" to path - "" is a virtual hidden root
 	ft.tree.Refresh()
 }
 
 // GetTree returns the underlying tree widget
 func (ft *FileTree) GetTree() *widget.Tree {
 	return ft.tree
+}
+
+// GetContainer returns the container with search and tree
+func (ft *FileTree) GetContainer() fyne.CanvasObject {
+	return ft.container
+}
+
+// NavigateUp navigates to the parent directory
+func (ft *FileTree) NavigateUp() {
+	if ft.rootPath == "" {
+		return
+	}
+	parent := filepath.Dir(ft.rootPath)
+	if parent != ft.rootPath { // Not at filesystem root
+		ft.SetRootPath(parent)
+	}
 }
 
 // createTree creates the file tree widget
@@ -50,6 +116,8 @@ func (ft *FileTree) createTree() *widget.Tree {
 			var path string
 			if uid == "" {
 				path = ft.rootPath
+			} else if uid == parentDirUID {
+				return []string{} // Parent dir has no children
 			} else {
 				path = ft.getPath(uid)
 			}
@@ -62,6 +130,16 @@ func (ft *FileTree) createTree() *widget.Tree {
 				return []string{}
 			}
 
+			var result []string
+
+			// Add parent directory navigation at root level
+			if uid == "" && ft.rootPath != "" {
+				parent := filepath.Dir(ft.rootPath)
+				if parent != ft.rootPath { // Not at filesystem root
+					result = append(result, parentDirUID)
+				}
+			}
+
 			var dirs []string
 			var files []string
 
@@ -70,6 +148,19 @@ func (ft *FileTree) createTree() *widget.Tree {
 				// Skip hidden files
 				if strings.HasPrefix(name, ".") {
 					continue
+				}
+
+				// Apply filter
+				if ft.filter != "" && !strings.Contains(strings.ToLower(name), ft.filter) {
+					// For directories, check if any children match
+					if entry.IsDir() {
+						fullPath := filepath.Join(path, name)
+						if !ft.hasMatchingFiles(fullPath, ft.filter) {
+							continue
+						}
+					} else {
+						continue
+					}
 				}
 
 				fullPath := filepath.Join(path, name)
@@ -90,13 +181,19 @@ func (ft *FileTree) createTree() *widget.Tree {
 			sort.Strings(dirs)
 			sort.Strings(files)
 
-			// Return directories first, then files
-			return append(dirs, files...)
+			// Return parent dir first, then directories, then files
+			result = append(result, dirs...)
+			result = append(result, files...)
+			return result
 		},
 		IsBranch: func(uid string) bool {
 			// Virtual root "" is a branch but hidden
 			if uid == "" {
 				return true
+			}
+			// Parent dir is not a branch (no children shown)
+			if uid == parentDirUID {
+				return false
 			}
 			path := ft.getPath(uid)
 			if path == "" {
@@ -109,25 +206,44 @@ func (ft *FileTree) createTree() *widget.Tree {
 			return info.IsDir()
 		},
 		CreateNode: func(branch bool) fyne.CanvasObject {
-			return widget.NewLabel("")
+			return newFileTreeNode()
 		},
 		UpdateNode: func(uid string, branch bool, node fyne.CanvasObject) {
-			label := node.(*widget.Label)
+			treeNode := node.(*fileTreeNode)
+
 			// Hide the root node - only show its children
 			if uid == "" {
-				label.SetText("")
+				treeNode.SetContent(theme.FolderIcon(), "")
 				return
 			}
+
+			// Parent directory navigation
+			if uid == parentDirUID {
+				treeNode.SetContent(theme.FolderOpenIcon(), "..")
+				return
+			}
+
 			path := ft.getPath(uid)
 			if path == "" {
-				label.SetText("")
+				treeNode.SetContent(theme.FileIcon(), "")
 				return
 			}
+
 			name := filepath.Base(path)
-			label.SetText(name)
-			label.Truncation = fyne.TextTruncateEllipsis
+			if branch {
+				treeNode.SetContent(theme.FolderIcon(), name)
+			} else {
+				treeNode.SetContent(theme.DocumentIcon(), name)
+			}
 		},
 		OnSelected: func(uid string) {
+			// Handle parent directory navigation
+			if uid == parentDirUID {
+				ft.NavigateUp()
+				ft.tree.UnselectAll()
+				return
+			}
+
 			path := ft.getPath(uid)
 			if path == "" {
 				return
@@ -147,7 +263,7 @@ func (ft *FileTree) createTree() *widget.Tree {
 // getPath returns the file path for a given UID
 func (ft *FileTree) getPath(uid string) string {
 	// "" is virtual root with no path - use rootPath in ChildUIDs instead
-	if uid == "" {
+	if uid == "" || uid == parentDirUID {
 		return ""
 	}
 	if path, ok := ft.pathMap[uid]; ok {
@@ -187,18 +303,43 @@ func (ft *FileTree) hasMarkdownFiles(path string) bool {
 	return false
 }
 
+// hasMatchingFiles checks if a directory contains files matching the filter
+func (ft *FileTree) hasMatchingFiles(path string, filter string) bool {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return false
+	}
+
+	for _, entry := range entries {
+		name := entry.Name()
+		if strings.HasPrefix(name, ".") {
+			continue
+		}
+		if entry.IsDir() {
+			if ft.hasMatchingFiles(filepath.Join(path, name), filter) {
+				return true
+			}
+		} else if isMarkdownFile(name) && strings.Contains(strings.ToLower(name), filter) {
+			return true
+		}
+	}
+	return false
+}
+
 // isMarkdownFile checks if a filename has a markdown extension
 func isMarkdownFile(name string) bool {
 	lower := strings.ToLower(name)
 	return strings.HasSuffix(lower, ".md") || strings.HasSuffix(lower, ".markdown")
 }
 
-// IconFolder returns the folder icon
-func IconFolder() fyne.Resource {
-	return theme.FolderIcon()
+// FocusFilter focuses the filter entry for keyboard input
+func (ft *FileTree) FocusFilter(canvas fyne.Canvas) {
+	canvas.Focus(ft.filterEntry)
 }
 
-// IconFile returns the file icon
-func IconFile() fyne.Resource {
-	return theme.FileIcon()
+// ClearFilter clears the filter and refreshes the tree
+func (ft *FileTree) ClearFilter() {
+	ft.filterEntry.SetText("")
+	ft.filter = ""
+	ft.tree.Refresh()
 }
