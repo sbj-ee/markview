@@ -383,6 +383,14 @@ func (w *Window) createToolbar() *widget.Toolbar {
 		w.showPresentationMode()
 	})
 
+	printAction := newToolbarAction(themes.IconPrint(), func() {
+		w.printDocument()
+	})
+
+	exportAction := newToolbarAction(themes.IconExport(), func() {
+		w.showPrintDialog()
+	})
+
 	toolbar := widget.NewToolbar(
 		newFileAction,
 		openFileAction,
@@ -394,6 +402,8 @@ func (w *Window) createToolbar() *widget.Toolbar {
 		widget.NewToolbarSeparator(),
 		refreshAction,
 		presentationAction,
+		printAction,
+		exportAction,
 		widget.NewToolbarSpacer(),
 		toggleLibraryAction,
 		toggleFileTreeAction,

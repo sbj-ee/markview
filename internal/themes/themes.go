@@ -784,6 +784,16 @@ func IconTypewriter() fyne.Resource {
 	return theme.NewThemedResource(resourceTypewriterSvg)
 }
 
+// IconPrint returns a print icon
+func IconPrint() fyne.Resource {
+	return theme.NewThemedResource(resourcePrintSvg)
+}
+
+// IconExport returns an export icon
+func IconExport() fyne.Resource {
+	return theme.NewThemedResource(resourceExportSvg)
+}
+
 // GetCodeColors returns syntax highlighting colors for the current theme
 func (m *MarkViewTheme) GetCodeColors() CodeColors {
 	if m.themeType == ThemeDark {
