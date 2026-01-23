@@ -29,7 +29,9 @@
 - **Auto-Save** - Automatically saves changes every 30 seconds
 
 ### Navigation & Search
-- **File Browser** - Built-in file tree with filtering (Cmd+F)
+- **File Browser** - Built-in file tree with filtering (Cmd+F) and context menu
+  - Right-click files: Rename, Delete, New File/Directory Here
+  - Right-click directories: New File, New Directory, Rename, Delete
 - **Table of Contents** - Hierarchical navigation with click-to-scroll
 - **Quick Switcher** - Fuzzy file finder (Ctrl+P)
 - **Full-Text Search** - Search across all markdown files (Cmd+Shift+G)
@@ -96,6 +98,8 @@
 | Up Arrow | Select previous file suggestion |
 | Enter/Tab | Accept selected file |
 | Escape | Dismiss suggestions |
+| **File Browser** | |
+| Right-click | Context menu (new/rename/delete) |
 | **Navigation** | |
 | Ctrl+P | Quick file switcher |
 | Cmd+Shift+G | Search in all files |

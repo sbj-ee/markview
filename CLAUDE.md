@@ -132,6 +132,19 @@ Implementation in `autocomplete.go`:
 - Fuzzy matching filters suggestions as user types
 - Keyboard navigation: Arrow keys, Enter/Tab to accept, Escape to dismiss
 
+### File Tree Context Menu
+Right-click context menu for file/directory operations in `filetree.go`:
+- **Directory context menu**: New File, New Directory, Rename Directory, Delete Directory
+- **File context menu**: Rename File, Delete File, New File Here, New Directory Here
+
+Implementation:
+- `fileTreeNode` implements `fyne.SecondaryTappable` via `TappedSecondary()`
+- Stores path, isDirectory, isParentDir state for context-aware menus
+- `showContextMenu()` creates popup menu with appropriate options
+- Dialog methods: `showNewFileDialog()`, `showNewDirectoryDialog()`, `showRenameDialog()`, `showDeleteConfirmation()`
+- Auto-adds `.md` extension to new files if not present
+- Parent directory ".." entry excluded from context menus
+
 ### Color Themes (8 total)
 Light, Dark, Nord, Solarized Light, Solarized Dark, Monokai, Gruvbox Dark, One Dark
 
@@ -151,6 +164,7 @@ go test ./internal/themes/... -v
 
 Key test files:
 - `internal/gui/autocomplete_test.go` - Link autocomplete tests
+- `internal/gui/filetree_test.go` - File tree and context menu tests
 - `internal/themes/themes_test.go` - Theme, font, and icon tests
 
 ## Common Patterns
@@ -197,6 +211,8 @@ The `LinkAutocomplete` pattern can be extended:
 | Cmd+T | Browse tags |
 | Cmd+L | Validate links |
 | F11 | Zen mode |
+| **File Browser** | |
+| Right-click | Context menu (new/rename/delete) |
 | **Link Autocomplete** | |
 | Up/Down | Navigate suggestions |
 | Enter/Tab | Accept selection |

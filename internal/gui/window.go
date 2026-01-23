@@ -276,6 +276,7 @@ func (w *Window) setupUI() {
 			w.loadFile(path)
 		})
 	})
+	w.fileTree.SetWindow(w.fyneWindow)
 	w.fileTreeScroll = container.NewScroll(w.fileTree.GetContainer())
 
 	// Create placeholder TOC

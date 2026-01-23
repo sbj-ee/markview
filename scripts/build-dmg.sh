@@ -2,20 +2,58 @@
 #
 # Build script for MarkView .dmg package (macOS)
 #
+# Usage:
+#   VERSION=1.0.6 ./build-dmg.sh           # Universal binary (default)
+#   VERSION=1.0.6 ARCH=arm64 ./build-dmg.sh  # Apple Silicon only
+#   VERSION=1.0.6 ARCH=amd64 ./build-dmg.sh  # Intel only
+#   VERSION=1.0.6 ARCH=all ./build-dmg.sh    # Build all three DMGs
+#
 set -e
 
 VERSION="${VERSION:-1.0.0}"
+ARCH="${ARCH:-universal}"  # universal, arm64, amd64, or all
 APP_NAME="MarkView"
-DMG_NAME="MarkView-${VERSION}"
 BUNDLE_ID="com.sbj-ee.markview"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 cd "$PROJECT_DIR"
 
+# Set DMG name based on architecture
+case "$ARCH" in
+    arm64)
+        DMG_NAME="MarkView-${VERSION}-arm64"
+        ARCH_DISPLAY="Apple Silicon (arm64)"
+        ;;
+    amd64|x86_64)
+        ARCH="amd64"
+        DMG_NAME="MarkView-${VERSION}-x86_64"
+        ARCH_DISPLAY="Intel (x86_64)"
+        ;;
+    all)
+        # Build all architectures by calling self recursively
+        echo "Building all architectures..."
+        ARCH=arm64 VERSION="$VERSION" "$0"
+        ARCH=amd64 VERSION="$VERSION" "$0"
+        ARCH=universal VERSION="$VERSION" "$0"
+        echo ""
+        echo "============================================"
+        echo "All builds complete!"
+        ls -lh dist/dmg/*.dmg
+        echo "============================================"
+        exit 0
+        ;;
+    *)
+        DMG_NAME="MarkView-${VERSION}"
+        ARCH_DISPLAY="Universal (arm64 + x86_64)"
+        ARCH="universal"
+        ;;
+esac
+
 echo "============================================"
 echo "Building MarkView .dmg package"
 echo "Version: ${VERSION}"
+echo "Architecture: ${ARCH_DISPLAY}"
 echo "============================================"
 
 # Check if running on macOS
@@ -24,33 +62,46 @@ if [[ "$(uname)" != "Darwin" ]]; then
     exit 1
 fi
 
-# Clean previous builds
-echo "[1/8] Cleaning previous builds..."
+# Clean previous builds for this architecture
+echo "[1/6] Cleaning previous builds..."
 rm -rf "dist/dmg/${APP_NAME}.app" "dist/dmg/${DMG_NAME}.dmg" "dist/dmg/markview-arm64" "dist/dmg/markview-amd64" "dist/dmg/markview"
 mkdir -p dist/dmg
 
-# Build for Apple Silicon (arm64)
-echo "[2/8] Compiling binary for Apple Silicon (arm64)..."
-CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build \
-    -ldflags="-s -w -X main.version=${VERSION}" \
-    -o "dist/dmg/markview-arm64" ./cmd/markview
+# Build based on architecture selection
+if [ "$ARCH" = "universal" ]; then
+    # Build for Apple Silicon (arm64)
+    echo "[2/6] Compiling binary for Apple Silicon (arm64)..."
+    CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build \
+        -ldflags="-s -w -X main.version=${VERSION}" \
+        -o "dist/dmg/markview-arm64" ./cmd/markview
 
-# Build for Intel (amd64)
-echo "[3/8] Compiling binary for Intel (amd64)..."
-CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build \
-    -ldflags="-s -w -X main.version=${VERSION}" \
-    -o "dist/dmg/markview-amd64" ./cmd/markview
+    # Build for Intel (amd64)
+    echo "[2/6] Compiling binary for Intel (amd64)..."
+    CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build \
+        -ldflags="-s -w -X main.version=${VERSION}" \
+        -o "dist/dmg/markview-amd64" ./cmd/markview
 
-# Create universal binary
-echo "[4/8] Creating universal binary..."
-lipo -create -output "dist/dmg/markview" "dist/dmg/markview-arm64" "dist/dmg/markview-amd64"
-rm "dist/dmg/markview-arm64" "dist/dmg/markview-amd64"
-
-# Verify universal binary
-echo "   Binary architectures: $(lipo -archs dist/dmg/markview)"
+    # Create universal binary
+    echo "[2/6] Creating universal binary..."
+    lipo -create -output "dist/dmg/markview" "dist/dmg/markview-arm64" "dist/dmg/markview-amd64"
+    rm "dist/dmg/markview-arm64" "dist/dmg/markview-amd64"
+    echo "   Binary architectures: $(lipo -archs dist/dmg/markview)"
+elif [ "$ARCH" = "arm64" ]; then
+    echo "[2/6] Compiling binary for Apple Silicon (arm64)..."
+    CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build \
+        -ldflags="-s -w -X main.version=${VERSION}" \
+        -o "dist/dmg/markview" ./cmd/markview
+    echo "   Binary architecture: arm64"
+elif [ "$ARCH" = "amd64" ]; then
+    echo "[2/6] Compiling binary for Intel (x86_64)..."
+    CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build \
+        -ldflags="-s -w -X main.version=${VERSION}" \
+        -o "dist/dmg/markview" ./cmd/markview
+    echo "   Binary architecture: x86_64"
+fi
 
 # Create .app bundle structure
-echo "[5/8] Creating .app bundle..."
+echo "[3/6] Creating .app bundle..."
 mkdir -p "dist/dmg/${APP_NAME}.app/Contents/MacOS"
 mkdir -p "dist/dmg/${APP_NAME}.app/Contents/Resources"
 
@@ -59,7 +110,7 @@ cp "dist/dmg/markview" "dist/dmg/${APP_NAME}.app/Contents/MacOS/"
 chmod +x "dist/dmg/${APP_NAME}.app/Contents/MacOS/markview"
 
 # Create/copy icon
-echo "[6/8] Creating app icon..."
+echo "[4/6] Creating app icon..."
 if [ -f "assets/markview.icns" ]; then
     cp "assets/markview.icns" "dist/dmg/${APP_NAME}.app/Contents/Resources/"
 elif [ -f "assets/logo-256.png" ]; then
@@ -97,7 +148,7 @@ else
 fi
 
 # Create Info.plist
-echo "[7/8] Creating Info.plist..."
+echo "[5/6] Creating Info.plist..."
 cat > "dist/dmg/${APP_NAME}.app/Contents/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -194,7 +245,7 @@ EOF
 echo -n "APPL????" > "dist/dmg/${APP_NAME}.app/Contents/PkgInfo"
 
 # Create DMG
-echo "[8/8] Creating .dmg..."
+echo "[6/6] Creating .dmg..."
 rm -f "dist/dmg/${DMG_NAME}.dmg"
 
 if command -v create-dmg &> /dev/null; then
