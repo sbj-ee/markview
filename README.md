@@ -21,6 +21,7 @@
 - **Syntax Highlighting** - 250+ languages via Chroma
 - **Live Reload** - Auto-refresh on file changes (300ms debounce)
 - **Edit Mode** - Toggle between viewing and editing with formatting toolbar
+- **Link Autocomplete** - File suggestions when typing `[text](` in edit mode
 - **Split View** - Side-by-side editor and preview (Cmd+\\)
 - **Focus Mode** - Hide sidebars for distraction-free reading (Cmd+Shift+F)
 - **Zen Mode** - Fullscreen distraction-free writing (F11)
@@ -89,6 +90,11 @@
 | Cmd+F | Find/Replace (edit) or Filter (view) |
 | Cmd+\\ | Toggle split view |
 | Escape | Exit edit mode |
+| **Link Autocomplete** | |
+| Down Arrow | Select next file suggestion |
+| Up Arrow | Select previous file suggestion |
+| Enter/Tab | Accept selected file |
+| Escape | Dismiss suggestions |
 | **Navigation** | |
 | Ctrl+P | Quick file switcher |
 | Cmd+Shift+G | Search in all files |
@@ -289,6 +295,24 @@ make build-linux    # Build for Linux
 make build-macos    # Build for macOS
 make build-all      # Build for all platforms
 ```
+
+### Packaging
+
+```bash
+# Build .deb package for Debian/Ubuntu (run on Linux)
+make package-deb
+
+# Build .dmg package for macOS (run on macOS)
+make package-dmg
+
+# Specify version
+VERSION=1.1.0 make package-deb
+VERSION=1.1.0 make package-dmg
+```
+
+The packaging scripts create:
+- **Linux (.deb)**: Full package with desktop entry, icons, MIME types, and AppStream metadata
+- **macOS (.dmg)**: Universal binary (Intel + Apple Silicon), app bundle with Info.plist and icons
 
 ---
 

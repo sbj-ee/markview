@@ -78,20 +78,20 @@ func (t ThemeType) IsDark() bool {
 type FontFamily string
 
 const (
-	FontDefault    FontFamily = "default"
-	FontMonospace  FontFamily = "monospace"
-	FontSerif      FontFamily = "serif"
-	FontSansSerif  FontFamily = "sans-serif"
+	FontDefault   FontFamily = "default"
+	FontMonospace FontFamily = "monospace"
+	FontSerif     FontFamily = "serif"
+	FontSansSerif FontFamily = "sans-serif"
 )
 
 // FontSize represents a font size option (scale factor)
 type FontSize string
 
 const (
-	FontSizeSmall      FontSize = "small"      // 0.85x
-	FontSizeNormal     FontSize = "normal"     // 1.0x
-	FontSizeLarge      FontSize = "large"      // 1.15x
-	FontSizeExtraLarge FontSize = "xlarge"     // 1.30x
+	FontSizeSmall      FontSize = "small"  // 0.85x
+	FontSizeNormal     FontSize = "normal" // 1.0x
+	FontSizeLarge      FontSize = "large"  // 1.15x
+	FontSizeExtraLarge FontSize = "xlarge" // 1.30x
 )
 
 // FontSizeNames returns all available font size names
@@ -373,7 +373,7 @@ func (m *MarkViewTheme) darkColor(name fyne.ThemeColorName) color.Color {
 	case theme.ColorNameDisabled:
 		return color.RGBA{R: 100, G: 100, B: 110, A: 255} // Muted gray
 	case theme.ColorNamePlaceHolder:
-		return color.RGBA{R: 100, G: 100, B: 110, A: 255} // Muted gray
+		return color.RGBA{R: 140, G: 148, B: 160, A: 255} // Brighter gray for comments
 
 	case theme.ColorNameScrollBar:
 		return color.RGBA{R: 60, G: 62, B: 70, A: 255} // Scrollbar
@@ -440,6 +440,8 @@ func (m *MarkViewTheme) nordColor(name fyne.ThemeColorName) color.Color {
 		return color.RGBA{R: 235, G: 203, B: 139, A: 255} // Nord13
 	case "math":
 		return color.RGBA{R: 180, G: 142, B: 173, A: 255} // Nord15 - Purple
+	case theme.ColorNamePlaceHolder:
+		return color.RGBA{R: 136, G: 148, B: 166, A: 255} // Visible gray for comments
 	default:
 		return theme.DefaultTheme().Color(name, theme.VariantDark)
 	}
@@ -520,6 +522,8 @@ func (m *MarkViewTheme) solarizedDarkColor(name fyne.ThemeColorName) color.Color
 		return color.RGBA{R: 181, G: 137, B: 0, A: 255} // Yellow
 	case "math":
 		return color.RGBA{R: 108, G: 113, B: 196, A: 255} // Violet
+	case theme.ColorNamePlaceHolder:
+		return color.RGBA{R: 101, G: 123, B: 131, A: 255} // Base00 - visible gray for comments
 	default:
 		return theme.DefaultTheme().Color(name, theme.VariantDark)
 	}
@@ -562,6 +566,8 @@ func (m *MarkViewTheme) monokaiColor(name fyne.ThemeColorName) color.Color {
 		return color.RGBA{R: 253, G: 151, B: 31, A: 255} // Orange
 	case "math":
 		return color.RGBA{R: 174, G: 129, B: 255, A: 255} // Purple
+	case theme.ColorNamePlaceHolder:
+		return color.RGBA{R: 117, G: 113, B: 94, A: 255} // Visible gray for comments
 	default:
 		return theme.DefaultTheme().Color(name, theme.VariantDark)
 	}
@@ -604,6 +610,8 @@ func (m *MarkViewTheme) gruvboxDarkColor(name fyne.ThemeColorName) color.Color {
 		return color.RGBA{R: 250, G: 189, B: 47, A: 255} // Yellow
 	case "math":
 		return color.RGBA{R: 211, G: 134, B: 155, A: 255} // Purple
+	case theme.ColorNamePlaceHolder:
+		return color.RGBA{R: 146, G: 131, B: 116, A: 255} // fg3 - visible gray for comments
 	default:
 		return theme.DefaultTheme().Color(name, theme.VariantDark)
 	}
@@ -646,6 +654,8 @@ func (m *MarkViewTheme) oneDarkColor(name fyne.ThemeColorName) color.Color {
 		return color.RGBA{R: 229, G: 192, B: 123, A: 255} // Yellow
 	case "math":
 		return color.RGBA{R: 198, G: 120, B: 221, A: 255} // Purple
+	case theme.ColorNamePlaceHolder:
+		return color.RGBA{R: 128, G: 135, B: 150, A: 255} // Comment gray - visible
 	default:
 		return theme.DefaultTheme().Color(name, theme.VariantDark)
 	}
@@ -653,14 +663,14 @@ func (m *MarkViewTheme) oneDarkColor(name fyne.ThemeColorName) color.Color {
 
 // CodeColors returns color scheme for syntax highlighting
 type CodeColors struct {
-	Keyword   color.Color
-	String    color.Color
-	Comment   color.Color
-	Number    color.Color
-	Function  color.Color
-	Operator  color.Color
-	Type      color.Color
-	Variable  color.Color
+	Keyword    color.Color
+	String     color.Color
+	Comment    color.Color
+	Number     color.Color
+	Function   color.Color
+	Operator   color.Color
+	Type       color.Color
+	Variable   color.Color
 	Background color.Color
 }
 

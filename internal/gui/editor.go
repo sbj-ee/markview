@@ -2,15 +2,27 @@ package gui
 
 import (
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 )
 
 // MarkdownEditor wraps a multi-line entry with markdown editing support
 type MarkdownEditor struct {
 	widget.BaseWidget
-	entry     *widget.Entry
+	entry   *widget.Entry
+	canvas  fyne.Canvas
+	focused bool
+
 	OnChanged func(content string)
+	// OnKeyEvent is called before key events are processed.
+	// Return true to consume the event (prevent default handling).
+	OnKeyEvent func(key *fyne.KeyEvent) bool
 }
+
+// Ensure MarkdownEditor implements required interfaces
+var _ fyne.Focusable = (*MarkdownEditor)(nil)
+var _ fyne.Tappable = (*MarkdownEditor)(nil)
+var _ desktop.Keyable = (*MarkdownEditor)(nil)
 
 // NewMarkdownEditor creates a new markdown editor
 func NewMarkdownEditor(onChanged func(content string)) *MarkdownEditor {
@@ -50,17 +62,61 @@ func (e *MarkdownEditor) GetCursorPosition() (row, col int) {
 
 // Focus focuses the editor for input
 func (e *MarkdownEditor) Focus(canvas fyne.Canvas) {
+	e.canvas = canvas
 	canvas.Focus(e.entry)
 }
 
-// TypedKey handles key events - delegates to entry
+// FocusGained is called when the editor receives focus
+func (e *MarkdownEditor) FocusGained() {
+	e.focused = true
+	e.entry.FocusGained()
+}
+
+// FocusLost is called when the editor loses focus
+func (e *MarkdownEditor) FocusLost() {
+	e.focused = false
+	e.entry.FocusLost()
+}
+
+// Focused returns whether the editor has focus
+func (e *MarkdownEditor) Focused() bool {
+	return e.focused
+}
+
+// TypedKey handles key events
 func (e *MarkdownEditor) TypedKey(key *fyne.KeyEvent) {
+	// Check if the key event should be intercepted
+	if e.OnKeyEvent != nil && e.OnKeyEvent(key) {
+		return // Event was consumed
+	}
 	e.entry.TypedKey(key)
 }
 
 // TypedRune handles rune events - delegates to entry
 func (e *MarkdownEditor) TypedRune(r rune) {
 	e.entry.TypedRune(r)
+}
+
+// Tapped handles tap events to focus the entry
+func (e *MarkdownEditor) Tapped(event *fyne.PointEvent) {
+	if e.canvas != nil {
+		e.canvas.Focus(e.entry)
+	}
+}
+
+// KeyDown is called when a key is pressed (desktop.Keyable)
+func (e *MarkdownEditor) KeyDown(key *fyne.KeyEvent) {
+	// Check if the key event should be intercepted
+	if e.OnKeyEvent != nil && e.OnKeyEvent(key) {
+		return // Event was consumed
+	}
+	// widget.Entry handles key events through TypedKey, not KeyDown
+	// This method is required by desktop.Keyable but Entry doesn't use it
+}
+
+// KeyUp is called when a key is released (desktop.Keyable)
+func (e *MarkdownEditor) KeyUp(key *fyne.KeyEvent) {
+	// widget.Entry doesn't use KeyUp
 }
 
 // MinSize returns the minimum size of the editor

@@ -147,8 +147,9 @@ func (h *SyntaxHighlighter) mapTokenTypeToColorName(tokenType chroma.TokenType) 
 		return theme.ColorNameWarning // Yellow/Orange for strings
 
 	case tokenType == chroma.Comment || tokenType == chroma.CommentSingle ||
-		tokenType == chroma.CommentMultiline || tokenType == chroma.CommentPreproc:
-		return theme.ColorNameDisabled // Gray for comments
+		tokenType == chroma.CommentMultiline || tokenType == chroma.CommentPreproc ||
+		tokenType == chroma.CommentSpecial:
+		return theme.ColorNamePlaceHolder // Visible gray for comments
 
 	case tokenType == chroma.LiteralNumber || strings.HasPrefix(typeStr, "LiteralNumber") ||
 		tokenType == chroma.LiteralNumberInteger || tokenType == chroma.LiteralNumberFloat:

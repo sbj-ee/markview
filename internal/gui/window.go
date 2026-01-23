@@ -32,36 +32,36 @@ import (
 
 // Window represents the main application window
 type Window struct {
-	fyneWindow     fyne.Window
-	app            fyne.App
-	parser         *markdown.Parser
-	logger         *zap.Logger
-	fileTree       *FileTree
-	fileTreeScroll *container.Scroll
-	tocTree        *widget.Tree
-	tocScroll      *container.Scroll
-	scrollContent  *container.Scroll
-	leftSplit      *container.Split // File Tree | TOC
-	mainSplit      *container.Split // (File Tree | TOC) | Content
-	currentFile    string
-	currentDir     string
-	fileWatcher    *watcher.FileWatcher
+	fyneWindow      fyne.Window
+	app             fyne.App
+	parser          *markdown.Parser
+	logger          *zap.Logger
+	fileTree        *FileTree
+	fileTreeScroll  *container.Scroll
+	tocTree         *widget.Tree
+	tocScroll       *container.Scroll
+	scrollContent   *container.Scroll
+	leftSplit       *container.Split // File Tree | TOC
+	mainSplit       *container.Split // (File Tree | TOC) | Content
+	currentFile     string
+	currentDir      string
+	fileWatcher     *watcher.FileWatcher
 	currentTheme    themes.ThemeType
 	currentFont     themes.FontFamily
 	currentFontSize themes.FontSize
 
 	// Edit mode
-	editMode      bool
-	splitViewMode bool // Side-by-side editor and preview
-	isDirty       bool
-	editor        *MarkdownEditor
-	editorScroll  *container.Scroll
-	contentStack  *fyne.Container
-	splitView     *container.Split // For side-by-side editing
-	contentBuffer string           // Original content for dirty checking
-	focusMode     bool             // Hide all UI except content
-	typewriterMode bool            // Keep cursor centered
-	autoSaveTicker *time.Ticker    // Auto-save timer
+	editMode       bool
+	splitViewMode  bool // Side-by-side editor and preview
+	isDirty        bool
+	editor         *MarkdownEditor
+	editorScroll   *container.Scroll
+	contentStack   *fyne.Container
+	splitView      *container.Split // For side-by-side editing
+	contentBuffer  string           // Original content for dirty checking
+	focusMode      bool             // Hide all UI except content
+	typewriterMode bool             // Keep cursor centered
+	autoSaveTicker *time.Ticker     // Auto-save timer
 
 	// Recent files
 	recentFiles []string
@@ -85,9 +85,9 @@ type Window struct {
 	outlineScroll *container.Scroll
 
 	// Status bar
-	statusBar   *widget.Label
-	wordCount   *widget.Label
-	cursorPos   *widget.Label
+	statusBar *widget.Label
+	wordCount *widget.Label
+	cursorPos *widget.Label
 
 	// Library mode
 	libraryMode   bool
@@ -96,11 +96,14 @@ type Window struct {
 	libraryScroll *container.Scroll
 
 	// Tags and features
-	tagManager    *TagManager
-	spellChecker  *SpellChecker
-	zenMode       bool
-	readingTime   *widget.Label
+	tagManager         *TagManager
+	spellChecker       *SpellChecker
+	zenMode            bool
+	readingTime        *widget.Label
 	currentExportTheme string
+
+	// Link autocomplete
+	linkAutocomplete *LinkAutocomplete
 }
 
 // NewWindow creates a new application window
@@ -118,9 +121,9 @@ func NewWindow(app fyne.App, logger *zap.Logger) *Window {
 		parser:          markdown.NewParser(logger),
 		logger:          logger,
 		fileWatcher:     fw,
-		currentTheme:    themes.ThemeDark,       // Start with dark theme
-		currentFont:     themes.FontDefault,     // Start with default font
-		currentFontSize: themes.FontSizeNormal,  // Start with normal font size
+		currentTheme:    themes.ThemeDark,      // Start with dark theme
+		currentFont:     themes.FontDefault,    // Start with default font
+		currentFontSize: themes.FontSizeNormal, // Start with normal font size
 	}
 
 	// Load saved theme preference
@@ -220,6 +223,14 @@ func (w *Window) setupUI() {
 	w.editorScroll = container.NewScroll(w.editor)
 	w.editorScroll.Hide()
 
+	// Initialize link autocomplete
+	w.linkAutocomplete = NewLinkAutocomplete(w.editor, w.fyneWindow, w.currentDir)
+
+	// Hook autocomplete key handler to editor
+	w.editor.OnKeyEvent = func(key *fyne.KeyEvent) bool {
+		return w.linkAutocomplete.HandleKeyEvent(key)
+	}
+
 	// Create split view for side-by-side editing (hidden by default)
 	w.splitView = container.NewHSplit(w.editorScroll, w.scrollContent)
 	w.splitView.Offset = 0.5
@@ -318,7 +329,7 @@ func (w *Window) setupUI() {
 	logoIcon.SetMinSize(fyne.NewSize(20, 20))
 	logoIcon.FillMode = canvas.ImageFillContain
 
-	versionLabel := widget.NewLabel("v0.1.0")
+	versionLabel := widget.NewLabel("v1.0.2")
 	versionLabel.TextStyle = fyne.TextStyle{Italic: true}
 
 	footer := container.NewBorder(
@@ -676,10 +687,15 @@ func (w *Window) setupShortcuts() {
 		}
 	})
 
-	// Escape - Clear filter or exit edit mode (if not dirty)
+	// Escape - Dismiss autocomplete, clear filter, or exit edit mode (if not dirty)
 	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
 		KeyName: fyne.KeyEscape,
 	}, func(shortcut fyne.Shortcut) {
+		// First, check if autocomplete is active
+		if w.linkAutocomplete != nil && w.linkAutocomplete.IsActive() {
+			w.linkAutocomplete.Dismiss()
+			return
+		}
 		if w.editMode && !w.isDirty {
 			w.switchToViewMode()
 		} else {
@@ -785,7 +801,7 @@ func (w *Window) setupShortcuts() {
 
 	// F11 or Cmd+Shift+Enter - Zen mode (fullscreen)
 	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
-		KeyName:  fyne.KeyF11,
+		KeyName: fyne.KeyF11,
 	}, func(shortcut fyne.Shortcut) {
 		w.toggleZenMode()
 	})
@@ -794,6 +810,58 @@ func (w *Window) setupShortcuts() {
 		Modifier: fyne.KeyModifierSuper | fyne.KeyModifierShift,
 	}, func(shortcut fyne.Shortcut) {
 		w.toggleZenMode()
+	})
+
+	// Link autocomplete shortcuts
+	// Ctrl+N - Select next autocomplete suggestion
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyN,
+		Modifier: fyne.KeyModifierControl,
+	}, func(shortcut fyne.Shortcut) {
+		if w.linkAutocomplete != nil && w.linkAutocomplete.IsActive() {
+			w.linkAutocomplete.SelectNext()
+		}
+	})
+
+	// Ctrl+P is already used for quick switcher, so use Ctrl+J/K for navigation
+	// Ctrl+J - Select next autocomplete suggestion (vim-style)
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyJ,
+		Modifier: fyne.KeyModifierControl,
+	}, func(shortcut fyne.Shortcut) {
+		if w.linkAutocomplete != nil && w.linkAutocomplete.IsActive() {
+			w.linkAutocomplete.SelectNext()
+		}
+	})
+
+	// Ctrl+K - Select previous autocomplete suggestion (vim-style)
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyK,
+		Modifier: fyne.KeyModifierControl,
+	}, func(shortcut fyne.Shortcut) {
+		if w.linkAutocomplete != nil && w.linkAutocomplete.IsActive() {
+			w.linkAutocomplete.SelectPrevious()
+		}
+	})
+
+	// Tab - Accept autocomplete selection (when active)
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName: fyne.KeyTab,
+	}, func(shortcut fyne.Shortcut) {
+		if w.linkAutocomplete != nil && w.linkAutocomplete.IsActive() {
+			w.linkAutocomplete.AcceptSelection()
+		}
+		// If autocomplete is not active, Tab is handled by the entry for indentation
+	})
+
+	// Ctrl+Space - Accept autocomplete selection or trigger autocomplete
+	w.fyneWindow.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeySpace,
+		Modifier: fyne.KeyModifierControl,
+	}, func(shortcut fyne.Shortcut) {
+		if w.linkAutocomplete != nil && w.linkAutocomplete.IsActive() {
+			w.linkAutocomplete.AcceptSelection()
+		}
 	})
 }
 
@@ -944,8 +1012,13 @@ func (w *Window) showKeyboardShortcuts() {
 		{"Cmd+Shift+F", "Toggle focus mode"},
 		{"F11 / Cmd+Shift+Enter", "Zen mode (fullscreen)"},
 		{"Cmd+?", "Show shortcuts"},
-		{"Escape", "Exit edit mode / Clear filter"},
+		{"Escape", "Exit edit mode / Clear filter / Dismiss autocomplete"},
 		{"Alt+Up", "Navigate to parent directory"},
+		{"", ""},
+		{"Link Autocomplete (in edit mode):", ""},
+		{"Tab / Ctrl+Space", "Accept autocomplete suggestion"},
+		{"Ctrl+J / Ctrl+N", "Select next suggestion"},
+		{"Ctrl+K", "Select previous suggestion"},
 	}
 
 	var items []fyne.CanvasObject
@@ -1194,6 +1267,10 @@ func (w *Window) showFolderDialog() {
 func (w *Window) setRootFolder(path string) {
 	w.currentDir = path
 	w.fileTree.SetRootPath(path)
+	// Update autocomplete with new root path
+	if w.linkAutocomplete != nil {
+		w.linkAutocomplete.SetRootPath(path)
+	}
 	// Save to preferences
 	w.app.Preferences().SetString("lastDirectory", path)
 	w.logger.Info("Set root folder", zap.String("path", path))
@@ -1340,6 +1417,10 @@ func (w *Window) loadFile(filePath string) {
 	if w.currentDir == "" || w.currentDir != fileDir {
 		w.currentDir = fileDir
 		w.fileTree.SetRootPath(fileDir)
+		// Update autocomplete with new root path
+		if w.linkAutocomplete != nil {
+			w.linkAutocomplete.SetRootPath(fileDir)
+		}
 	}
 
 	// Highlight current file in file tree
@@ -1548,6 +1629,11 @@ func (w *Window) onEditorChanged(content string) {
 	// Center cursor in typewriter mode
 	if w.typewriterMode {
 		w.centerCursor()
+	}
+
+	// Check for link autocomplete
+	if w.linkAutocomplete != nil {
+		w.linkAutocomplete.OnTextChanged(content)
 	}
 
 	// Update status bar
@@ -1849,72 +1935,94 @@ func (w *Window) GetMarkdown() *markdown.Parser {
 
 // showPrintDialog shows a print/export dialog
 func (w *Window) showPrintDialog() {
-	// Create print options dialog
-	content := container.NewVBox(
-		widget.NewLabel("Export Options"),
-		widget.NewSeparator(),
-		widget.NewLabel(fmt.Sprintf("File: %s", filepath.Base(w.currentFile))),
-	)
+	var d dialog.Dialog
 
-	// Export to HTML button
-	exportHTMLBtn := widget.NewButton("Export to HTML", func() {
+	// Helper to create styled export buttons
+	createExportButton := func(label, description string, icon fyne.Resource, onTap func()) fyne.CanvasObject {
+		btn := widget.NewButtonWithIcon(label, icon, func() {
+			d.Hide()
+			onTap()
+		})
+		btn.Importance = widget.HighImportance
+
+		descLabel := widget.NewLabel(description)
+		descLabel.Wrapping = fyne.TextWrapWord
+		descLabel.TextStyle = fyne.TextStyle{Italic: true}
+
+		return container.NewVBox(btn, descLabel)
+	}
+
+	// File info header
+	fileIcon := widget.NewIcon(themes.IconDocument())
+	fileName := widget.NewLabelWithStyle(filepath.Base(w.currentFile), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	fileInfo := container.NewHBox(fileIcon, fileName)
+
+	// Section: Export Formats
+	sectionExport := widget.NewLabelWithStyle("Export Formats", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+
+	htmlBtn := createExportButton("HTML", "Web-ready format with styling", themes.IconCode(), func() {
 		w.exportToHTML()
 	})
 
-	// Export to PDF button
-	exportPDFBtn := widget.NewButton("Export to PDF", func() {
+	pdfBtn := createExportButton("PDF", "Print-ready document (requires wkhtmltopdf)", themes.IconExport(), func() {
 		w.exportToPDF()
 	})
 
-	// Export to DOCX button (via pandoc)
-	exportDOCXBtn := widget.NewButton("Export to DOCX", func() {
+	docxBtn := createExportButton("DOCX", "Microsoft Word format (requires pandoc)", themes.IconDocument(), func() {
 		w.exportWithPandoc("docx")
 	})
 
-	// Export to RTF button (via pandoc)
-	exportRTFBtn := widget.NewButton("Export to RTF", func() {
+	rtfBtn := createExportButton("RTF", "Rich Text Format (requires pandoc)", themes.IconDocument(), func() {
 		w.exportWithPandoc("rtf")
 	})
 
-	// Print button (opens system print dialog via HTML export)
-	printBtn := widget.NewButton("Print (via Browser)", func() {
+	// Export format grid - 2x2
+	exportGrid := container.NewGridWithColumns(2,
+		htmlBtn,
+		pdfBtn,
+		docxBtn,
+		rtfBtn,
+	)
+
+	// Section: Print & Settings
+	sectionSettings := widget.NewLabelWithStyle("Print & Settings", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+
+	printBtn := widget.NewButtonWithIcon("Print via Browser", themes.IconPrint(), func() {
+		d.Hide()
 		w.printViaBrowser()
 	})
 
-	row1 := container.NewHBox(
-		exportHTMLBtn,
-		exportPDFBtn,
-	)
-	row2 := container.NewHBox(
-		exportDOCXBtn,
-		exportRTFBtn,
-	)
-	// Custom CSS button
-	customCSSBtn := widget.NewButton("Custom CSS...", func() {
-		w.showCustomCSSDialog()
-	})
-
-	// Export theme button
-	exportThemeBtn := widget.NewButton("Export Theme...", func() {
+	themeBtn := widget.NewButtonWithIcon("Export Theme", themes.IconTheme(), func() {
 		w.showExportThemeDialog()
 	})
 
-	row3 := container.NewHBox(
-		printBtn,
-		customCSSBtn,
-		exportThemeBtn,
-	)
+	cssBtn := widget.NewButtonWithIcon("Custom CSS", themes.IconCode(), func() {
+		w.showCustomCSSDialog()
+	})
 
+	settingsRow := container.NewGridWithColumns(3, printBtn, themeBtn, cssBtn)
+
+	// Current theme indicator
+	themeLabel := widget.NewLabel(fmt.Sprintf("Current theme: %s", w.currentExportTheme))
+	themeLabel.TextStyle = fyne.TextStyle{Italic: true}
+
+	// Build dialog content
 	dialogContent := container.NewVBox(
-		content,
+		fileInfo,
 		widget.NewSeparator(),
-		row1,
-		row2,
-		row3,
+		sectionExport,
+		exportGrid,
+		widget.NewSeparator(),
+		sectionSettings,
+		settingsRow,
+		themeLabel,
 	)
 
-	d := dialog.NewCustom("Export Document", "Cancel", dialogContent, w.fyneWindow)
-	d.Resize(fyne.NewSize(450, 280))
+	// Add padding
+	paddedContent := container.NewPadded(dialogContent)
+
+	d = dialog.NewCustom("Export Document", "Close", paddedContent, w.fyneWindow)
+	d.Resize(fyne.NewSize(500, 420))
 	d.Show()
 }
 
@@ -1984,8 +2092,8 @@ func (w *Window) exportToPDF() {
 		return
 	}
 
-	// Convert to HTML
-	html := w.markdownToHTML(data)
+	// Convert to HTML (without external scripts for offline PDF generation)
+	html := w.markdownToHTMLForPDF(data)
 
 	// Show save dialog for PDF
 	fd := dialog.NewFileSave(func(writer fyne.URIWriteCloser, err error) {
@@ -1996,9 +2104,17 @@ func (w *Window) exportToPDF() {
 		if writer == nil {
 			return
 		}
-		writer.Close() // Close immediately, we'll write via wkhtmltopdf
 
+		// Get the path and close/remove the empty file Fyne created
 		pdfPath := writer.URI().Path()
+		writer.Close()
+
+		// URL decode the path in case of encoded characters
+		if decoded, err := url.PathUnescape(pdfPath); err == nil {
+			pdfPath = decoded
+		}
+
+		os.Remove(pdfPath) // Remove empty file so wkhtmltopdf can create it
 
 		// Write HTML to temp file
 		tmpFile, err := os.CreateTemp("", "markview-export-*.html")
@@ -2015,8 +2131,14 @@ func (w *Window) exportToPDF() {
 			return
 		}
 
-		// Run wkhtmltopdf
-		cmd := exec.Command("wkhtmltopdf", "--quiet", tmpFile.Name(), pdfPath)
+		// Run wkhtmltopdf with flags to handle offline/network issues
+		cmd := exec.Command("wkhtmltopdf",
+			"--enable-local-file-access",
+			"--load-error-handling", "ignore",
+			"--load-media-error-handling", "ignore",
+			"--no-stop-slow-scripts",
+			"--quiet",
+			tmpFile.Name(), pdfPath)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			dialog.ShowError(fmt.Errorf("PDF conversion failed: %s\n%s", err, string(output)), w.fyneWindow)
@@ -2183,6 +2305,15 @@ func addHeadingIDs(html string) string {
 
 // markdownToHTML converts markdown to a styled HTML document
 func (w *Window) markdownToHTML(data []byte) string {
+	return w.markdownToHTMLWithOptions(data, true)
+}
+
+// markdownToHTMLForPDF generates HTML without external scripts (for offline PDF export)
+func (w *Window) markdownToHTMLForPDF(data []byte) string {
+	return w.markdownToHTMLWithOptions(data, false)
+}
+
+func (w *Window) markdownToHTMLWithOptions(data []byte, includeScripts bool) string {
 	// Use goldmark to convert markdown to HTML
 	var buf bytes.Buffer
 
@@ -2212,6 +2343,18 @@ func (w *Window) markdownToHTML(data []byte) string {
 
 	// Get the export theme CSS
 	themeCSS := w.getExportThemeCSS()
+
+	// External scripts for Mermaid and MathJax (only when online/browser viewing)
+	externalScripts := ""
+	if includeScripts {
+		externalScripts = `
+    <!-- Mermaid for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
+    <!-- MathJax for math rendering -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>`
+	}
 
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html>
@@ -2249,19 +2392,14 @@ func (w *Window) markdownToHTML(data []byte) string {
             text-decoration: underline;
         }
     </style>
-    <!-- Mermaid for diagram rendering -->
-    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-    <script>mermaid.initialize({startOnLoad:true});</script>
-    <!-- MathJax for math rendering -->
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    %s
     %s
 </head>
 <body>
 %s
 %s
 </body>
-</html>`, title, themeCSS, w.getCustomCSSStyle(), tocHTML, contentHTML)
+</html>`, title, themeCSS, externalScripts, w.getCustomCSSStyle(), tocHTML, contentHTML)
 }
 
 // getCustomCSSStyle returns the custom CSS wrapped in a style tag, or empty string if no custom CSS
