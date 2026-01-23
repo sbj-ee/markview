@@ -52,7 +52,7 @@
 - **Instant Theme Switching** - Click the palette icon to customize
 
 ### Export & Print
-- **Export Formats** - HTML, PDF (via wkhtmltopdf), DOCX, RTF (via pandoc)
+- **Export Formats** - HTML, PDF (via Chrome or wkhtmltopdf), DOCX, RTF (via pandoc)
 - **6 Export Themes** - Default, GitHub, Academic, Dark, Minimal, Print-Friendly
 - **Custom CSS** - Add your own styles for exports
 - **Print via Browser** - Open in browser for system print dialog
@@ -126,7 +126,8 @@
 ### Optional Dependencies
 
 - **aspell** - For spell checking (`brew install aspell` or `apt install aspell`)
-- **wkhtmltopdf** - For PDF export (download from https://wkhtmltopdf.org/downloads.html)
+- **Google Chrome** - For PDF export (recommended, uses Chrome headless)
+- **wkhtmltopdf** - Alternative for PDF export (https://wkhtmltopdf.org/downloads.html)
 - **pandoc** - For DOCX/RTF export (`brew install pandoc`)
 
 ### Quick Install
@@ -338,7 +339,9 @@ The packaging scripts create:
 - Install aspell: `brew install aspell` or `apt install aspell`
 
 **PDF export not working**
-- Install wkhtmltopdf from https://wkhtmltopdf.org/downloads.html
+- Install Google Chrome (recommended) - PDF export will use Chrome headless
+- Or install wkhtmltopdf from https://wkhtmltopdf.org/downloads.html
+- Or use "Print via Browser" and save as PDF from the print dialog
 
 **DOCX/RTF export not working**
 - Install pandoc: `brew install pandoc`

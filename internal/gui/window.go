@@ -2154,16 +2154,49 @@ func (w *Window) exportWithPandoc(format string) {
 	fd.Show()
 }
 
+// findChromeBrowser looks for Chrome/Chromium browsers on the system
+func findChromeBrowser() string {
+	// macOS application paths
+	macPaths := []string{
+		"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+		"/Applications/Chromium.app/Contents/MacOS/Chromium",
+		"/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+		"/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+	}
+
+	// Check macOS paths first
+	for _, path := range macPaths {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+
+	// Check PATH for Linux/other systems
+	linuxBrowsers := []string{"google-chrome", "chromium", "chromium-browser", "brave-browser", "microsoft-edge"}
+	for _, browser := range linuxBrowsers {
+		if path, err := exec.LookPath(browser); err == nil {
+			return path
+		}
+	}
+
+	return ""
+}
+
 // exportToPDF exports the current markdown to PDF
 func (w *Window) exportToPDF() {
 	if w.currentFile == "" {
 		return
 	}
 
-	// Check if wkhtmltopdf is available
-	_, err := exec.LookPath("wkhtmltopdf")
-	if err != nil {
-		dialog.ShowError(fmt.Errorf("PDF export requires wkhtmltopdf.\n\nDownload from: https://wkhtmltopdf.org/downloads.html\nLinux: sudo apt install wkhtmltopdf"), w.fyneWindow)
+	// Find a PDF converter: prefer Chrome, fall back to wkhtmltopdf
+	chromePath := findChromeBrowser()
+	wkhtmltopdfPath, _ := exec.LookPath("wkhtmltopdf")
+
+	if chromePath == "" && wkhtmltopdfPath == "" {
+		dialog.ShowError(fmt.Errorf("PDF export requires Chrome/Chromium or wkhtmltopdf.\n\n"+
+			"Option 1: Install Google Chrome (recommended)\n"+
+			"Option 2: Download wkhtmltopdf from https://wkhtmltopdf.org/downloads.html\n"+
+			"Option 3: Use 'Print via Browser' and save as PDF"), w.fyneWindow)
 		return
 	}
 
@@ -2196,7 +2229,7 @@ func (w *Window) exportToPDF() {
 			pdfPath = decoded
 		}
 
-		os.Remove(pdfPath) // Remove empty file so wkhtmltopdf can create it
+		os.Remove(pdfPath) // Remove empty file so PDF converter can create it
 
 		// Write HTML to temp file
 		tmpFile, err := os.CreateTemp("", "markview-export-*.html")
@@ -2213,14 +2246,27 @@ func (w *Window) exportToPDF() {
 			return
 		}
 
-		// Run wkhtmltopdf with flags to handle offline/network issues
-		cmd := exec.Command("wkhtmltopdf",
-			"--enable-local-file-access",
-			"--load-error-handling", "ignore",
-			"--load-media-error-handling", "ignore",
-			"--no-stop-slow-scripts",
-			"--quiet",
-			tmpFile.Name(), pdfPath)
+		var cmd *exec.Cmd
+		if chromePath != "" {
+			// Use Chrome headless for PDF generation
+			cmd = exec.Command(chromePath,
+				"--headless",
+				"--disable-gpu",
+				"--no-sandbox",
+				"--print-to-pdf="+pdfPath,
+				"--print-to-pdf-no-header",
+				"file://"+tmpFile.Name())
+		} else {
+			// Fall back to wkhtmltopdf
+			cmd = exec.Command(wkhtmltopdfPath,
+				"--enable-local-file-access",
+				"--load-error-handling", "ignore",
+				"--load-media-error-handling", "ignore",
+				"--no-stop-slow-scripts",
+				"--quiet",
+				tmpFile.Name(), pdfPath)
+		}
+
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			dialog.ShowError(fmt.Errorf("PDF conversion failed: %s\n%s", err, string(output)), w.fyneWindow)
