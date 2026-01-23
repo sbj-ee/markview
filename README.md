@@ -171,22 +171,44 @@ markview -version
 
 When in edit mode, the formatting toolbar provides quick access to:
 
-| Button | Action |
-|--------|--------|
-| **B** | Bold - wrap with `**` |
-| *I* | Italic - wrap with `*` |
-| H1/H2/H3 | Insert heading |
-| Link | Insert `[text](url)` |
-| Image | Insert image dialog |
-| Table | Visual table editor |
-| Code | Inline code |
-| Code Block | Fenced code block |
-| Quote | Blockquote |
-| List | Bullet list |
-| HR | Horizontal rule |
-| Snippet | Insert template snippets |
-| Typewriter | Toggle typewriter mode |
-| Goal | Set word count goal |
+| Group | Button | Action |
+|-------|--------|--------|
+| **Text Formatting** | Bold | Wrap with `**` |
+| | Italic | Wrap with `*` |
+| | Strikethrough | Wrap with `~~` |
+| | Underline | Wrap with `<u>` tags |
+| | Highlight | Wrap with `==` |
+| **Math/Science** | Subscript | Wrap with `~` |
+| | Superscript | Wrap with `^` |
+| | Symbol | Open symbol picker dialog |
+| **Headings** | H1/H2/H3 | Insert heading |
+| **Links & Media** | Link | Insert `[text](url)` |
+| | Image | Insert image dialog |
+| | Table | Visual table editor |
+| | Footnote | Insert `[^1]` |
+| **Code** | Code | Inline code with backticks |
+| | Code Block | Fenced code block |
+| **Lists & Structure** | Quote | Blockquote |
+| | Bullet List | Unordered list |
+| | Numbered List | Ordered list |
+| | Checkbox | Task list item |
+| | HR | Horizontal rule |
+| **Productivity** | Snippet | Insert template snippets |
+| | Typewriter | Toggle typewriter mode |
+| | Goal | Set word count goal |
+
+### Symbol Picker
+
+The symbol picker (Ω icon) provides quick access to:
+- Greek letters (α, β, γ, Σ, Ω, etc.)
+- Math operators (±, ×, ÷, √, ∫, ∑, etc.)
+- Subscript characters (₀-₉, ₐ-ₓ)
+- Superscript characters (⁰-⁹, ᵃ-ᶻ)
+- Arrows (←, →, ⇐, ⇒, etc.)
+- Units & science symbols (°, µ, Ω, ℃, etc.)
+- Fractions (½, ⅓, ¼, etc.)
+- Currency symbols ($, €, £, ¥, etc.)
+- Geometric shapes and more
 
 ---
 

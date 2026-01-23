@@ -58,7 +58,8 @@ markview/
 │   │   ├── export_themes.go # Export styling (6 themes)
 │   │   ├── spellcheck.go    # Spell checking (aspell)
 │   │   ├── linkvalidation.go # Link checker
-│   │   └── imagepaste.go    # Image upload dialog
+│   │   ├── imagepaste.go    # Image upload dialog
+│   │   └── symbolpicker.go  # Symbol picker dialog
 │   ├── markdown/            # Markdown processing
 │   │   ├── parser.go        # Goldmark wrapper
 │   │   ├── renderer.go      # AST to Fyne widgets (includes table rendering)
@@ -131,6 +132,24 @@ GFM tables are rendered with styled grid layout:
 - Alternating row colors for readability
 - Word wrapping with automatic row height calculation
 - Column widths based on content with padding
+
+### Edit Toolbar
+The edit toolbar is organized into logical groups:
+- **Text Formatting**: Bold, Italic, Strikethrough, Underline, Highlight
+- **Math/Science**: Subscript (~text~), Superscript (^text^), Symbol picker
+- **Headings**: H1, H2, H3
+- **Links & Media**: Link, Image, Table, Footnote
+- **Code**: Inline code, Code block
+- **Lists & Structure**: Quote, Bullet list, Numbered list, Checkbox, HR
+- **Productivity**: Snippets, Typewriter mode, Word count goal
+
+### Symbol Picker
+`symbolpicker.go` provides a tabbed dialog for inserting special characters:
+- Greek letters (upper and lowercase)
+- Math operators (±, ×, ÷, √, ∫, ∑, etc.)
+- Subscript and superscript characters
+- Arrows, fractions, currency, and more
+- Organized in scrollable category tabs
 
 ### Custom Widgets
 - `CodeBlock` - Renders code with syntax highlighting and background

@@ -550,6 +550,7 @@ func (w *Window) toggleTheme() {
 
 // createEditToolbar creates the markdown editing toolbar
 func (w *Window) createEditToolbar() *widget.Toolbar {
+	// Text formatting group
 	boldAction := newToolbarAction(themes.IconBold(), func() {
 		w.editor.WrapSelection("**", "**")
 	})
@@ -558,6 +559,34 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 		w.editor.WrapSelection("*", "*")
 	})
 
+	strikethroughAction := newToolbarAction(themes.IconStrikethrough(), func() {
+		w.editor.WrapSelection("~~", "~~")
+	})
+
+	underlineAction := newToolbarAction(themes.IconUnderline(), func() {
+		w.editor.WrapSelection("<u>", "</u>")
+	})
+
+	highlightAction := newToolbarAction(themes.IconHighlight(), func() {
+		w.editor.WrapSelection("==", "==")
+	})
+
+	// Math/Science group
+	subscriptAction := newToolbarAction(themes.IconSubscript(), func() {
+		w.editor.WrapSelection("~", "~")
+	})
+
+	superscriptAction := newToolbarAction(themes.IconSuperscript(), func() {
+		w.editor.WrapSelection("^", "^")
+	})
+
+	symbolAction := newToolbarAction(themes.IconSymbol(), func() {
+		ShowSymbolPickerDialog(w.fyneWindow, func(symbol string) {
+			w.editor.InsertAtCursor(symbol)
+		})
+	})
+
+	// Headings group
 	h1Action := newToolbarAction(themes.IconHeading1(), func() {
 		w.editor.InsertAtLineStart("# ")
 	})
@@ -570,6 +599,7 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 		w.editor.InsertAtLineStart("### ")
 	})
 
+	// Links and media group
 	linkAction := newToolbarAction(themes.IconLink(), func() {
 		w.editor.WrapSelection("[", "](url)")
 	})
@@ -585,6 +615,17 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 		})
 	})
 
+	tableAction := newToolbarAction(themes.IconTable(), func() {
+		ShowTableEditorDialog(w.fyneWindow, func(markdown string) {
+			w.editor.InsertAtCursor("\n" + markdown)
+		})
+	})
+
+	footnoteAction := newToolbarAction(themes.IconFootnote(), func() {
+		w.editor.InsertAtCursor("[^1]")
+	})
+
+	// Code group
 	codeAction := newToolbarAction(themes.IconCode(), func() {
 		w.editor.WrapSelection("`", "`")
 	})
@@ -593,6 +634,7 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 		w.editor.InsertAtCursor("\n```\n\n```\n")
 	})
 
+	// Lists and structure group
 	quoteAction := newToolbarAction(themes.IconQuote(), func() {
 		w.editor.InsertAtLineStart("> ")
 	})
@@ -601,16 +643,19 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 		w.editor.InsertAtLineStart("- ")
 	})
 
+	numberedListAction := newToolbarAction(themes.IconNumberedList(), func() {
+		w.editor.InsertAtLineStart("1. ")
+	})
+
+	checkboxAction := newToolbarAction(themes.IconCheckbox(), func() {
+		w.editor.InsertAtLineStart("- [ ] ")
+	})
+
 	hrAction := newToolbarAction(themes.IconHorizontalRule(), func() {
 		w.editor.InsertAtCursor("\n---\n")
 	})
 
-	tableAction := newToolbarAction(themes.IconTable(), func() {
-		ShowTableEditorDialog(w.fyneWindow, func(markdown string) {
-			w.editor.InsertAtCursor("\n" + markdown)
-		})
-	})
-
+	// Productivity group
 	snippetAction := newToolbarAction(themes.IconSnippet(), func() {
 		ShowSnippetsDialog(w.fyneWindow, func(content string) {
 			w.editor.InsertAtCursor(content)
@@ -626,24 +671,41 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 	})
 
 	return widget.NewToolbar(
+		// Text formatting
 		boldAction,
 		italicAction,
+		strikethroughAction,
+		underlineAction,
+		highlightAction,
 		widget.NewToolbarSeparator(),
+		// Math/Science
+		subscriptAction,
+		superscriptAction,
+		symbolAction,
+		widget.NewToolbarSeparator(),
+		// Headings
 		h1Action,
 		h2Action,
 		h3Action,
 		widget.NewToolbarSeparator(),
+		// Links and media
 		linkAction,
 		imageAction,
 		tableAction,
+		footnoteAction,
 		widget.NewToolbarSeparator(),
+		// Code
 		codeAction,
 		codeBlockAction,
 		widget.NewToolbarSeparator(),
+		// Lists and structure
 		quoteAction,
 		listAction,
+		numberedListAction,
+		checkboxAction,
 		hrAction,
 		widget.NewToolbarSeparator(),
+		// Productivity
 		snippetAction,
 		typewriterAction,
 		goalAction,

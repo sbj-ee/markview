@@ -925,6 +925,51 @@ func IconLinkCheck() fyne.Resource {
 	return theme.NewThemedResource(resourceLinkCheckSvg)
 }
 
+// IconSubscript returns a subscript formatting icon
+func IconSubscript() fyne.Resource {
+	return theme.NewThemedResource(resourceSubscriptSvg)
+}
+
+// IconSuperscript returns a superscript formatting icon
+func IconSuperscript() fyne.Resource {
+	return theme.NewThemedResource(resourceSuperscriptSvg)
+}
+
+// IconStrikethrough returns a strikethrough formatting icon
+func IconStrikethrough() fyne.Resource {
+	return theme.NewThemedResource(resourceStrikethroughSvg)
+}
+
+// IconNumberedList returns a numbered list icon
+func IconNumberedList() fyne.Resource {
+	return theme.NewThemedResource(resourceNumberedListSvg)
+}
+
+// IconCheckbox returns a checkbox/task list icon
+func IconCheckbox() fyne.Resource {
+	return theme.NewThemedResource(resourceCheckboxSvg)
+}
+
+// IconSymbol returns a symbol picker icon
+func IconSymbol() fyne.Resource {
+	return theme.NewThemedResource(resourceSymbolSvg)
+}
+
+// IconUnderline returns an underline formatting icon
+func IconUnderline() fyne.Resource {
+	return theme.NewThemedResource(resourceUnderlineSvg)
+}
+
+// IconHighlight returns a highlight/mark formatting icon
+func IconHighlight() fyne.Resource {
+	return theme.NewThemedResource(resourceHighlightSvg)
+}
+
+// IconFootnote returns a footnote icon
+func IconFootnote() fyne.Resource {
+	return theme.NewThemedResource(resourceFootnoteSvg)
+}
+
 // GetCodeColors returns syntax highlighting colors for the current theme
 func (m *MarkViewTheme) GetCodeColors() CodeColors {
 	if m.themeType == ThemeDark {

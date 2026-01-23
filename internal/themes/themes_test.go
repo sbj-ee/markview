@@ -356,6 +356,15 @@ func TestIconFunctions(t *testing.T) {
 		{"IconZen", IconZen},
 		{"IconQuickSwitch", IconQuickSwitch},
 		{"IconLinkCheck", IconLinkCheck},
+		{"IconSubscript", IconSubscript},
+		{"IconSuperscript", IconSuperscript},
+		{"IconStrikethrough", IconStrikethrough},
+		{"IconNumberedList", IconNumberedList},
+		{"IconCheckbox", IconCheckbox},
+		{"IconSymbol", IconSymbol},
+		{"IconUnderline", IconUnderline},
+		{"IconHighlight", IconHighlight},
+		{"IconFootnote", IconFootnote},
 	}
 
 	for _, tt := range icons {
