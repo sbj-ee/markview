@@ -457,3 +457,188 @@ func TestFuzzyMatch(t *testing.T) {
 		})
 	}
 }
+
+func TestDetectLinkContext_WikiLinks(t *testing.T) {
+	la := &LinkAutocomplete{}
+
+	tests := []struct {
+		name        string
+		content     string
+		cursorPos   int
+		wantInLink  bool
+		wantPartial string
+		wantType    LinkType
+	}{
+		{
+			name:        "wiki link start",
+			content:     "[[",
+			cursorPos:   2,
+			wantInLink:  true,
+			wantPartial: "",
+			wantType:    LinkTypeWiki,
+		},
+		{
+			name:        "wiki link with partial",
+			content:     "[[read",
+			cursorPos:   6,
+			wantInLink:  true,
+			wantPartial: "read",
+			wantType:    LinkTypeWiki,
+		},
+		{
+			name:        "wiki link closed",
+			content:     "[[readme]]",
+			cursorPos:   10,
+			wantInLink:  false,
+			wantPartial: "",
+			wantType:    LinkTypeStandard,
+		},
+		{
+			name:        "wiki link with display text",
+			content:     "[[file|display",
+			cursorPos:   14,
+			wantInLink:  false, // After pipe, don't autocomplete
+			wantPartial: "",
+			wantType:    LinkTypeStandard,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotInLink, gotPartial, _, gotType := la.detectLinkContext(tt.content, tt.cursorPos)
+			if gotInLink != tt.wantInLink {
+				t.Errorf("detectLinkContext() inLink = %v, want %v", gotInLink, tt.wantInLink)
+			}
+			if gotPartial != tt.wantPartial {
+				t.Errorf("detectLinkContext() partial = %q, want %q", gotPartial, tt.wantPartial)
+			}
+			if gotInLink && gotType != tt.wantType {
+				t.Errorf("detectLinkContext() type = %v, want %v", gotType, tt.wantType)
+			}
+		})
+	}
+}
+
+func TestDetectLinkContext_ImageLinks(t *testing.T) {
+	la := &LinkAutocomplete{}
+
+	tests := []struct {
+		name        string
+		content     string
+		cursorPos   int
+		wantInLink  bool
+		wantPartial string
+		wantType    LinkType
+	}{
+		{
+			name:        "image link start",
+			content:     "![alt](",
+			cursorPos:   7,
+			wantInLink:  true,
+			wantPartial: "",
+			wantType:    LinkTypeImage,
+		},
+		{
+			name:        "image link with partial",
+			content:     "![alt](img/photo",
+			cursorPos:   16,
+			wantInLink:  true,
+			wantPartial: "img/photo",
+			wantType:    LinkTypeImage,
+		},
+		{
+			name:        "image link with URL - ignore",
+			content:     "![alt](https://example.com",
+			cursorPos:   26,
+			wantInLink:  false,
+			wantPartial: "",
+			wantType:    LinkTypeStandard,
+		},
+		{
+			name:        "image link closed",
+			content:     "![alt](photo.png)",
+			cursorPos:   17,
+			wantInLink:  false,
+			wantPartial: "",
+			wantType:    LinkTypeStandard,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotInLink, gotPartial, _, gotType := la.detectLinkContext(tt.content, tt.cursorPos)
+			if gotInLink != tt.wantInLink {
+				t.Errorf("detectLinkContext() inLink = %v, want %v", gotInLink, tt.wantInLink)
+			}
+			if gotPartial != tt.wantPartial {
+				t.Errorf("detectLinkContext() partial = %q, want %q", gotPartial, tt.wantPartial)
+			}
+			if gotInLink && gotType != tt.wantType {
+				t.Errorf("detectLinkContext() type = %v, want %v", gotType, tt.wantType)
+			}
+		})
+	}
+}
+
+func TestIsImageFile(t *testing.T) {
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{"photo.png", true},
+		{"image.jpg", true},
+		{"image.jpeg", true},
+		{"animation.gif", true},
+		{"icon.svg", true},
+		{"image.webp", true},
+		{"icon.bmp", true},
+		{"favicon.ico", true},
+		{"IMAGE.PNG", true},  // case insensitive
+		{"readme.md", false},
+		{"script.js", false},
+		{"data.json", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			got := isImageFile(tt.path)
+			if got != tt.want {
+				t.Errorf("isImageFile(%q) = %v, want %v", tt.path, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFilterFilesWithImages(t *testing.T) {
+	la := &LinkAutocomplete{
+		files: []string{
+			"README.md",
+			"docs/guide.md",
+		},
+		images: []string{
+			"assets/logo.png",
+			"images/photo.jpg",
+			"icon.svg",
+		},
+	}
+
+	// Test filtering markdown files (standard link)
+	la.linkType = LinkTypeStandard
+	la.filterFiles("")
+	if len(la.filtered) != 2 {
+		t.Errorf("filterFiles() for standard link got %d files, want 2", len(la.filtered))
+	}
+
+	// Test filtering image files (image link)
+	la.linkType = LinkTypeImage
+	la.filterFiles("")
+	if len(la.filtered) != 3 {
+		t.Errorf("filterFiles() for image link got %d files, want 3", len(la.filtered))
+	}
+
+	// Test filtering with partial path
+	la.filterFiles("logo")
+	if len(la.filtered) != 1 || la.filtered[0] != "assets/logo.png" {
+		t.Errorf("filterFiles('logo') got %v, want [assets/logo.png]", la.filtered)
+	}
+}

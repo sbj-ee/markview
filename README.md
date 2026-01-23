@@ -21,7 +21,7 @@
 - **Syntax Highlighting** - 250+ languages via Chroma
 - **Live Reload** - Auto-refresh on file changes (300ms debounce)
 - **Edit Mode** - Toggle between viewing and editing with formatting toolbar
-- **Link Autocomplete** - File suggestions when typing `[text](` in edit mode
+- **Link Autocomplete** - File suggestions when typing `[text](`, `[[`, or `![alt](`
 - **Split View** - Side-by-side editor and preview (Cmd+\\)
 - **Focus Mode** - Hide sidebars for distraction-free reading (Cmd+Shift+F)
 - **Zen Mode** - Fullscreen distraction-free writing (F11)

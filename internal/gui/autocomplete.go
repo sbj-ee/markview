@@ -14,6 +14,15 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+// LinkType represents the type of link being autocompleted
+type LinkType int
+
+const (
+	LinkTypeStandard LinkType = iota // [text](path)
+	LinkTypeWiki                     // [[path]]
+	LinkTypeImage                    // ![alt](path)
+)
+
 // LinkAutocomplete provides inline autocomplete for markdown links
 type LinkAutocomplete struct {
 	editor      *MarkdownEditor
@@ -22,11 +31,13 @@ type LinkAutocomplete struct {
 	popup       *widget.PopUp
 	list        *widget.List
 	files       []string // All markdown files (relative paths)
+	images      []string // All image files (relative paths)
 	filtered    []string // Filtered matches
 	selectedIdx int
 	active      bool
-	linkStart   int    // Position where link path starts
-	partialPath string // Current partial path being typed
+	linkStart   int      // Position where link path starts
+	partialPath string   // Current partial path being typed
+	linkType    LinkType // Type of link being completed
 }
 
 // NewLinkAutocomplete creates a new link autocomplete helper
@@ -48,9 +59,10 @@ func (la *LinkAutocomplete) SetRootPath(rootPath string) {
 	la.scanFiles()
 }
 
-// scanFiles scans the root path for markdown files
+// scanFiles scans the root path for markdown and image files
 func (la *LinkAutocomplete) scanFiles() {
 	la.files = []string{}
+	la.images = []string{}
 	if la.rootPath == "" {
 		return
 	}
@@ -66,10 +78,11 @@ func (la *LinkAutocomplete) scanFiles() {
 			}
 			return nil
 		}
+		relPath, _ := filepath.Rel(la.rootPath, path)
 		if isMarkdownFile(path) {
-			// Store relative path for display
-			relPath, _ := filepath.Rel(la.rootPath, path)
 			la.files = append(la.files, relPath)
+		} else if isImageFile(path) {
+			la.images = append(la.images, relPath)
 		}
 		return nil
 	})
@@ -78,6 +91,19 @@ func (la *LinkAutocomplete) scanFiles() {
 	sort.Slice(la.files, func(i, j int) bool {
 		return strings.ToLower(filepath.Base(la.files[i])) < strings.ToLower(filepath.Base(la.files[j]))
 	})
+	sort.Slice(la.images, func(i, j int) bool {
+		return strings.ToLower(filepath.Base(la.images[i])) < strings.ToLower(filepath.Base(la.images[j]))
+	})
+}
+
+// isImageFile checks if a file is an image based on extension
+func isImageFile(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".bmp", ".ico":
+		return true
+	}
+	return false
 }
 
 // createPopup creates the autocomplete popup widget
@@ -93,7 +119,15 @@ func (la *LinkAutocomplete) createPopup() {
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
 			if id < len(la.filtered) {
 				box := obj.(*fyne.Container)
+				icon := box.Objects[0].(*widget.Icon)
 				label := box.Objects[1].(*widget.Label)
+
+				// Set icon based on link type
+				if la.linkType == LinkTypeImage {
+					icon.SetResource(theme.FileImageIcon())
+				} else {
+					icon.SetResource(theme.DocumentIcon())
+				}
 				label.SetText(la.filtered[id])
 			}
 		},
@@ -114,12 +148,13 @@ func (la *LinkAutocomplete) OnTextChanged(content string) {
 	row, col := la.editor.GetCursorPosition()
 	cursorPos := la.getCursorPositionInText(content, row, col)
 
-	// Check if we're in a link destination
-	inLink, partialPath, linkStart := la.isInLinkDestination(content, cursorPos)
+	// Check if we're in a link destination (standard, wiki, or image)
+	inLink, partialPath, linkStart, linkType := la.detectLinkContext(content, cursorPos)
 
-	if inLink && len(la.files) > 0 {
+	if inLink {
 		la.partialPath = partialPath
 		la.linkStart = linkStart
+		la.linkType = linkType
 		la.filterFiles(partialPath)
 
 		if len(la.filtered) > 0 {
@@ -145,18 +180,85 @@ func (la *LinkAutocomplete) getCursorPositionInText(content string, row, col int
 	return pos
 }
 
-// isInLinkDestination checks if cursor is inside a markdown link destination
-// Pattern: [any text](partial_path|cursor_here
-// Returns: inLink, partialPath, startPosition
-func (la *LinkAutocomplete) isInLinkDestination(content string, cursorPos int) (bool, string, int) {
+// detectLinkContext detects if cursor is in a link and returns the type
+// Supports: [text](path), [[path]], ![alt](path)
+// Returns: inLink, partialPath, startPosition, linkType
+func (la *LinkAutocomplete) detectLinkContext(content string, cursorPos int) (bool, string, int, LinkType) {
 	if cursorPos > len(content) {
 		cursorPos = len(content)
 	}
 
-	// Get text before cursor
 	textBefore := content[:cursorPos]
 
-	// Find the last occurrence of "](" before cursor
+	// Check for wiki-style link [[partial
+	if inLink, partial, start := la.isInWikiLink(textBefore); inLink {
+		return true, partial, start, LinkTypeWiki
+	}
+
+	// Check for image link ![alt](partial
+	if inLink, partial, start := la.isInImageLink(textBefore); inLink {
+		return true, partial, start, LinkTypeImage
+	}
+
+	// Check for standard link [text](partial
+	if inLink, partial, start := la.isInStandardLink(textBefore); inLink {
+		return true, partial, start, LinkTypeStandard
+	}
+
+	return false, "", 0, LinkTypeStandard
+}
+
+// isInWikiLink checks for [[partial pattern
+func (la *LinkAutocomplete) isInWikiLink(textBefore string) (bool, string, int) {
+	// Find last [[ that isn't closed
+	wikiPattern := regexp.MustCompile(`\[\[[^\]]*$`)
+	match := wikiPattern.FindStringIndex(textBefore)
+
+	if match == nil {
+		return false, "", 0
+	}
+
+	linkStart := match[0] + 2 // Position after "[["
+	partialPath := textBefore[linkStart:]
+
+	// Don't trigger if there's a | (for [[file|display]] syntax)
+	if strings.Contains(partialPath, "|") {
+		return false, "", 0
+	}
+
+	return true, partialPath, linkStart
+}
+
+// isInImageLink checks for ![alt](partial pattern
+func (la *LinkAutocomplete) isInImageLink(textBefore string) (bool, string, int) {
+	// Find ![...]( pattern
+	imgPattern := regexp.MustCompile(`!\[[^\]]*\]\([^)]*$`)
+	match := imgPattern.FindStringIndex(textBefore)
+
+	if match == nil {
+		return false, "", 0
+	}
+
+	// Find the position after ](
+	bracketPos := strings.LastIndex(textBefore[match[0]:], "](")
+	if bracketPos == -1 {
+		return false, "", 0
+	}
+
+	linkStart := match[0] + bracketPos + 2
+	partialPath := textBefore[linkStart:]
+
+	// Don't trigger for URLs
+	if strings.HasPrefix(partialPath, "http://") || strings.HasPrefix(partialPath, "https://") {
+		return false, "", 0
+	}
+
+	return true, partialPath, linkStart
+}
+
+// isInStandardLink checks for [text](partial pattern (but not image)
+func (la *LinkAutocomplete) isInStandardLink(textBefore string) (bool, string, int) {
+	// Find ](  but not !]( which would be an image
 	linkPattern := regexp.MustCompile(`\]\([^)]*$`)
 	match := linkPattern.FindStringIndex(textBefore)
 
@@ -164,17 +266,20 @@ func (la *LinkAutocomplete) isInLinkDestination(content string, cursorPos int) (
 		return false, "", 0
 	}
 
-	// Check that there's no closing ")" between "](" and cursor
-	afterBracket := textBefore[match[0]+2:] // Skip "]("
-	if strings.Contains(afterBracket, ")") {
-		return false, "", 0
+	// Check it's not an image link (no ! before [)
+	if match[0] > 0 {
+		// Look back for the opening [
+		prefix := textBefore[:match[0]]
+		lastBracket := strings.LastIndex(prefix, "[")
+		if lastBracket > 0 && prefix[lastBracket-1] == '!' {
+			return false, "", 0 // It's an image link
+		}
 	}
 
-	// Extract the partial path
 	linkStart := match[0] + 2 // Position after "]("
 	partialPath := textBefore[linkStart:]
 
-	// Don't trigger for URLs
+	// Don't trigger for URLs or anchors
 	if strings.HasPrefix(partialPath, "http://") || strings.HasPrefix(partialPath, "https://") ||
 		strings.HasPrefix(partialPath, "mailto:") || strings.HasPrefix(partialPath, "#") {
 		return false, "", 0
@@ -183,13 +288,29 @@ func (la *LinkAutocomplete) isInLinkDestination(content string, cursorPos int) (
 	return true, partialPath, linkStart
 }
 
+// isInLinkDestination checks if cursor is inside a markdown link destination (legacy)
+// Pattern: [any text](partial_path|cursor_here
+// Returns: inLink, partialPath, startPosition
+func (la *LinkAutocomplete) isInLinkDestination(content string, cursorPos int) (bool, string, int) {
+	inLink, partial, start, _ := la.detectLinkContext(content, cursorPos)
+	return inLink, partial, start
+}
+
 // filterFiles filters files matching the partial path
 func (la *LinkAutocomplete) filterFiles(partialPath string) {
 	partialPath = strings.ToLower(partialPath)
 	la.filtered = []string{}
 	la.selectedIdx = 0
 
-	for _, f := range la.files {
+	// Choose source based on link type
+	var source []string
+	if la.linkType == LinkTypeImage {
+		source = la.images
+	} else {
+		source = la.files
+	}
+
+	for _, f := range source {
 		fLower := strings.ToLower(f)
 		// Match if the file path contains the partial path
 		if partialPath == "" || strings.Contains(fLower, partialPath) || fuzzyMatch(fLower, partialPath) {
@@ -309,7 +430,6 @@ func (la *LinkAutocomplete) AcceptSelection() {
 	content := la.editor.GetText()
 
 	// Replace the partial path with the selected file
-	// We need to find where the partial path starts and replace from there to cursor
 	row, col := la.editor.GetCursorPosition()
 	cursorPos := la.getCursorPositionInText(content, row, col)
 
@@ -325,14 +445,28 @@ func (la *LinkAutocomplete) AcceptSelection() {
 		replaceEnd = len(content)
 	}
 
+	// Format insertion based on link type
+	var insertion string
+	switch la.linkType {
+	case LinkTypeWiki:
+		// For wiki links, strip .md extension and add closing ]]
+		name := selectedFile
+		if strings.HasSuffix(strings.ToLower(name), ".md") {
+			name = name[:len(name)-3]
+		}
+		insertion = name + "]]"
+	default:
+		insertion = selectedFile
+	}
+
 	// Build new content
-	newContent := content[:replaceStart] + selectedFile + content[replaceEnd:]
+	newContent := content[:replaceStart] + insertion + content[replaceEnd:]
 
 	// Set the new content
 	la.editor.SetText(newContent)
 
 	// Position cursor after the inserted path
-	newCursorPos := replaceStart + len(selectedFile)
+	newCursorPos := replaceStart + len(insertion)
 	la.editor.setCursorPosition(newCursorPos)
 
 	la.hidePopup()

@@ -119,12 +119,16 @@ Markdown → Goldmark Parser → AST → Renderer → Fyne Widgets
 - `LinkAutocomplete` - Inline file suggestions for markdown links
 
 ### Link Autocomplete
-Shows file suggestions when typing markdown links `[text](path...`:
-- `LinkAutocomplete` struct in `autocomplete.go`
-- Detects cursor inside link destination using regex
-- Scans directory for `.md`/`.markdown` files
+Shows file suggestions when typing markdown links:
+- **Standard links** `[text](path...` - suggests `.md` files
+- **Wiki links** `[[path...` - suggests `.md` files, auto-closes with `]]`
+- **Image links** `![alt](path...` - suggests image files (png, jpg, gif, svg, etc.)
+
+Implementation in `autocomplete.go`:
+- `LinkType` enum: `LinkTypeStandard`, `LinkTypeWiki`, `LinkTypeImage`
+- `detectLinkContext()` determines link type from cursor position
+- Scans directory for markdown and image files separately
 - Fuzzy matching filters suggestions as user types
-- Popup positioned near cursor with up to 10 suggestions
 - Keyboard navigation: Arrow keys, Enter/Tab to accept, Escape to dismiss
 
 ### Color Themes (8 total)
