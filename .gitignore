@@ -44,3 +44,4 @@ temp/
 dist/dmg/*.dmg
 dist/dmg/*.app
 dist/deb/*.deb
+*.sync-conflict-*
