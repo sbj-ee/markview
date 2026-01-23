@@ -623,26 +623,29 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 
 	// Math/Science group
 	subscriptAction := newToolbarAction(themes.IconSubscript(), func() {
+		// Sync cursor position before dialog opens
+		w.getActiveEditor().SyncLastInsertPos()
 		ShowSubscriptPickerDialog(w.fyneWindow, func(symbol string) {
 			editor := w.getActiveEditor()
 			editor.InsertAtCursor(symbol)
-			editor.Focus(w.fyneWindow.Canvas())
 		})
 	})
 
 	superscriptAction := newToolbarAction(themes.IconSuperscript(), func() {
+		// Sync cursor position before dialog opens
+		w.getActiveEditor().SyncLastInsertPos()
 		ShowSuperscriptPickerDialog(w.fyneWindow, func(symbol string) {
 			editor := w.getActiveEditor()
 			editor.InsertAtCursor(symbol)
-			editor.Focus(w.fyneWindow.Canvas())
 		})
 	})
 
 	symbolAction := newToolbarAction(themes.IconSymbol(), func() {
+		// Sync cursor position before dialog opens
+		w.getActiveEditor().SyncLastInsertPos()
 		ShowSymbolPickerDialog(w.fyneWindow, func(symbol string) {
 			editor := w.getActiveEditor()
 			editor.InsertAtCursor(symbol)
-			editor.Focus(w.fyneWindow.Canvas())
 		})
 	})
 

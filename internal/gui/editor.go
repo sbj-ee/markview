@@ -75,7 +75,7 @@ func (e *MarkdownEditor) FocusGained() {
 	e.focused = true
 	e.entry.FocusGained()
 	// Sync lastInsertPos with cursor position when focus is gained
-	e.syncLastInsertPos()
+	e.SyncLastInsertPos()
 }
 
 // FocusLost is called when the editor loses focus
@@ -276,8 +276,8 @@ func (e *MarkdownEditor) setCursorPosition(pos int) {
 	e.entry.Refresh()
 }
 
-// syncLastInsertPos updates lastInsertPos from the current cursor position
-func (e *MarkdownEditor) syncLastInsertPos() {
+// SyncLastInsertPos updates lastInsertPos from the current cursor position
+func (e *MarkdownEditor) SyncLastInsertPos() {
 	text := e.entry.Text
 	col := e.entry.CursorColumn
 	row := e.entry.CursorRow
