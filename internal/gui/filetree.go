@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -68,30 +69,22 @@ func (n *fileTreeNode) SetContextCallback(callback func(path string, isDir bool,
 	n.onContext = callback
 }
 
-// TappedSecondary handles right-click to show context menu
-func (n *fileTreeNode) TappedSecondary(e *fyne.PointEvent) {
-	// Don't show context menu for parent directory ".."
-	if n.isParentDir || n.path == "" {
-		return
-	}
-	if n.onContext != nil {
-		n.onContext(n.path, n.isDirectory, e.AbsolutePosition)
-	}
-}
-
 // FileTree represents a file browser tree widget
 type FileTree struct {
-	tree         *widget.Tree
-	rootPath     string
-	currentFile  string // currently open file path
-	onFileSelect func(path string)
-	pathMap      map[string]string // uid -> path mapping
-	filter       string            // current filter text
-	filterEntry  *widget.Entry     // search entry widget
-	container    *fyne.Container   // container with search + tree
-	fyneWindow   fyne.Window       // reference to window for dialogs
-	canvas       fyne.Canvas       // canvas for popup menus
-	onFileChange func()            // callback when files/dirs are created/deleted/renamed
+	tree          *widget.Tree
+	rootPath      string
+	currentFile   string // currently open file path
+	onFileSelect  func(path string)
+	pathMap       map[string]string // uid -> path mapping
+	filter        string            // current filter text
+	filterEntry   *widget.Entry     // search entry widget
+	container     *fyne.Container   // container with search + tree + action bar
+	actionBar     *fyne.Container   // action buttons for file operations
+	fyneWindow    fyne.Window       // reference to window for dialogs
+	canvas        fyne.Canvas       // canvas for popup menus
+	onFileChange  func()            // callback when files/dirs are created/deleted/renamed
+	selectedPath  string            // currently selected item path
+	selectedIsDir bool              // true if selected item is a directory
 }
 
 // NewFileTree creates a new file tree browser
@@ -103,8 +96,71 @@ func NewFileTree(onFileSelect func(path string)) *FileTree {
 	}
 	ft.tree = ft.createTree()
 	ft.filterEntry = ft.createFilterEntry()
-	ft.container = container.NewBorder(ft.filterEntry, nil, nil, nil, ft.tree)
+	ft.actionBar = ft.createActionBar()
+	ft.container = container.NewBorder(ft.filterEntry, ft.actionBar, nil, nil, ft.tree)
 	return ft
+}
+
+// createActionBar creates the action buttons for file operations
+func (ft *FileTree) createActionBar() *fyne.Container {
+	newFileBtn := widget.NewButtonWithIcon("", theme.DocumentCreateIcon(), func() {
+		if ft.fyneWindow == nil {
+			return
+		}
+		parentPath := ft.rootPath
+		if ft.selectedPath != "" {
+			if ft.selectedIsDir {
+				parentPath = ft.selectedPath
+			} else {
+				parentPath = filepath.Dir(ft.selectedPath)
+			}
+		}
+		if parentPath != "" {
+			ft.showNewFileDialog(parentPath)
+		}
+	})
+	newFileBtn.Importance = widget.LowImportance
+
+	newFolderBtn := widget.NewButtonWithIcon("", theme.FolderNewIcon(), func() {
+		if ft.fyneWindow == nil {
+			return
+		}
+		parentPath := ft.rootPath
+		if ft.selectedPath != "" {
+			if ft.selectedIsDir {
+				parentPath = ft.selectedPath
+			} else {
+				parentPath = filepath.Dir(ft.selectedPath)
+			}
+		}
+		if parentPath != "" {
+			ft.showNewDirectoryDialog(parentPath)
+		}
+	})
+	newFolderBtn.Importance = widget.LowImportance
+
+	renameBtn := widget.NewButtonWithIcon("", theme.DocumentIcon(), func() {
+		if ft.fyneWindow == nil || ft.selectedPath == "" {
+			return
+		}
+		ft.showRenameDialog(ft.selectedPath, ft.selectedIsDir)
+	})
+	renameBtn.Importance = widget.LowImportance
+
+	deleteBtn := widget.NewButtonWithIcon("", theme.DeleteIcon(), func() {
+		if ft.fyneWindow == nil || ft.selectedPath == "" {
+			return
+		}
+		ft.showDeleteConfirmation(ft.selectedPath, ft.selectedIsDir)
+	})
+	deleteBtn.Importance = widget.LowImportance
+
+	return container.NewHBox(
+		newFileBtn,
+		newFolderBtn,
+		renameBtn,
+		deleteBtn,
+	)
 }
 
 // SetWindow sets the window reference for showing dialogs
@@ -159,6 +215,17 @@ func (ft *FileTree) NavigateUp() {
 	}
 	parent := filepath.Dir(ft.rootPath)
 	if parent != ft.rootPath { // Not at filesystem root
+		// Check if we can access the parent directory
+		if _, err := os.ReadDir(parent); err != nil {
+			// Can't access parent (likely macOS permissions)
+			// Show info dialog if window is available
+			if ft.fyneWindow != nil {
+				dialog.ShowInformation("Cannot Navigate Up",
+					"Unable to access parent directory due to macOS permissions.\n\nUse the folder icon in the toolbar to select a different folder.",
+					ft.fyneWindow)
+			}
+			return
+		}
 		ft.SetRootPath(parent)
 	}
 }
@@ -223,10 +290,8 @@ func (ft *FileTree) createTree() *widget.Tree {
 				ft.pathMap[childUID] = fullPath
 
 				if entry.IsDir() {
-					// Check if directory contains any markdown files
-					if ft.hasMarkdownFiles(fullPath) {
-						dirs = append(dirs, childUID)
-					}
+					// Show all directories (user may want to add files later)
+					dirs = append(dirs, childUID)
 				} else if isMarkdownFile(name) {
 					files = append(files, childUID)
 				}
@@ -305,17 +370,32 @@ func (ft *FileTree) createTree() *widget.Tree {
 			if uid == parentDirUID {
 				ft.NavigateUp()
 				ft.tree.UnselectAll()
+				ft.selectedPath = ""
+				ft.selectedIsDir = false
 				return
 			}
 
 			path := ft.getPath(uid)
 			if path == "" {
+				ft.selectedPath = ""
+				ft.selectedIsDir = false
 				return
 			}
 			info, err := os.Stat(path)
 			if err != nil {
+				// Show error dialog for permission issues
+				if ft.fyneWindow != nil {
+					dialog.ShowError(fmt.Errorf("cannot access file: %w", err), ft.fyneWindow)
+				}
+				ft.selectedPath = ""
+				ft.selectedIsDir = false
 				return
 			}
+
+			// Track the selected item for action bar operations
+			ft.selectedPath = path
+			ft.selectedIsDir = info.IsDir()
+
 			if !info.IsDir() && ft.onFileSelect != nil {
 				ft.onFileSelect(path)
 			}
@@ -462,10 +542,11 @@ func (ft *FileTree) showNewDirectoryDialog(parentPath string) {
 	entry := widget.NewEntry()
 	entry.SetPlaceHolder("Directory name")
 
-	dialog.ShowForm("New Directory", "Create", "Cancel",
-		[]*widget.FormItem{
-			widget.NewFormItem("Name", entry),
-		},
+	formItems := []*widget.FormItem{
+		widget.NewFormItem("Name", entry),
+	}
+
+	d := dialog.NewForm("New Directory", "Create", "Cancel", formItems,
 		func(confirmed bool) {
 			if !confirmed || entry.Text == "" {
 				return
@@ -482,6 +563,8 @@ func (ft *FileTree) showNewDirectoryDialog(parentPath string) {
 		},
 		ft.fyneWindow,
 	)
+	d.Resize(fyne.NewSize(400, 150))
+	d.Show()
 }
 
 // showNewFileDialog shows a dialog to create a new file
@@ -489,10 +572,11 @@ func (ft *FileTree) showNewFileDialog(parentPath string) {
 	entry := widget.NewEntry()
 	entry.SetPlaceHolder("filename.md")
 
-	dialog.ShowForm("New File", "Create", "Cancel",
-		[]*widget.FormItem{
-			widget.NewFormItem("Name", entry),
-		},
+	formItems := []*widget.FormItem{
+		widget.NewFormItem("Name", entry),
+	}
+
+	d := dialog.NewForm("New File", "Create", "Cancel", formItems,
 		func(confirmed bool) {
 			if !confirmed || entry.Text == "" {
 				return
@@ -530,6 +614,8 @@ func (ft *FileTree) showNewFileDialog(parentPath string) {
 		},
 		ft.fyneWindow,
 	)
+	d.Resize(fyne.NewSize(400, 150))
+	d.Show()
 }
 
 // showRenameDialog shows a dialog to rename a file or directory
@@ -543,10 +629,11 @@ func (ft *FileTree) showRenameDialog(path string, isDir bool) {
 		title = "Rename Directory"
 	}
 
-	dialog.ShowForm(title, "Rename", "Cancel",
-		[]*widget.FormItem{
-			widget.NewFormItem("New name", entry),
-		},
+	formItems := []*widget.FormItem{
+		widget.NewFormItem("New name", entry),
+	}
+
+	d := dialog.NewForm(title, "Rename", "Cancel", formItems,
 		func(confirmed bool) {
 			if !confirmed || entry.Text == "" || entry.Text == oldName {
 				return
@@ -576,6 +663,8 @@ func (ft *FileTree) showRenameDialog(path string, isDir bool) {
 		},
 		ft.fyneWindow,
 	)
+	d.Resize(fyne.NewSize(400, 150))
+	d.Show()
 }
 
 // showDeleteConfirmation shows a confirmation dialog before deleting
