@@ -58,6 +58,9 @@ type Window struct {
 	editorScroll   *container.Scroll
 	contentStack   *fyne.Container
 	splitView      *container.Split // For side-by-side editing
+	splitEditor    *MarkdownEditor  // Editor for split view
+	splitEditorScroll *container.Scroll // Scroll container for split editor
+	splitPreview   *container.Scroll // Preview scroll for split view
 	contentBuffer  string           // Original content for dirty checking
 	focusMode      bool             // Hide all UI except content
 	typewriterMode bool             // Keep cursor centered
@@ -73,9 +76,10 @@ type Window struct {
 	customCSS string
 
 	// Toolbar actions
-	editAction    *toolbarAction
-	saveAction    *toolbarAction
-	discardAction *toolbarAction
+	editAction      *toolbarAction
+	saveAction      *toolbarAction
+	discardAction   *toolbarAction
+	splitViewAction *toolbarAction
 
 	// Edit toolbar (shown in edit mode)
 	editToolbar *widget.Toolbar
@@ -103,7 +107,8 @@ type Window struct {
 	currentExportTheme string
 
 	// Link autocomplete
-	linkAutocomplete *LinkAutocomplete
+	linkAutocomplete      *LinkAutocomplete
+	splitLinkAutocomplete *LinkAutocomplete
 
 	// Version and updates
 	version       string
@@ -239,10 +244,21 @@ func (w *Window) setupUI() {
 		return w.linkAutocomplete.HandleKeyEvent(key)
 	}
 
-	// Create split view for side-by-side editing (hidden by default)
-	w.splitView = container.NewHSplit(w.editorScroll, w.scrollContent)
+	// Create split view with its own editor and preview containers
+	w.splitEditor = NewMarkdownEditor(func(content string) {
+		w.onSplitEditorChanged(content)
+	})
+	w.splitEditorScroll = container.NewScroll(w.splitEditor)
+	w.splitPreview = container.NewScroll(container.NewVBox())
+	w.splitView = container.NewHSplit(w.splitEditorScroll, w.splitPreview)
 	w.splitView.Offset = 0.5
 	w.splitView.Hide()
+
+	// Initialize link autocomplete for split editor
+	w.splitLinkAutocomplete = NewLinkAutocomplete(w.splitEditor, w.fyneWindow, w.currentDir)
+	w.splitEditor.OnKeyEvent = func(key *fyne.KeyEvent) bool {
+		return w.splitLinkAutocomplete.HandleKeyEvent(key)
+	}
 
 	// Create outline view (hidden by default)
 	w.outline = NewOutline(func(line int) {
@@ -288,35 +304,39 @@ func (w *Window) setupUI() {
 	)
 	w.tocScroll = container.NewScroll(w.tocTree)
 
+	// Create toolbar (file operations - stays at top of entire window)
+	toolbar := w.createToolbar()
+
+	// Create edit toolbar (hidden by default, positioned above TOC/content only)
+	w.editToolbar = w.createEditToolbar()
+	w.editToolbar.Hide()
+
 	// Create three-pane layout: File Tree | TOC/Outline | Content
-	// Left split: File Tree | TOC (or Outline in edit mode)
 	// Use a stack for TOC and Outline - only one visible at a time
 	tocOutlineStack := container.NewStack(w.tocScroll, w.outlineScroll)
-	w.leftSplit = container.NewHSplit(
-		w.fileTreeScroll,
-		tocOutlineStack,
-	)
-	w.leftSplit.Offset = 0.5 // Equal split between file tree and TOC/Outline
 
 	// Content area: stack of rendered view, editor, split view, and library (only one visible at a time)
 	w.contentStack = container.NewStack(w.scrollContent, w.editorScroll, w.splitView, w.libraryScroll)
 
-	// Main split: (File Tree | TOC) | Content
-	w.mainSplit = container.NewHSplit(
-		w.leftSplit,
+	// TOC/Content split: TOC | Content
+	tocContentSplit := container.NewHSplit(
+		tocOutlineStack,
 		w.contentStack,
 	)
-	w.mainSplit.Offset = 0.30 // Left panes take 30% of width
+	tocContentSplit.Offset = 0.25 // TOC takes 25% of right pane width
 
-	// Create toolbar
-	toolbar := w.createToolbar()
+	// Right pane: Edit toolbar at top (hidden by default), TOC/Content split below
+	rightPane := container.NewBorder(w.editToolbar, nil, nil, nil, tocContentSplit)
 
-	// Create edit toolbar (hidden by default)
-	w.editToolbar = w.createEditToolbar()
-	w.editToolbar.Hide()
+	// Main split: File Tree | Right pane (edit toolbar + TOC + content)
+	w.mainSplit = container.NewHSplit(
+		w.fileTreeScroll,
+		rightPane,
+	)
+	w.mainSplit.Offset = 0.20 // File tree takes 20% of width
 
-	// Create toolbar container with both toolbars
-	toolbarContainer := container.NewVBox(toolbar, w.editToolbar)
+	// Store reference to the left split for TOC toggling (now it's tocContentSplit)
+	w.leftSplit = tocContentSplit
 
 	// Create status bar
 	w.wordCount = widget.NewLabel("")
@@ -348,8 +368,8 @@ func (w *Window) setupUI() {
 		statusInfo,   // Center: status info
 	)
 
-	// Create main layout
-	mainContent := container.NewBorder(toolbarContainer, footer, nil, nil, w.mainSplit)
+	// Create main layout (main toolbar at top over entire window, footer at bottom)
+	mainContent := container.NewBorder(toolbar, footer, nil, nil, w.mainSplit)
 
 	// Set up keyboard shortcuts
 	w.setupShortcuts()
@@ -405,6 +425,10 @@ func (w *Window) createToolbar() *widget.Toolbar {
 		w.toggleEditMode()
 	})
 
+	w.splitViewAction = newToolbarAction(themes.IconSplitView(), func() {
+		w.toggleSplitView()
+	})
+
 	refreshAction := newToolbarAction(themes.IconRefresh(), func() {
 		if w.currentFile != "" {
 			w.loadFile(w.currentFile)
@@ -449,6 +473,7 @@ func (w *Window) createToolbar() *widget.Toolbar {
 		openFolderAction,
 		widget.NewToolbarSeparator(),
 		w.editAction,
+		w.splitViewAction,
 		w.saveAction,
 		w.discardAction,
 		widget.NewToolbarSeparator(),
@@ -905,13 +930,32 @@ func (w *Window) toggleSplitView() {
 	}
 
 	if w.splitViewMode {
-		// Exit split view, back to normal edit mode
+		// Exit split view, back to normal view mode
 		w.splitViewMode = false
+		w.editMode = false
+
+		// Copy content from split editor back to main editor and buffer
+		w.contentBuffer = w.splitEditor.GetText()
+		w.editor.SetText(w.contentBuffer)
+
 		w.splitView.Hide()
-		if w.editMode {
-			w.editorScroll.Show()
-		} else {
-			w.scrollContent.Show()
+		w.splitViewAction.SetIcon(themes.IconSplitView())
+		w.scrollContent.Show()
+		w.editorScroll.Hide()
+		w.editToolbar.Hide()
+
+		// Update the main preview with the edited content
+		w.updateMainPreview(w.contentBuffer)
+
+		// Show TOC, hide outline
+		w.tocScroll.Show()
+		w.outlineScroll.Hide()
+
+		w.editAction.SetIcon(themes.IconEdit())
+
+		// Resume file watching
+		if w.fileWatcher != nil {
+			w.fileWatcher.Resume()
 		}
 	} else {
 		// Enter split view mode
@@ -923,23 +967,30 @@ func (w *Window) toggleSplitView() {
 			w.fileWatcher.Pause()
 		}
 
-		// Set editor content
-		w.editor.SetText(w.contentBuffer)
+		// Set split editor content
+		w.splitEditor.SetText(w.contentBuffer)
 
 		// Update outline
 		w.outline.UpdateFromText(w.contentBuffer)
+
+		// Update split preview with current content
+		w.updateSplitViewPreview(w.contentBuffer)
 
 		// Hide single views, show split
 		w.scrollContent.Hide()
 		w.editorScroll.Hide()
 		w.splitView.Show()
 		w.editToolbar.Show()
+		w.splitViewAction.SetIcon(themes.IconSingleView())
 
 		// Show outline in TOC area
 		w.tocScroll.Hide()
 		w.outlineScroll.Show()
 
 		w.editAction.SetIcon(themes.IconView())
+
+		// Focus the split editor
+		w.splitEditor.Focus(w.fyneWindow.Canvas())
 	}
 	w.updateWindowTitle()
 }
@@ -1349,6 +1400,9 @@ func (w *Window) setRootFolder(path string) {
 	if w.linkAutocomplete != nil {
 		w.linkAutocomplete.SetRootPath(path)
 	}
+	if w.splitLinkAutocomplete != nil {
+		w.splitLinkAutocomplete.SetRootPath(path)
+	}
 	// Save to preferences
 	w.app.Preferences().SetString("lastDirectory", path)
 	w.logger.Info("Set root folder", zap.String("path", path))
@@ -1498,6 +1552,9 @@ func (w *Window) loadFile(filePath string) {
 		// Update autocomplete with new root path
 		if w.linkAutocomplete != nil {
 			w.linkAutocomplete.SetRootPath(fileDir)
+		}
+		if w.splitLinkAutocomplete != nil {
+			w.splitLinkAutocomplete.SetRootPath(fileDir)
 		}
 	}
 
@@ -1699,11 +1756,6 @@ func (w *Window) onEditorChanged(content string) {
 	// Update outline (debounced - only update occasionally)
 	w.outline.UpdateFromText(content)
 
-	// Update preview in split view mode
-	if w.splitViewMode {
-		w.updateSplitViewPreview(content)
-	}
-
 	// Center cursor in typewriter mode
 	if w.typewriterMode {
 		w.centerCursor()
@@ -1730,8 +1782,43 @@ func (w *Window) updateSplitViewPreview(content string) {
 		return // Silently fail for preview updates
 	}
 
+	w.splitPreview.Content = withLeftPadding(parsedContent, 16)
+	w.splitPreview.Refresh()
+}
+
+// updateMainPreview updates the main preview pane with the given content
+func (w *Window) updateMainPreview(content string) {
+	fileDir := ""
+	if w.currentFile != "" {
+		fileDir = filepath.Dir(w.currentFile)
+	}
+
+	parsedContent, err := w.parser.ParseWithBasePath([]byte(content), fileDir)
+	if err != nil {
+		return
+	}
+
 	w.scrollContent.Content = withLeftPadding(parsedContent, 16)
 	w.scrollContent.Refresh()
+}
+
+// onSplitEditorChanged handles changes in the split view editor
+func (w *Window) onSplitEditorChanged(content string) {
+	if !w.splitViewMode {
+		return
+	}
+
+	// Mark as dirty
+	if !w.isDirty {
+		w.isDirty = true
+		w.updateWindowTitle()
+	}
+
+	// Update outline
+	w.outline.UpdateFromText(content)
+
+	// Update split view preview with live changes
+	w.updateSplitViewPreview(content)
 }
 
 // navigateToLine navigates the editor to a specific line
@@ -1841,7 +1928,13 @@ func (w *Window) saveFile() {
 		return
 	}
 
-	content := w.editor.GetText()
+	// Get content from the appropriate editor
+	var content string
+	if w.splitViewMode {
+		content = w.splitEditor.GetText()
+	} else {
+		content = w.editor.GetText()
+	}
 
 	err := os.WriteFile(w.currentFile, []byte(content), 0644)
 	if err != nil {
@@ -1869,7 +1962,13 @@ func (w *Window) saveFileAs() {
 		}
 		defer writer.Close()
 
-		content := w.editor.GetText()
+		// Get content from the appropriate editor
+		var content string
+		if w.splitViewMode {
+			content = w.splitEditor.GetText()
+		} else {
+			content = w.editor.GetText()
+		}
 		_, err = writer.Write([]byte(content))
 		if err != nil {
 			dialog.ShowError(fmt.Errorf("failed to write file: %w", err), w.fyneWindow)

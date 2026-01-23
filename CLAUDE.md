@@ -61,11 +61,12 @@ markview/
 │   │   └── imagepaste.go    # Image upload dialog
 │   ├── markdown/            # Markdown processing
 │   │   ├── parser.go        # Goldmark wrapper
-│   │   ├── renderer.go      # AST to Fyne widgets
+│   │   ├── renderer.go      # AST to Fyne widgets (includes table rendering)
 │   │   ├── syntax.go        # Chroma syntax highlighting
 │   │   ├── codeblock.go     # Code block widget
 │   │   ├── blockquote.go    # Blockquote widget
-│   │   └── spacer.go        # Vertical spacing widget
+│   │   ├── spacer.go        # Vertical spacing widget
+│   │   └── tablecontainer.go # Table container widget
 │   ├── toc/                 # Table of contents
 │   │   ├── generator.go     # Heading extraction
 │   │   └── navigation.go    # TOC tree widget
@@ -112,12 +113,32 @@ Markdown → Goldmark Parser → AST → Renderer → Fyne Widgets
                                      ↳ Chroma (code highlighting)
 ```
 
+### Split View Mode
+Split view provides side-by-side editing with live preview:
+- `Window.splitEditor` - Separate editor instance for split view
+- `Window.splitEditorScroll` - Scroll container for split editor
+- `Window.splitPreview` - Live preview pane showing rendered markdown
+- `Window.splitLinkAutocomplete` - Autocomplete for split editor
+- `onSplitEditorChanged()` - Re-renders preview on each keystroke
+- Editor and preview use separate instances to avoid conflicts
+- Toggle with Cmd+\\ or toolbar icon (switches between split/single view icons)
+
+### Table Rendering
+GFM tables are rendered with styled grid layout:
+- Uses `HBox`/`VBox` containers instead of Fyne's Table widget (no scrollbars)
+- `FixedWidthContainer` - Custom widget for fixed-width cells with flexible height
+- Headers styled with primary background color and orange text (`tableHeader` color)
+- Alternating row colors for readability
+- Word wrapping with automatic row height calculation
+- Column widths based on content with padding
+
 ### Custom Widgets
 - `CodeBlock` - Renders code with syntax highlighting and background
 - `Blockquote` - Styled quotes with left border
 - `Spacer` - Vertical spacing between elements
 - `MarkdownEditor` - Multi-line entry with text manipulation helpers
 - `LinkAutocomplete` - Inline file suggestions for markdown links
+- `FixedWidthContainer` - Fixed-width container with flexible height for table cells
 
 ### Link Autocomplete
 Shows file suggestions when typing markdown links:

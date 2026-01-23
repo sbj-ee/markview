@@ -338,6 +338,7 @@ func TestIconFunctions(t *testing.T) {
 		{"IconTable", IconTable},
 		{"IconLibrary", IconLibrary},
 		{"IconSplitView", IconSplitView},
+		{"IconSingleView", IconSingleView},
 		{"IconFocus", IconFocus},
 		{"IconHelp", IconHelp},
 		{"IconSearch", IconSearch},

@@ -324,6 +324,8 @@ func (m *MarkViewTheme) lightColor(name fyne.ThemeColorName) color.Color {
 		return color.RGBA{R: 246, G: 248, B: 250, A: 255} // Very light blue-gray
 	case "math":
 		return color.RGBA{R: 128, G: 90, B: 213, A: 255} // Purple for math
+	case "tableHeader":
+		return color.RGBA{R: 255, G: 165, B: 0, A: 255} // Orange for table headers
 
 	default:
 		return theme.DefaultTheme().Color(name, theme.VariantLight)
@@ -397,6 +399,8 @@ func (m *MarkViewTheme) darkColor(name fyne.ThemeColorName) color.Color {
 		return color.RGBA{R: 70, G: 72, B: 80, A: 255} // Subtle gray for horizontal rules
 	case "math":
 		return color.RGBA{R: 189, G: 147, B: 249, A: 255} // Purple for math
+	case "tableHeader":
+		return color.RGBA{R: 255, G: 165, B: 0, A: 255} // Orange for table headers
 
 	default:
 		return theme.DefaultTheme().Color(name, theme.VariantDark)
@@ -440,6 +444,8 @@ func (m *MarkViewTheme) nordColor(name fyne.ThemeColorName) color.Color {
 		return color.RGBA{R: 235, G: 203, B: 139, A: 255} // Nord13
 	case "math":
 		return color.RGBA{R: 180, G: 142, B: 173, A: 255} // Nord15 - Purple
+	case "tableHeader":
+		return color.RGBA{R: 235, G: 203, B: 139, A: 255} // Nord13 - Orange/gold for table headers
 	case theme.ColorNamePlaceHolder:
 		return color.RGBA{R: 136, G: 148, B: 166, A: 255} // Visible gray for comments
 	default:
@@ -480,6 +486,8 @@ func (m *MarkViewTheme) solarizedLightColor(name fyne.ThemeColorName) color.Colo
 		return color.RGBA{R: 181, G: 137, B: 0, A: 255} // Yellow
 	case "math":
 		return color.RGBA{R: 108, G: 113, B: 196, A: 255} // Violet
+	case "tableHeader":
+		return color.RGBA{R: 203, G: 75, B: 22, A: 255} // Orange for table headers
 	default:
 		return theme.DefaultTheme().Color(name, theme.VariantLight)
 	}
@@ -522,6 +530,8 @@ func (m *MarkViewTheme) solarizedDarkColor(name fyne.ThemeColorName) color.Color
 		return color.RGBA{R: 181, G: 137, B: 0, A: 255} // Yellow
 	case "math":
 		return color.RGBA{R: 108, G: 113, B: 196, A: 255} // Violet
+	case "tableHeader":
+		return color.RGBA{R: 203, G: 75, B: 22, A: 255} // Orange for table headers
 	case theme.ColorNamePlaceHolder:
 		return color.RGBA{R: 101, G: 123, B: 131, A: 255} // Base00 - visible gray for comments
 	default:
@@ -566,6 +576,8 @@ func (m *MarkViewTheme) monokaiColor(name fyne.ThemeColorName) color.Color {
 		return color.RGBA{R: 253, G: 151, B: 31, A: 255} // Orange
 	case "math":
 		return color.RGBA{R: 174, G: 129, B: 255, A: 255} // Purple
+	case "tableHeader":
+		return color.RGBA{R: 253, G: 151, B: 31, A: 255} // Orange for table headers
 	case theme.ColorNamePlaceHolder:
 		return color.RGBA{R: 117, G: 113, B: 94, A: 255} // Visible gray for comments
 	default:
@@ -610,6 +622,8 @@ func (m *MarkViewTheme) gruvboxDarkColor(name fyne.ThemeColorName) color.Color {
 		return color.RGBA{R: 250, G: 189, B: 47, A: 255} // Yellow
 	case "math":
 		return color.RGBA{R: 211, G: 134, B: 155, A: 255} // Purple
+	case "tableHeader":
+		return color.RGBA{R: 254, G: 128, B: 25, A: 255} // Orange for table headers
 	case theme.ColorNamePlaceHolder:
 		return color.RGBA{R: 146, G: 131, B: 116, A: 255} // fg3 - visible gray for comments
 	default:
@@ -654,6 +668,8 @@ func (m *MarkViewTheme) oneDarkColor(name fyne.ThemeColorName) color.Color {
 		return color.RGBA{R: 229, G: 192, B: 123, A: 255} // Yellow
 	case "math":
 		return color.RGBA{R: 198, G: 120, B: 221, A: 255} // Purple
+	case "tableHeader":
+		return color.RGBA{R: 209, G: 154, B: 102, A: 255} // Orange for table headers
 	case theme.ColorNamePlaceHolder:
 		return color.RGBA{R: 128, G: 135, B: 150, A: 255} // Comment gray - visible
 	default:
@@ -817,6 +833,11 @@ func IconLibrary() fyne.Resource {
 // IconSplitView returns a split view icon
 func IconSplitView() fyne.Resource {
 	return theme.NewThemedResource(resourceSplitViewSvg)
+}
+
+// IconSingleView returns a single view icon (for exiting split view)
+func IconSingleView() fyne.Resource {
+	return theme.NewThemedResource(resourceSingleViewSvg)
 }
 
 // IconFocus returns a focus mode icon

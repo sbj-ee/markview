@@ -4,16 +4,19 @@ import (
 	"bytes"
 	"fmt"
 	"html"
+	"image/color"
 	"net/url"
 	"regexp"
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	mathjax "github.com/litao91/goldmark-mathjax"
 	"github.com/yuin/goldmark/ast"
+	east "github.com/yuin/goldmark/extension/ast"
 )
 
 var (
@@ -106,6 +109,9 @@ func (r *Renderer) renderNodeAsWidget(node ast.Node) {
 	case *ast.HTMLBlock:
 		// Skip HTML blocks
 		return
+
+	case *east.Table:
+		r.renderTableAsWidget(n)
 
 	default:
 		// Check for math blocks
@@ -844,3 +850,214 @@ func (r *Renderer) renderMathBlockAsWidget(node ast.Node) {
 	// Add spacing after math block
 	r.widgets = append(r.widgets, NewSpacer(8))
 }
+
+// renderTableAsWidget renders a table from GFM extension using a grid layout
+func (r *Renderer) renderTableAsWidget(node *east.Table) {
+	// Collect table data
+	var headers []string
+	var rows [][]string
+
+	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
+		switch row := child.(type) {
+		case *east.TableHeader:
+			// Extract header cells
+			for cell := row.FirstChild(); cell != nil; cell = cell.NextSibling() {
+				if tableCell, ok := cell.(*east.TableCell); ok {
+					headers = append(headers, r.extractInlineText(tableCell))
+				}
+			}
+		case *east.TableRow:
+			// Extract row cells
+			var rowData []string
+			for cell := row.FirstChild(); cell != nil; cell = cell.NextSibling() {
+				if tableCell, ok := cell.(*east.TableCell); ok {
+					rowData = append(rowData, r.extractInlineText(tableCell))
+				}
+			}
+			rows = append(rows, rowData)
+		}
+	}
+
+	numCols := len(headers)
+	if numCols == 0 && len(rows) > 0 {
+		numCols = len(rows[0])
+	}
+
+	if numCols == 0 {
+		return // Empty table
+	}
+
+	// Add spacing before table
+	r.widgets = append(r.widgets, NewSpacer(8))
+
+	// Calculate column widths based on content
+	colWidths := make([]float32, numCols)
+	for col := 0; col < numCols; col++ {
+		maxWidth := float32(80) // Minimum width
+
+		// Check header width
+		if col < len(headers) {
+			label := widget.NewLabel(headers[col])
+			label.TextStyle = fyne.TextStyle{Bold: true}
+			size := label.MinSize()
+			width := size.Width + 32 // Add padding
+			if width > maxWidth {
+				maxWidth = width
+			}
+		}
+
+		// Check data widths
+		for _, row := range rows {
+			if col < len(row) {
+				label := widget.NewLabel(row[col])
+				size := label.MinSize()
+				width := size.Width + 32 // Add padding
+				if width > maxWidth {
+					maxWidth = width
+				}
+			}
+		}
+
+		// Cap maximum width to allow wrapping for very long content
+		if maxWidth > 600 {
+			maxWidth = 600
+		}
+
+		colWidths[col] = maxWidth
+	}
+
+	// Define colors - use primary color for header to make it distinct
+	headerBgColor := theme.Color(theme.ColorNamePrimary)
+	borderColor := theme.Color(theme.ColorNameSeparator)
+
+	// Build table as a VBox of rows
+	tableRows := []fyne.CanvasObject{}
+
+	// Create header row
+	headerCells := []fyne.CanvasObject{}
+	for col := 0; col < numCols; col++ {
+		var text string
+		if col < len(headers) {
+			text = headers[col]
+		}
+		cell := r.createTableCell(text, true, headerBgColor, borderColor, colWidths[col])
+		headerCells = append(headerCells, cell)
+	}
+	headerRow := container.NewHBox(headerCells...)
+	tableRows = append(tableRows, headerRow)
+
+	// Create data rows
+	for rowIdx, row := range rows {
+		rowCells := []fyne.CanvasObject{}
+		var bgColor fyne.ThemeColorName
+		if rowIdx%2 == 0 {
+			bgColor = theme.ColorNameInputBackground
+		} else {
+			bgColor = theme.ColorNameBackground
+		}
+		rowBgColor := theme.Color(bgColor)
+
+		for col := 0; col < numCols; col++ {
+			var text string
+			if col < len(row) {
+				text = row[col]
+			}
+			cell := r.createTableCell(text, false, rowBgColor, borderColor, colWidths[col])
+			rowCells = append(rowCells, cell)
+		}
+		dataRow := container.NewHBox(rowCells...)
+		tableRows = append(tableRows, dataRow)
+	}
+
+	// Create the table container
+	tableContainer := container.NewVBox(tableRows...)
+
+	r.widgets = append(r.widgets, tableContainer)
+
+	// Add spacing after table
+	r.widgets = append(r.widgets, NewSpacer(8))
+}
+
+// createTableCell creates a single table cell with background, border, and fixed width
+func (r *Renderer) createTableCell(text string, isHeader bool, bgColor, borderColor color.Color, width float32) fyne.CanvasObject {
+	// Create background
+	bg := canvas.NewRectangle(bgColor)
+
+	var cellContent fyne.CanvasObject
+	if isHeader {
+		// Use RichText for header to allow custom text color
+		rt := widget.NewRichText(&widget.TextSegment{
+			Text: text,
+			Style: widget.RichTextStyle{
+				TextStyle: fyne.TextStyle{Bold: true},
+				ColorName: "tableHeader",
+			},
+		})
+		rt.Wrapping = fyne.TextWrapWord
+		cellContent = container.NewPadded(rt)
+	} else {
+		label := widget.NewLabel(text)
+		label.Wrapping = fyne.TextWrapWord
+		cellContent = container.NewPadded(label)
+	}
+
+	// Stack background and content
+	cell := container.NewStack(bg, cellContent)
+
+	// Create a fixed-width cell using a custom container
+	fixedWidthCell := NewFixedWidthContainer(cell, width)
+
+	return fixedWidthCell
+}
+
+// FixedWidthContainer is a container that has a fixed width but flexible height
+type FixedWidthContainer struct {
+	widget.BaseWidget
+	content fyne.CanvasObject
+	width   float32
+}
+
+// NewFixedWidthContainer creates a container with fixed width
+func NewFixedWidthContainer(content fyne.CanvasObject, width float32) *FixedWidthContainer {
+	c := &FixedWidthContainer{
+		content: content,
+		width:   width,
+	}
+	c.ExtendBaseWidget(c)
+	return c
+}
+
+// CreateRenderer implements fyne.Widget
+func (c *FixedWidthContainer) CreateRenderer() fyne.WidgetRenderer {
+	return &fixedWidthRenderer{container: c}
+}
+
+// MinSize returns the minimum size with fixed width
+func (c *FixedWidthContainer) MinSize() fyne.Size {
+	contentMin := c.content.MinSize()
+	// Calculate height based on content that would wrap at our fixed width
+	return fyne.NewSize(c.width, contentMin.Height)
+}
+
+type fixedWidthRenderer struct {
+	container *FixedWidthContainer
+}
+
+func (r *fixedWidthRenderer) Layout(size fyne.Size) {
+	r.container.content.Resize(fyne.NewSize(r.container.width, size.Height))
+	r.container.content.Move(fyne.NewPos(0, 0))
+}
+
+func (r *fixedWidthRenderer) MinSize() fyne.Size {
+	return r.container.MinSize()
+}
+
+func (r *fixedWidthRenderer) Refresh() {
+	r.container.content.Refresh()
+}
+
+func (r *fixedWidthRenderer) Objects() []fyne.CanvasObject {
+	return []fyne.CanvasObject{r.container.content}
+}
+
+func (r *fixedWidthRenderer) Destroy() {}

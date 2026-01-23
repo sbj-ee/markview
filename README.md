@@ -17,12 +17,12 @@
 ## Features
 
 ### Viewing & Editing
-- **Full Markdown Support** - CommonMark and GitHub Flavored Markdown (GFM)
+- **Full Markdown Support** - CommonMark and GitHub Flavored Markdown (GFM) with styled tables
 - **Syntax Highlighting** - 250+ languages via Chroma
 - **Live Reload** - Auto-refresh on file changes (300ms debounce)
 - **Edit Mode** - Toggle between viewing and editing with formatting toolbar
 - **Link Autocomplete** - File suggestions when typing `[text](`, `[[`, or `![alt](`
-- **Split View** - Side-by-side editor and preview (Cmd+\\)
+- **Split View** - Side-by-side editor with live preview (Cmd+\\)
 - **Focus Mode** - Hide sidebars for distraction-free reading (Cmd+Shift+F)
 - **Zen Mode** - Fullscreen distraction-free writing (F11)
 - **Typewriter Mode** - Keep cursor centered while typing

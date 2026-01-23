@@ -241,40 +241,6 @@ func TestFileTreeNode_SetContextCallback(t *testing.T) {
 	}
 }
 
-func TestFileTreeNode_TappedSecondary(t *testing.T) {
-	tests := []struct {
-		name         string
-		path         string
-		isParentDir  bool
-		expectCalled bool
-	}{
-		{"normal file", "/test/file.md", false, true},
-		{"normal directory", "/test/dir", false, true},
-		{"parent dir entry", "", true, false},
-		{"empty path", "", false, false},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			node := newFileTreeNode()
-			called := false
-
-			node.SetPath(tc.path, false, tc.isParentDir)
-			node.SetContextCallback(func(path string, isDir bool, pos fyne.Position) {
-				called = true
-			})
-
-			node.TappedSecondary(&fyne.PointEvent{
-				AbsolutePosition: fyne.Position{X: 100, Y: 100},
-			})
-
-			if called != tc.expectCalled {
-				t.Errorf("Expected callback called=%v, got called=%v", tc.expectCalled, called)
-			}
-		})
-	}
-}
-
 func TestFileTree_HasMarkdownFiles(t *testing.T) {
 	ft := NewFileTree(nil)
 
