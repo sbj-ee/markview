@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -68,16 +69,9 @@ func (n *fileTreeNode) SetContextCallback(callback func(path string, isDir bool,
 	n.onContext = callback
 }
 
-// TappedSecondary handles right-click to show context menu
-func (n *fileTreeNode) TappedSecondary(e *fyne.PointEvent) {
-	// Don't show context menu for parent directory ".."
-	if n.isParentDir || n.path == "" {
-		return
-	}
-	if n.onContext != nil {
-		n.onContext(n.path, n.isDirectory, e.AbsolutePosition)
-	}
-}
+// NOTE: TappedSecondary for right-click context menus was removed because
+// implementing SecondaryTappable on tree nodes interferes with Fyne's
+// tree selection handling. A different approach is needed for context menus.
 
 // FileTree represents a file browser tree widget
 type FileTree struct {
@@ -159,6 +153,17 @@ func (ft *FileTree) NavigateUp() {
 	}
 	parent := filepath.Dir(ft.rootPath)
 	if parent != ft.rootPath { // Not at filesystem root
+		// Check if we can access the parent directory
+		if _, err := os.ReadDir(parent); err != nil {
+			// Can't access parent (likely macOS permissions)
+			// Show info dialog if window is available
+			if ft.fyneWindow != nil {
+				dialog.ShowInformation("Cannot Navigate Up",
+					"Unable to access parent directory due to macOS permissions.\n\nUse the folder icon in the toolbar to select a different folder.",
+					ft.fyneWindow)
+			}
+			return
+		}
 		ft.SetRootPath(parent)
 	}
 }
@@ -314,6 +319,10 @@ func (ft *FileTree) createTree() *widget.Tree {
 			}
 			info, err := os.Stat(path)
 			if err != nil {
+				// Show error dialog for permission issues
+				if ft.fyneWindow != nil {
+					dialog.ShowError(fmt.Errorf("cannot access file: %w", err), ft.fyneWindow)
+				}
 				return
 			}
 			if !info.IsDir() && ft.onFileSelect != nil {
