@@ -2163,7 +2163,7 @@ func (w *Window) exportToPDF() {
 	// Check if wkhtmltopdf is available
 	_, err := exec.LookPath("wkhtmltopdf")
 	if err != nil {
-		dialog.ShowError(fmt.Errorf("PDF export requires wkhtmltopdf.\n\nInstall with:\n  macOS: brew install wkhtmltopdf\n  Linux: sudo apt install wkhtmltopdf"), w.fyneWindow)
+		dialog.ShowError(fmt.Errorf("PDF export requires wkhtmltopdf.\n\nDownload from: https://wkhtmltopdf.org/downloads.html\nLinux: sudo apt install wkhtmltopdf"), w.fyneWindow)
 		return
 	}
 

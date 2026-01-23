@@ -126,7 +126,7 @@
 ### Optional Dependencies
 
 - **aspell** - For spell checking (`brew install aspell` or `apt install aspell`)
-- **wkhtmltopdf** - For PDF export (`brew install wkhtmltopdf`)
+- **wkhtmltopdf** - For PDF export (download from https://wkhtmltopdf.org/downloads.html)
 - **pandoc** - For DOCX/RTF export (`brew install pandoc`)
 
 ### Quick Install
@@ -338,7 +338,7 @@ The packaging scripts create:
 - Install aspell: `brew install aspell` or `apt install aspell`
 
 **PDF export not working**
-- Install wkhtmltopdf: `brew install wkhtmltopdf`
+- Install wkhtmltopdf from https://wkhtmltopdf.org/downloads.html
 
 **DOCX/RTF export not working**
 - Install pandoc: `brew install pandoc`
