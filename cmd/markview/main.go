@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	version = "1.0.8"
+	version = "1.0.9"
 	logger  *zap.Logger
 )
 
