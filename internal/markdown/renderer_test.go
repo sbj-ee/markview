@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/widget"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/text"
 )
@@ -357,5 +358,144 @@ func TestRender_OrderedList(t *testing.T) {
 
 	if len(cont.Objects) < 1 {
 		t.Error("Render() returned no widgets for ordered list")
+	}
+}
+
+func TestToSubscript(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"2", "₂"},
+		{"0123456789", "₀₁₂₃₄₅₆₇₈₉"},
+		{"H2O", "H₂O"}, // H has no subscript, stays as H
+		{"abc", "ₐbc"}, // a has subscript, b and c don't
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := toSubscript(tt.input)
+			if got != tt.want {
+				t.Errorf("toSubscript(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestToSuperscript(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"2", "²"},
+		{"0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹"},
+		{"abc", "ᵃᵇᶜ"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := toSuperscript(tt.input)
+			if got != tt.want {
+				t.Errorf("toSuperscript(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestContainsInlineHTML(t *testing.T) {
+	md := goldmark.New()
+
+	tests := []struct {
+		name     string
+		markdown string
+		want     bool
+	}{
+		{"plain text", "Hello world", false},
+		{"subscript", "H<sub>2</sub>O", true},
+		{"superscript", "x<sup>2</sup>", true},
+		{"bold", "**bold**", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source := []byte(tt.markdown)
+			reader := text.NewReader(source)
+			doc := md.Parser().Parse(reader)
+
+			renderer := NewRenderer(source)
+
+			// Find the paragraph
+			para := doc.FirstChild()
+			if para == nil {
+				t.Fatal("No paragraph node found")
+			}
+
+			got := renderer.containsInlineHTML(para)
+			if got != tt.want {
+				t.Errorf("containsInlineHTML() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRenderInlineNode_Subscript(t *testing.T) {
+	md := goldmark.New()
+	source := []byte("H<sub>2</sub>O")
+	reader := text.NewReader(source)
+	doc := md.Parser().Parse(reader)
+
+	renderer := NewRenderer(source)
+
+	// Get the paragraph node
+	para := doc.FirstChild()
+	if para == nil {
+		t.Fatal("No paragraph node found")
+	}
+
+	// Render all inline nodes and collect text
+	var resultText string
+	for child := para.FirstChild(); child != nil; child = child.NextSibling() {
+		segments := renderer.renderInlineNode(child)
+		for _, seg := range segments {
+			if textSeg, ok := seg.(*widget.TextSegment); ok {
+				resultText += textSeg.Text
+			}
+		}
+	}
+
+	want := "H₂O"
+	if resultText != want {
+		t.Errorf("renderInlineNode subscript = %q, want %q", resultText, want)
+	}
+}
+
+func TestRenderInlineNode_Superscript(t *testing.T) {
+	md := goldmark.New()
+	source := []byte("x<sup>2</sup>")
+	reader := text.NewReader(source)
+	doc := md.Parser().Parse(reader)
+
+	renderer := NewRenderer(source)
+
+	// Get the paragraph node
+	para := doc.FirstChild()
+	if para == nil {
+		t.Fatal("No paragraph node found")
+	}
+
+	// Render all inline nodes and collect text
+	var resultText string
+	for child := para.FirstChild(); child != nil; child = child.NextSibling() {
+		segments := renderer.renderInlineNode(child)
+		for _, seg := range segments {
+			if textSeg, ok := seg.(*widget.TextSegment); ok {
+				resultText += textSeg.Text
+			}
+		}
+	}
+
+	want := "x²"
+	if resultText != want {
+		t.Errorf("renderInlineNode superscript = %q, want %q", resultText, want)
 	}
 }
