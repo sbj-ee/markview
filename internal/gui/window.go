@@ -621,23 +621,13 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 		w.getActiveEditor().WrapSelection("==", "==")
 	})
 
-	// Math/Science group
+	// Math/Science group - wrap selected text with HTML tags (renders as Unicode sub/superscript)
 	subscriptAction := newToolbarAction(themes.IconSubscript(), func() {
-		// Sync cursor position before dialog opens
-		w.getActiveEditor().SyncLastInsertPos()
-		ShowSubscriptPickerDialog(w.fyneWindow, func(symbol string) {
-			editor := w.getActiveEditor()
-			editor.InsertAtCursor(symbol)
-		})
+		w.getActiveEditor().WrapSelection("<sub>", "</sub>")
 	})
 
 	superscriptAction := newToolbarAction(themes.IconSuperscript(), func() {
-		// Sync cursor position before dialog opens
-		w.getActiveEditor().SyncLastInsertPos()
-		ShowSuperscriptPickerDialog(w.fyneWindow, func(symbol string) {
-			editor := w.getActiveEditor()
-			editor.InsertAtCursor(symbol)
-		})
+		w.getActiveEditor().WrapSelection("<sup>", "</sup>")
 	})
 
 	symbolAction := newToolbarAction(themes.IconSymbol(), func() {

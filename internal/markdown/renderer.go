@@ -25,6 +25,55 @@ var (
 	controlCharsRegex = regexp.MustCompile(`[\x00-\x1F\x7F]+`)
 )
 
+// Unicode subscript character mappings
+var subscriptMap = map[rune]rune{
+	'0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
+	'5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉',
+	'+': '₊', '-': '₋', '=': '₌', '(': '₍', ')': '₎',
+	'a': 'ₐ', 'e': 'ₑ', 'h': 'ₕ', 'i': 'ᵢ', 'j': 'ⱼ',
+	'k': 'ₖ', 'l': 'ₗ', 'm': 'ₘ', 'n': 'ₙ', 'o': 'ₒ',
+	'p': 'ₚ', 'r': 'ᵣ', 's': 'ₛ', 't': 'ₜ', 'u': 'ᵤ',
+	'v': 'ᵥ', 'x': 'ₓ',
+}
+
+// Unicode superscript character mappings
+var superscriptMap = map[rune]rune{
+	'0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+	'5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+	'+': '⁺', '-': '⁻', '=': '⁼', '(': '⁽', ')': '⁾',
+	'a': 'ᵃ', 'b': 'ᵇ', 'c': 'ᶜ', 'd': 'ᵈ', 'e': 'ᵉ',
+	'f': 'ᶠ', 'g': 'ᵍ', 'h': 'ʰ', 'i': 'ⁱ', 'j': 'ʲ',
+	'k': 'ᵏ', 'l': 'ˡ', 'm': 'ᵐ', 'n': 'ⁿ', 'o': 'ᵒ',
+	'p': 'ᵖ', 'r': 'ʳ', 's': 'ˢ', 't': 'ᵗ', 'u': 'ᵘ',
+	'v': 'ᵛ', 'w': 'ʷ', 'x': 'ˣ', 'y': 'ʸ', 'z': 'ᶻ',
+}
+
+// toSubscript converts a string to Unicode subscript characters
+func toSubscript(s string) string {
+	var result strings.Builder
+	for _, r := range s {
+		if sub, ok := subscriptMap[r]; ok {
+			result.WriteRune(sub)
+		} else {
+			result.WriteRune(r) // Keep original if no mapping
+		}
+	}
+	return result.String()
+}
+
+// toSuperscript converts a string to Unicode superscript characters
+func toSuperscript(s string) string {
+	var result strings.Builder
+	for _, r := range s {
+		if sup, ok := superscriptMap[r]; ok {
+			result.WriteRune(sup)
+		} else {
+			result.WriteRune(r) // Keep original if no mapping
+		}
+	}
+	return result.String()
+}
+
 // Renderer converts Goldmark AST to Fyne widgets
 type Renderer struct {
 	source      []byte
@@ -32,6 +81,9 @@ type Renderer struct {
 	widgets     []fyne.CanvasObject
 	highlighter *SyntaxHighlighter
 	imageLoader *ImageLoader
+	// State for tracking subscript/superscript mode
+	inSubscript   bool
+	inSuperscript bool
 }
 
 // normalizeText aggressively removes all newlines and normalizes whitespace
@@ -382,6 +434,22 @@ func (r *Renderer) renderInlineNode(node ast.Node) []widget.RichTextSegment {
 	var segments []widget.RichTextSegment
 
 	switch n := node.(type) {
+	case *ast.RawHTML:
+		// Handle inline HTML tags for subscript/superscript
+		htmlContent := strings.ToLower(strings.TrimSpace(string(n.Segments.Value(r.source))))
+		switch htmlContent {
+		case "<sub>":
+			r.inSubscript = true
+		case "</sub>":
+			r.inSubscript = false
+		case "<sup>":
+			r.inSuperscript = true
+		case "</sup>":
+			r.inSuperscript = false
+		}
+		// Don't emit any segment for the HTML tags themselves
+		return segments
+
 	case *ast.Text:
 		rawText := string(n.Segment.Value(r.source))
 
@@ -394,6 +462,13 @@ func (r *Renderer) renderInlineNode(node ast.Node) []widget.RichTextSegment {
 		} else if n.SoftLineBreak() && text == "" {
 			// If soft line break and text is now empty after normalization, it was just a newline
 			text = " "
+		}
+
+		// Apply subscript/superscript conversion if in those modes
+		if r.inSubscript {
+			text = toSubscript(text)
+		} else if r.inSuperscript {
+			text = toSuperscript(text)
 		}
 
 		// Only add non-empty segments
@@ -624,6 +699,22 @@ func (r *Renderer) renderParagraphAsWidget(node *ast.Paragraph) {
 		return
 	}
 
+	// Check if paragraph contains HTML tags (like <sub> or <sup>)
+	if r.containsInlineHTML(node) {
+		// Use RichText to properly render inline HTML conversions
+		var texts []widget.RichTextSegment
+		for child := node.FirstChild(); child != nil; child = child.NextSibling() {
+			texts = append(texts, r.renderInlineNode(child)...)
+		}
+		if len(texts) > 0 {
+			rt := widget.NewRichText(&widget.ParagraphSegment{Texts: texts})
+			rt.Wrapping = fyne.TextWrapWord
+			r.widgets = append(r.widgets, rt)
+			r.widgets = append(r.widgets, NewSpacer(8))
+		}
+		return
+	}
+
 	// Extract text as plain text (to avoid line break issues)
 	text := r.extractInlineText(node)
 
@@ -635,6 +726,16 @@ func (r *Renderer) renderParagraphAsWidget(node *ast.Paragraph) {
 		// Add spacing after paragraph
 		r.widgets = append(r.widgets, NewSpacer(8))
 	}
+}
+
+// containsInlineHTML checks if a node contains RawHTML children
+func (r *Renderer) containsInlineHTML(node ast.Node) bool {
+	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
+		if _, ok := child.(*ast.RawHTML); ok {
+			return true
+		}
+	}
+	return false
 }
 
 // isImageOnlyParagraph checks if a paragraph contains only image(s)
