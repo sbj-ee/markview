@@ -293,6 +293,56 @@ func (w *Window) setupUI() {
 		})
 	})
 	w.fileTree.SetWindow(w.fyneWindow)
+	w.fileTree.SetOnFileDelete(func(deletedPath string) {
+		// If the deleted file is the currently open file, clear the view
+		if w.currentFile == deletedPath {
+			// Exit edit/split mode first if active
+			if w.splitViewMode {
+				w.splitViewMode = false
+				w.editMode = false
+				w.splitView.Hide()
+				w.scrollContent.Show()
+				w.editorScroll.Hide()
+				w.editToolbar.Hide()
+				w.tocScroll.Show()
+				w.outlineScroll.Hide()
+				w.splitViewAction.SetIcon(themes.IconSplitView())
+				w.editAction.SetIcon(themes.IconEdit())
+				if w.fileWatcher != nil {
+					w.fileWatcher.Resume()
+				}
+			} else if w.editMode {
+				w.editMode = false
+				w.editorScroll.Hide()
+				w.scrollContent.Show()
+				w.editToolbar.Hide()
+				w.tocScroll.Show()
+				w.outlineScroll.Hide()
+				w.editAction.SetIcon(themes.IconEdit())
+				if w.fileWatcher != nil {
+					w.fileWatcher.Resume()
+				}
+			}
+			// Clear the state
+			w.currentFile = ""
+			w.contentBuffer = ""
+			w.isDirty = false
+			w.editor.SetText("")
+			w.splitEditor.SetText("")
+			w.scrollContent.Content = container.NewVBox()
+			w.scrollContent.Refresh()
+			// Clear TOC
+			w.tocTree = widget.NewTree(
+				func(uid string) []string { return []string{} },
+				func(uid string) bool { return false },
+				func(branch bool) fyne.CanvasObject { return widget.NewLabel("") },
+				func(uid string, branch bool, node fyne.CanvasObject) {},
+			)
+			w.tocScroll.Content = w.tocTree
+			w.tocScroll.Refresh()
+			w.updateWindowTitle()
+		}
+	})
 	w.fileTreeScroll = container.NewScroll(w.fileTree.GetContainer())
 
 	// Create placeholder TOC
@@ -552,56 +602,56 @@ func (w *Window) toggleTheme() {
 func (w *Window) createEditToolbar() *widget.Toolbar {
 	// Text formatting group
 	boldAction := newToolbarAction(themes.IconBold(), func() {
-		w.editor.WrapSelection("**", "**")
+		w.getActiveEditor().WrapSelection("**", "**")
 	})
 
 	italicAction := newToolbarAction(themes.IconItalic(), func() {
-		w.editor.WrapSelection("*", "*")
+		w.getActiveEditor().WrapSelection("*", "*")
 	})
 
 	strikethroughAction := newToolbarAction(themes.IconStrikethrough(), func() {
-		w.editor.WrapSelection("~~", "~~")
+		w.getActiveEditor().WrapSelection("~~", "~~")
 	})
 
 	underlineAction := newToolbarAction(themes.IconUnderline(), func() {
-		w.editor.WrapSelection("<u>", "</u>")
+		w.getActiveEditor().WrapSelection("<u>", "</u>")
 	})
 
 	highlightAction := newToolbarAction(themes.IconHighlight(), func() {
-		w.editor.WrapSelection("==", "==")
+		w.getActiveEditor().WrapSelection("==", "==")
 	})
 
 	// Math/Science group
 	subscriptAction := newToolbarAction(themes.IconSubscript(), func() {
-		w.editor.WrapSelection("~", "~")
+		w.getActiveEditor().WrapSelection("~", "~")
 	})
 
 	superscriptAction := newToolbarAction(themes.IconSuperscript(), func() {
-		w.editor.WrapSelection("^", "^")
+		w.getActiveEditor().WrapSelection("^", "^")
 	})
 
 	symbolAction := newToolbarAction(themes.IconSymbol(), func() {
 		ShowSymbolPickerDialog(w.fyneWindow, func(symbol string) {
-			w.editor.InsertAtCursor(symbol)
+			w.getActiveEditor().InsertAtCursor(symbol)
 		})
 	})
 
 	// Headings group
 	h1Action := newToolbarAction(themes.IconHeading1(), func() {
-		w.editor.InsertAtLineStart("# ")
+		w.getActiveEditor().InsertAtLineStart("# ")
 	})
 
 	h2Action := newToolbarAction(themes.IconHeading2(), func() {
-		w.editor.InsertAtLineStart("## ")
+		w.getActiveEditor().InsertAtLineStart("## ")
 	})
 
 	h3Action := newToolbarAction(themes.IconHeading3(), func() {
-		w.editor.InsertAtLineStart("### ")
+		w.getActiveEditor().InsertAtLineStart("### ")
 	})
 
 	// Links and media group
 	linkAction := newToolbarAction(themes.IconLink(), func() {
-		w.editor.WrapSelection("[", "](url)")
+		w.getActiveEditor().WrapSelection("[", "](url)")
 	})
 
 	imageAction := newToolbarAction(themes.IconImage(), func() {
@@ -611,54 +661,54 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 			baseDir = filepath.Dir(w.currentFile)
 		}
 		ShowImageInsertDialog(w.fyneWindow, baseDir, func(markdown string) {
-			w.editor.InsertAtCursor(markdown)
+			w.getActiveEditor().InsertAtCursor(markdown)
 		})
 	})
 
 	tableAction := newToolbarAction(themes.IconTable(), func() {
 		ShowTableEditorDialog(w.fyneWindow, func(markdown string) {
-			w.editor.InsertAtCursor("\n" + markdown)
+			w.getActiveEditor().InsertAtCursor("\n" + markdown)
 		})
 	})
 
 	footnoteAction := newToolbarAction(themes.IconFootnote(), func() {
-		w.editor.InsertAtCursor("[^1]")
+		w.getActiveEditor().InsertAtCursor("[^1]")
 	})
 
 	// Code group
 	codeAction := newToolbarAction(themes.IconCode(), func() {
-		w.editor.WrapSelection("`", "`")
+		w.getActiveEditor().WrapSelection("`", "`")
 	})
 
 	codeBlockAction := newToolbarAction(themes.IconCodeBlock(), func() {
-		w.editor.InsertAtCursor("\n```\n\n```\n")
+		w.getActiveEditor().InsertAtCursor("\n```\n\n```\n")
 	})
 
 	// Lists and structure group
 	quoteAction := newToolbarAction(themes.IconQuote(), func() {
-		w.editor.InsertAtLineStart("> ")
+		w.getActiveEditor().InsertAtLineStart("> ")
 	})
 
 	listAction := newToolbarAction(themes.IconList(), func() {
-		w.editor.InsertAtLineStart("- ")
+		w.getActiveEditor().InsertAtLineStart("- ")
 	})
 
 	numberedListAction := newToolbarAction(themes.IconNumberedList(), func() {
-		w.editor.InsertAtLineStart("1. ")
+		w.getActiveEditor().InsertAtLineStart("1. ")
 	})
 
 	checkboxAction := newToolbarAction(themes.IconCheckbox(), func() {
-		w.editor.InsertAtLineStart("- [ ] ")
+		w.getActiveEditor().InsertAtLineStart("- [ ] ")
 	})
 
 	hrAction := newToolbarAction(themes.IconHorizontalRule(), func() {
-		w.editor.InsertAtCursor("\n---\n")
+		w.getActiveEditor().InsertAtCursor("\n---\n")
 	})
 
 	// Productivity group
 	snippetAction := newToolbarAction(themes.IconSnippet(), func() {
 		ShowSnippetsDialog(w.fyneWindow, func(content string) {
-			w.editor.InsertAtCursor(content)
+			w.getActiveEditor().InsertAtCursor(content)
 		})
 	})
 
@@ -982,6 +1032,14 @@ func (w *Window) toggleTOC() {
 	} else {
 		w.tocScroll.Show()
 	}
+}
+
+// getActiveEditor returns the currently active editor based on view mode
+func (w *Window) getActiveEditor() *MarkdownEditor {
+	if w.splitViewMode {
+		return w.splitEditor
+	}
+	return w.editor
 }
 
 // toggleSplitView toggles split view mode (side-by-side editor and preview)

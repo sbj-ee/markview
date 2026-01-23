@@ -83,6 +83,7 @@ type FileTree struct {
 	fyneWindow    fyne.Window       // reference to window for dialogs
 	canvas        fyne.Canvas       // canvas for popup menus
 	onFileChange  func()            // callback when files/dirs are created/deleted/renamed
+	onFileDelete  func(path string) // callback when a file is deleted (passes deleted path)
 	selectedPath  string            // currently selected item path
 	selectedIsDir bool              // true if selected item is a directory
 }
@@ -172,6 +173,12 @@ func (ft *FileTree) SetWindow(w fyne.Window) {
 // SetOnFileChange sets a callback to be called when files/directories are modified
 func (ft *FileTree) SetOnFileChange(callback func()) {
 	ft.onFileChange = callback
+}
+
+// SetOnFileDelete sets a callback to be called when a file is deleted
+// The callback receives the path of the deleted file
+func (ft *FileTree) SetOnFileDelete(callback func(path string)) {
+	ft.onFileDelete = callback
 }
 
 // createFilterEntry creates the search/filter entry
@@ -696,6 +703,9 @@ func (ft *FileTree) showDeleteConfirmation(path string, isDir bool) {
 			}
 
 			ft.tree.Refresh()
+			if ft.onFileDelete != nil {
+				ft.onFileDelete(path)
+			}
 			if ft.onFileChange != nil {
 				ft.onFileChange()
 			}

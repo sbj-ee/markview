@@ -51,7 +51,7 @@ func TestIsNewerVersion(t *testing.T) {
 		{"1.0.0", "2.0.0", false},
 		{"v1.0.1", "v1.0.0", true},
 		{"1.0.4", "1.0.3", true},
-		{"1.0.12", "1.0.11", true},
+		{"1.0.13", "1.0.12", true},
 		{"1.0.0", "1.0.0-beta", false}, // Same major.minor.patch
 	}
 
