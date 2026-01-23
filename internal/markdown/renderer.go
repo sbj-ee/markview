@@ -8,11 +8,11 @@ import (
 	"regexp"
 	"strings"
 
-	mathjax "github.com/litao91/goldmark-mathjax"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	mathjax "github.com/litao91/goldmark-mathjax"
 	"github.com/yuin/goldmark/ast"
 )
 
@@ -511,7 +511,6 @@ func (r *Renderer) renderInline(node ast.Node) {
 	}
 }
 
-
 // renderChildren renders all child nodes
 func (r *Renderer) renderChildren(node ast.Node) {
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
@@ -845,4 +844,3 @@ func (r *Renderer) renderMathBlockAsWidget(node ast.Node) {
 	// Add spacing after math block
 	r.widgets = append(r.widgets, NewSpacer(8))
 }
-

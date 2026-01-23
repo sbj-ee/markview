@@ -57,8 +57,8 @@ func (bp *BacklinksPanel) findBacklinks() {
 	// Patterns to match markdown links
 	// [text](file.md) or [text](./path/file.md) or [[file]] (wiki-style)
 	linkPatterns := []*regexp.Regexp{
-		regexp.MustCompile(`\[([^\]]*)\]\(([^)]+\.md)\)`),     // Standard markdown
-		regexp.MustCompile(`\[\[([^\]]+)\]\]`),                 // Wiki-style
+		regexp.MustCompile(`\[([^\]]*)\]\(([^)]+\.md)\)`), // Standard markdown
+		regexp.MustCompile(`\[\[([^\]]+)\]\]`),            // Wiki-style
 	}
 
 	filepath.Walk(bp.rootPath, func(path string, info os.FileInfo, err error) error {

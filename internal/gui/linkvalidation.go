@@ -35,16 +35,16 @@ type LinkInfo struct {
 
 // LinkValidator validates links in markdown documents
 type LinkValidator struct {
-	basePath    string
-	links       []LinkInfo
-	httpClient  *http.Client
+	basePath      string
+	links         []LinkInfo
+	httpClient    *http.Client
 	checkExternal bool
 }
 
 // NewLinkValidator creates a new link validator
 func NewLinkValidator(basePath string) *LinkValidator {
 	return &LinkValidator{
-		basePath:    basePath,
+		basePath:      basePath,
 		checkExternal: false,
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,
@@ -196,7 +196,7 @@ func ShowLinkValidationDialog(window fyne.Window, basePath, content string, onNa
 			func() fyne.CanvasObject {
 				return container.NewVBox(
 					container.NewHBox(
-						widget.NewLabel(""),  // Status icon placeholder
+						widget.NewLabel(""), // Status icon placeholder
 						widget.NewLabel("Link text"),
 					),
 					widget.NewLabel("target → status"),

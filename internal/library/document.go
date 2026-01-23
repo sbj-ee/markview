@@ -12,14 +12,14 @@ import (
 
 // Document represents a markdown document in the library
 type Document struct {
-	Path       string
-	Title      string
-	Tags       []string
-	Category   string
-	ModTime    time.Time
-	Preview    string
-	WordCount  int
-	Starred    bool
+	Path      string
+	Title     string
+	Tags      []string
+	Category  string
+	ModTime   time.Time
+	Preview   string
+	WordCount int
+	Starred   bool
 }
 
 // DocumentLibrary manages a collection of documents

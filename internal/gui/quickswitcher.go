@@ -14,9 +14,9 @@ import (
 
 // QuickSwitcher provides a fuzzy file finder dialog
 type QuickSwitcher struct {
-	rootPath   string
-	files      []string
-	onSelect   func(path string)
+	rootPath string
+	files    []string
+	onSelect func(path string)
 }
 
 // NewQuickSwitcher creates a new quick switcher

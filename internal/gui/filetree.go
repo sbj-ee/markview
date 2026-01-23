@@ -55,7 +55,7 @@ func (n *fileTreeNode) SetContent(icon fyne.Resource, text string, bold bool) {
 type FileTree struct {
 	tree         *widget.Tree
 	rootPath     string
-	currentFile  string            // currently open file path
+	currentFile  string // currently open file path
 	onFileSelect func(path string)
 	pathMap      map[string]string // uid -> path mapping
 	filter       string            // current filter text

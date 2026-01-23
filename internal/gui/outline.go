@@ -19,9 +19,9 @@ type OutlineEntry struct {
 // Outline is a widget that shows document structure based on headings
 type Outline struct {
 	widget.BaseWidget
-	entries   []OutlineEntry
-	list      *widget.List
-	onSelect  func(line int)
+	entries  []OutlineEntry
+	list     *widget.List
+	onSelect func(line int)
 }
 
 // NewOutline creates a new outline widget

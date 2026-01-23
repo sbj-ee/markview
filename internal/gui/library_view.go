@@ -13,19 +13,19 @@ import (
 // LibraryView provides a view of the document library
 type LibraryView struct {
 	widget.BaseWidget
-	library       *library.DocumentLibrary
-	container     *fyne.Container
-	onFileSelect  func(path string)
-	categoryList  *widget.List
-	tagList       *widget.List
-	documentList  *widget.List
-	searchEntry   *widget.Entry
-	currentFilter string
-	filterType    string // "all", "category", "tag", "search", "starred"
-	filteredDocs  []*library.Document
-	sortBy        library.SortBy
-	sortAscending bool
-	starredPaths  map[string]bool
+	library          *library.DocumentLibrary
+	container        *fyne.Container
+	onFileSelect     func(path string)
+	categoryList     *widget.List
+	tagList          *widget.List
+	documentList     *widget.List
+	searchEntry      *widget.Entry
+	currentFilter    string
+	filterType       string // "all", "category", "tag", "search", "starred"
+	filteredDocs     []*library.Document
+	sortBy           library.SortBy
+	sortAscending    bool
+	starredPaths     map[string]bool
 	onStarredChanged func(paths []string) // Callback when starred docs change
 }
 

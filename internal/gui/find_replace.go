@@ -11,14 +11,14 @@ import (
 
 // FindReplaceDialog provides find and replace functionality
 type FindReplaceDialog struct {
-	window      fyne.Window
-	editor      *MarkdownEditor
-	findEntry   *widget.Entry
+	window       fyne.Window
+	editor       *MarkdownEditor
+	findEntry    *widget.Entry
 	replaceEntry *widget.Entry
-	matchCase   *widget.Check
-	resultLabel *widget.Label
-	currentPos  int
-	matches     []int
+	matchCase    *widget.Check
+	resultLabel  *widget.Label
+	currentPos   int
+	matches      []int
 }
 
 // NewFindReplaceDialog creates a new find and replace dialog
