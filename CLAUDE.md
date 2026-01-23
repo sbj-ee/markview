@@ -2,9 +2,9 @@
 
 This file provides guidance to Claude Code when working with the MarkView codebase.
 
-## Important: Git Authorization Required
+## Git Pre-commit Hook
 
-This repository has a pre-commit hook that requires user authorization before any commit. You cannot commit changes without explicit user approval at the terminal prompt. Always stage changes and inform the user when ready to commit.
+This repository has a pre-commit hook that shows files being committed. In interactive mode (terminal), it prompts for authorization. In non-interactive mode (scripts, Claude Code), it auto-authorizes.
 
 ## Project Overview
 
