@@ -41,7 +41,7 @@ func main() {
 	myApp.SetIcon(themes.AppLogo())
 
 	// Create main window
-	window := gui.NewWindow(myApp, logger)
+	window := gui.NewWindow(myApp, logger, version)
 
 	// Load file if provided via command line
 	if *filePath != "" {

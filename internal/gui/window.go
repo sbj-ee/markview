@@ -104,10 +104,14 @@ type Window struct {
 
 	// Link autocomplete
 	linkAutocomplete *LinkAutocomplete
+
+	// Version and updates
+	version       string
+	updateChecker *UpdateChecker
 }
 
 // NewWindow creates a new application window
-func NewWindow(app fyne.App, logger *zap.Logger) *Window {
+func NewWindow(app fyne.App, logger *zap.Logger, version string) *Window {
 	// Create file watcher with 300ms debounce
 	fw, err := watcher.NewFileWatcher(logger, 300*time.Millisecond)
 	if err != nil {
@@ -124,6 +128,7 @@ func NewWindow(app fyne.App, logger *zap.Logger) *Window {
 		currentTheme:    themes.ThemeDark,      // Start with dark theme
 		currentFont:     themes.FontDefault,    // Start with default font
 		currentFontSize: themes.FontSizeNormal, // Start with normal font size
+		version:         version,
 	}
 
 	// Load saved theme preference
@@ -225,6 +230,9 @@ func (w *Window) setupUI() {
 
 	// Initialize link autocomplete
 	w.linkAutocomplete = NewLinkAutocomplete(w.editor, w.fyneWindow, w.currentDir)
+
+	// Initialize update checker
+	w.updateChecker = NewUpdateChecker(w.version, w.fyneWindow, w.app)
 
 	// Hook autocomplete key handler to editor
 	w.editor.OnKeyEvent = func(key *fyne.KeyEvent) bool {
@@ -430,6 +438,10 @@ func (w *Window) createToolbar() *widget.Toolbar {
 		w.showPrintDialog()
 	})
 
+	helpAction := newToolbarAction(themes.IconHelp(), func() {
+		w.showHelpMenu()
+	})
+
 	toolbar := widget.NewToolbar(
 		newFileAction,
 		openFileAction,
@@ -448,6 +460,7 @@ func (w *Window) createToolbar() *widget.Toolbar {
 		toggleFileTreeAction,
 		toggleTOCAction,
 		toggleThemeAction,
+		helpAction,
 	)
 
 	return toolbar
@@ -1037,6 +1050,70 @@ func (w *Window) showKeyboardShortcuts() {
 
 	d := dialog.NewCustom("Keyboard Shortcuts", "Close", scroll, w.fyneWindow)
 	d.Resize(fyne.NewSize(400, 450))
+	d.Show()
+}
+
+// showHelpMenu shows the help menu with various options
+func (w *Window) showHelpMenu() {
+	// Create menu items
+	shortcutsBtn := widget.NewButton("Keyboard Shortcuts", func() {
+		w.showKeyboardShortcuts()
+	})
+	shortcutsBtn.Importance = widget.HighImportance
+
+	checkUpdatesBtn := widget.NewButton("Check for Updates...", func() {
+		if w.updateChecker != nil {
+			w.updateChecker.CheckForUpdates(false)
+		}
+	})
+
+	aboutBtn := widget.NewButton("About MarkView", func() {
+		w.showAboutDialog()
+	})
+
+	content := container.NewVBox(
+		shortcutsBtn,
+		checkUpdatesBtn,
+		widget.NewSeparator(),
+		aboutBtn,
+	)
+
+	popup := widget.NewPopUp(content, w.fyneWindow.Canvas())
+	popup.ShowAtPosition(fyne.NewPos(
+		w.fyneWindow.Canvas().Size().Width-200,
+		50,
+	))
+}
+
+// showAboutDialog shows information about the application
+func (w *Window) showAboutDialog() {
+	title := widget.NewLabelWithStyle("MarkView", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	version := widget.NewLabel(fmt.Sprintf("Version %s", w.version))
+	version.Alignment = fyne.TextAlignCenter
+
+	desc := widget.NewLabel("A powerful markdown viewer and editor")
+	desc.Alignment = fyne.TextAlignCenter
+	desc.Wrapping = fyne.TextWrapWord
+
+	copyright := widget.NewLabel("© 2024-2025 sbj-ee • MIT License")
+	copyright.Alignment = fyne.TextAlignCenter
+
+	githubLink := widget.NewHyperlink("GitHub Repository", nil)
+	if u, err := url.Parse("https://github.com/sbj-ee/markview"); err == nil {
+		githubLink.SetURL(u)
+	}
+
+	content := container.NewVBox(
+		title,
+		version,
+		widget.NewSeparator(),
+		desc,
+		copyright,
+		githubLink,
+	)
+
+	d := dialog.NewCustom("About MarkView", "Close", content, w.fyneWindow)
+	d.Resize(fyne.NewSize(300, 200))
 	d.Show()
 }
 
@@ -1925,6 +2002,10 @@ func (w *Window) Show() {
 
 // ShowAndRun shows the window and runs the application
 func (w *Window) ShowAndRun() {
+	// Check for updates silently on startup
+	if w.updateChecker != nil {
+		w.updateChecker.CheckForUpdates(true)
+	}
 	w.fyneWindow.ShowAndRun()
 }
 

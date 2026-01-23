@@ -48,6 +48,7 @@ markview/
 │   │   ├── window.go        # Main window, toolbar, menus
 │   │   ├── editor.go        # Markdown editor widget
 │   │   ├── autocomplete.go  # Link autocomplete for [text](path
+│   │   ├── updater.go       # Auto-update checker via GitHub API
 │   │   ├── filetree.go      # File browser tree
 │   │   ├── quickswitcher.go # Fuzzy file finder (Ctrl+P)
 │   │   ├── search.go        # Full-text search
