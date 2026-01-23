@@ -338,7 +338,7 @@ func (w *Window) setupUI() {
 	logoIcon.SetMinSize(fyne.NewSize(20, 20))
 	logoIcon.FillMode = canvas.ImageFillContain
 
-	versionLabel := widget.NewLabel("v1.0.2")
+	versionLabel := widget.NewLabel("v" + w.version)
 	versionLabel.TextStyle = fyne.TextStyle{Italic: true}
 
 	footer := container.NewBorder(
