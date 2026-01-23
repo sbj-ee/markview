@@ -13,6 +13,10 @@ type MarkdownEditor struct {
 	canvas  fyne.Canvas
 	focused bool
 
+	// lastInsertPos tracks the position after the last programmatic insert
+	// This is used when the entry doesn't have focus and cursor position may be stale
+	lastInsertPos int
+
 	OnChanged func(content string)
 	// OnKeyEvent is called before key events are processed.
 	// Return true to consume the event (prevent default handling).
@@ -70,6 +74,8 @@ func (e *MarkdownEditor) Focus(canvas fyne.Canvas) {
 func (e *MarkdownEditor) FocusGained() {
 	e.focused = true
 	e.entry.FocusGained()
+	// Sync lastInsertPos with cursor position when focus is gained
+	e.syncLastInsertPos()
 }
 
 // FocusLost is called when the editor loses focus
@@ -135,17 +141,23 @@ func (e *MarkdownEditor) MinSize() fyne.Size {
 // WrapSelection wraps the selected text with prefix and suffix, or inserts at cursor
 func (e *MarkdownEditor) WrapSelection(prefix, suffix string) {
 	text := e.entry.Text
-	// Get cursor position
-	col := e.entry.CursorColumn
-	row := e.entry.CursorRow
 
-	// Find position in text
-	pos := 0
-	lines := splitLines(text)
-	for i := 0; i < row && i < len(lines); i++ {
-		pos += len(lines[i]) + 1 // +1 for newline
+	// Get cursor position - use entry's position if focused, otherwise use lastInsertPos
+	var pos int
+	if e.focused {
+		col := e.entry.CursorColumn
+		row := e.entry.CursorRow
+
+		// Find position in text
+		pos = 0
+		lines := splitLines(text)
+		for i := 0; i < row && i < len(lines); i++ {
+			pos += len(lines[i]) + 1 // +1 for newline
+		}
+		pos += col
+	} else {
+		pos = e.lastInsertPos
 	}
-	pos += col
 
 	// Check if there's a selection by looking at selected text
 	selected := e.entry.SelectedText()
@@ -156,7 +168,9 @@ func (e *MarkdownEditor) WrapSelection(prefix, suffix string) {
 			newText := text[:selStart] + prefix + selected + suffix + text[selStart+len(selected):]
 			e.entry.SetText(newText)
 			// Position cursor after the wrapped text
-			e.setCursorPosition(selStart + len(prefix) + len(selected) + len(suffix))
+			newPos := selStart + len(prefix) + len(selected) + len(suffix)
+			e.lastInsertPos = newPos
+			e.setCursorPosition(newPos)
 			return
 		}
 	}
@@ -165,33 +179,53 @@ func (e *MarkdownEditor) WrapSelection(prefix, suffix string) {
 	if pos > len(text) {
 		pos = len(text)
 	}
+	if pos < 0 {
+		pos = 0
+	}
 	newText := text[:pos] + prefix + suffix + text[pos:]
 	e.entry.SetText(newText)
 	// Position cursor between prefix and suffix
-	e.setCursorPosition(pos + len(prefix))
+	newPos := pos + len(prefix)
+	e.lastInsertPos = newPos
+	e.setCursorPosition(newPos)
 }
 
 // InsertAtCursor inserts text at the current cursor position
 func (e *MarkdownEditor) InsertAtCursor(insert string) {
 	text := e.entry.Text
-	col := e.entry.CursorColumn
-	row := e.entry.CursorRow
 
-	// Find position in text
-	pos := 0
-	lines := splitLines(text)
-	for i := 0; i < row && i < len(lines); i++ {
-		pos += len(lines[i]) + 1
+	var pos int
+	if e.focused {
+		// Entry has focus, use its cursor position
+		col := e.entry.CursorColumn
+		row := e.entry.CursorRow
+
+		// Find position in text
+		pos = 0
+		lines := splitLines(text)
+		for i := 0; i < row && i < len(lines); i++ {
+			pos += len(lines[i]) + 1
+		}
+		pos += col
+	} else {
+		// Entry doesn't have focus, use last known insert position
+		pos = e.lastInsertPos
 	}
-	pos += col
 
 	if pos > len(text) {
 		pos = len(text)
 	}
+	if pos < 0 {
+		pos = 0
+	}
+
 	newText := text[:pos] + insert + text[pos:]
 	e.entry.SetText(newText)
-	// Position cursor after inserted text
-	e.setCursorPosition(pos + len(insert))
+
+	// Update last insert position and cursor
+	newPos := pos + len(insert)
+	e.lastInsertPos = newPos
+	e.setCursorPosition(newPos)
 }
 
 // InsertAtLineStart inserts text at the beginning of the current line
@@ -240,6 +274,25 @@ func (e *MarkdownEditor) setCursorPosition(pos int) {
 	e.entry.CursorRow = row
 	e.entry.CursorColumn = col
 	e.entry.Refresh()
+}
+
+// syncLastInsertPos updates lastInsertPos from the current cursor position
+func (e *MarkdownEditor) syncLastInsertPos() {
+	text := e.entry.Text
+	col := e.entry.CursorColumn
+	row := e.entry.CursorRow
+
+	pos := 0
+	lines := splitLines(text)
+	for i := 0; i < row && i < len(lines); i++ {
+		pos += len(lines[i]) + 1
+	}
+	pos += col
+
+	if pos > len(text) {
+		pos = len(text)
+	}
+	e.lastInsertPos = pos
 }
 
 // splitLines splits text into lines

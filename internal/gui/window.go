@@ -623,16 +623,19 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 
 	// Math/Science group
 	subscriptAction := newToolbarAction(themes.IconSubscript(), func() {
-		w.getActiveEditor().WrapSelection("~", "~")
+		w.getActiveEditor().WrapSelection("<sub>", "</sub>")
 	})
 
 	superscriptAction := newToolbarAction(themes.IconSuperscript(), func() {
-		w.getActiveEditor().WrapSelection("^", "^")
+		w.getActiveEditor().WrapSelection("<sup>", "</sup>")
 	})
 
 	symbolAction := newToolbarAction(themes.IconSymbol(), func() {
 		ShowSymbolPickerDialog(w.fyneWindow, func(symbol string) {
-			w.getActiveEditor().InsertAtCursor(symbol)
+			editor := w.getActiveEditor()
+			editor.InsertAtCursor(symbol)
+			// Refocus the editor after inserting to maintain cursor position
+			editor.Focus(w.fyneWindow.Canvas())
 		})
 	})
 
