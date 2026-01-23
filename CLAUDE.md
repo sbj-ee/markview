@@ -48,7 +48,7 @@ markview/
 │   │   ├── window.go        # Main window, toolbar, menus
 │   │   ├── editor.go        # Markdown editor widget
 │   │   ├── autocomplete.go  # Link autocomplete for [text](path
-│   │   ├── updater.go       # Auto-update checker via GitHub API (arch-aware)
+│   │   ├── updater.go       # Auto-update checker via GitHub API
 │   │   ├── filetree.go      # File browser tree
 │   │   ├── quickswitcher.go # Fuzzy file finder (Ctrl+P)
 │   │   ├── search.go        # Full-text search
@@ -148,11 +148,9 @@ Implementation:
 - Empty directories are shown in the tree (no longer filtered out)
 
 ### Update Checker
-Architecture-aware update checking in `updater.go`:
+Auto-update checking in `updater.go`:
 - Fetches latest release from GitHub API
-- Uses `runtime.GOARCH` to detect current architecture (amd64/arm64)
-- Selects appropriate DMG: `x86_64` for Intel, `arm64` for Apple Silicon
-- Falls back to universal DMG if arch-specific not found
+- Downloads universal DMG (works on both Intel and Apple Silicon)
 - Supports "Skip This Version" preference to dismiss updates
 - Checks once per day in silent mode (startup), on-demand via Help menu
 

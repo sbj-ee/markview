@@ -72,7 +72,7 @@
 - **Image Support** - Local image rendering with upload dialog
 - **Window Size Persistence** - Remembers your window size
 - **Keyboard Shortcuts** - Comprehensive shortcuts for all operations
-- **Auto-Update Check** - Notifies when new versions are available, automatically selects correct DMG for your Mac's architecture (Intel/Apple Silicon)
+- **Auto-Update Check** - Notifies when new versions are available
 
 ---
 
@@ -317,7 +317,7 @@ VERSION=1.1.0 make package-dmg
 
 The packaging scripts create:
 - **Linux (.deb)**: Full package with desktop entry, icons, MIME types, and AppStream metadata
-- **macOS (.dmg)**: Universal binary (Intel + Apple Silicon), app bundle with Info.plist and icons
+- **macOS (.dmg)**: Universal binary (Intel + Apple Silicon) in a single DMG with app bundle, Info.plist and icons
 
 ---
 

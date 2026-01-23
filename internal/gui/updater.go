@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -206,40 +205,14 @@ func (uc *UpdateChecker) showUpdateDialog(release *GitHubRelease) {
 		notesScroll,
 	)
 
-	// Find download URL for current platform and architecture
+	// Find download URL for macOS DMG
 	downloadURL := release.HTMLURL
-	var universalURL string
-
-	// Determine which architecture suffix to look for
-	archSuffix := ""
-	switch runtime.GOARCH {
-	case "amd64":
-		archSuffix = "x86_64"
-	case "arm64":
-		archSuffix = "arm64"
-	}
-
 	for _, asset := range release.Assets {
 		name := strings.ToLower(asset.Name)
-		if !strings.HasSuffix(name, ".dmg") {
-			continue
-		}
-
-		// Check for architecture-specific DMG
-		if archSuffix != "" && strings.Contains(name, archSuffix) {
+		if strings.HasSuffix(name, ".dmg") {
 			downloadURL = asset.BrowserDownloadURL
 			break
 		}
-
-		// Track universal DMG (no arch suffix) as fallback
-		if !strings.Contains(name, "arm64") && !strings.Contains(name, "x86_64") && !strings.Contains(name, "amd64") {
-			universalURL = asset.BrowserDownloadURL
-		}
-	}
-
-	// Use universal DMG if no arch-specific one was found
-	if downloadURL == release.HTMLURL && universalURL != "" {
-		downloadURL = universalURL
 	}
 
 	// Create custom dialog with buttons
