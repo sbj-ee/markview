@@ -116,6 +116,9 @@ func (uc *UpdateChecker) fetchLatestRelease() (*GitHubRelease, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("no releases found - you may be running a development version")
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
 	}
