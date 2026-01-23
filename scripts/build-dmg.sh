@@ -244,6 +244,15 @@ EOF
 # Create PkgInfo
 echo -n "APPL????" > "dist/dmg/${APP_NAME}.app/Contents/PkgInfo"
 
+# Copy entitlements file
+cp "${SCRIPT_DIR}/entitlements.plist" "dist/dmg/${APP_NAME}.app/Contents/"
+
+# Ad-hoc sign the app with entitlements (allows file access without full Developer ID)
+echo "[5.5/6] Ad-hoc signing app with entitlements..."
+codesign --force --deep --sign - \
+    --entitlements "${SCRIPT_DIR}/entitlements.plist" \
+    "dist/dmg/${APP_NAME}.app" 2>/dev/null || echo "   Warning: Ad-hoc signing failed (may need Xcode tools)"
+
 # Create DMG
 echo "[6/6] Creating .dmg..."
 rm -f "dist/dmg/${DMG_NAME}.dmg"
