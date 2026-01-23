@@ -701,15 +701,12 @@ func (r *Renderer) renderParagraphAsWidget(node *ast.Paragraph) {
 
 	// Check if paragraph contains HTML tags (like <sub> or <sup>)
 	if r.containsInlineHTML(node) {
-		// Use RichText to properly render inline HTML conversions
-		var texts []widget.RichTextSegment
-		for child := node.FirstChild(); child != nil; child = child.NextSibling() {
-			texts = append(texts, r.renderInlineNode(child)...)
-		}
-		if len(texts) > 0 {
-			rt := widget.NewRichText(&widget.ParagraphSegment{Texts: texts})
-			rt.Wrapping = fyne.TextWrapWord
-			r.widgets = append(r.widgets, rt)
+		// Build a single string with subscript/superscript conversions
+		text := r.extractInlineTextWithHTML(node)
+		if text != "" {
+			label := widget.NewLabel(text)
+			label.Wrapping = fyne.TextWrapWord
+			r.widgets = append(r.widgets, label)
 			r.widgets = append(r.widgets, NewSpacer(8))
 		}
 		return
@@ -726,6 +723,43 @@ func (r *Renderer) renderParagraphAsWidget(node *ast.Paragraph) {
 		// Add spacing after paragraph
 		r.widgets = append(r.widgets, NewSpacer(8))
 	}
+}
+
+// extractInlineTextWithHTML extracts text with subscript/superscript HTML tags converted
+func (r *Renderer) extractInlineTextWithHTML(node ast.Node) string {
+	var buf strings.Builder
+	inSubscript := false
+	inSuperscript := false
+
+	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
+		switch n := child.(type) {
+		case *ast.RawHTML:
+			htmlContent := strings.ToLower(strings.TrimSpace(string(n.Segments.Value(r.source))))
+			switch htmlContent {
+			case "<sub>":
+				inSubscript = true
+			case "</sub>":
+				inSubscript = false
+			case "<sup>":
+				inSuperscript = true
+			case "</sup>":
+				inSuperscript = false
+			}
+		case *ast.Text:
+			text := normalizeText(string(n.Segment.Value(r.source)))
+			if inSubscript {
+				text = toSubscript(text)
+			} else if inSuperscript {
+				text = toSuperscript(text)
+			}
+			buf.WriteString(text)
+		default:
+			// For other inline elements, extract their text recursively
+			buf.WriteString(r.extractInlineText(child))
+		}
+	}
+
+	return buf.String()
 }
 
 // containsInlineHTML checks if a node contains RawHTML children

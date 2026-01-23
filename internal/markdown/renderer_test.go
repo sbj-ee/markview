@@ -499,3 +499,39 @@ func TestRenderInlineNode_Superscript(t *testing.T) {
 		t.Errorf("renderInlineNode superscript = %q, want %q", resultText, want)
 	}
 }
+
+func TestExtractInlineTextWithHTML(t *testing.T) {
+	md := goldmark.New()
+
+	tests := []struct {
+		name     string
+		markdown string
+		want     string
+	}{
+		{"subscript", "H<sub>2</sub>O", "H₂O"},
+		{"superscript", "x<sup>2</sup>", "x²"},
+		{"mixed", "H<sub>2</sub>O and E=mc<sup>2</sup>", "H₂O and E=mc²"},
+		{"no html", "plain text", "plain text"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source := []byte(tt.markdown)
+			reader := text.NewReader(source)
+			doc := md.Parser().Parse(reader)
+
+			renderer := NewRenderer(source)
+
+			// Get the paragraph node
+			para := doc.FirstChild()
+			if para == nil {
+				t.Fatal("No paragraph node found")
+			}
+
+			got := renderer.extractInlineTextWithHTML(para)
+			if got != tt.want {
+				t.Errorf("extractInlineTextWithHTML() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
