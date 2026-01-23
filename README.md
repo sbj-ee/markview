@@ -72,7 +72,7 @@
 - **Image Support** - Local image rendering with upload dialog
 - **Window Size Persistence** - Remembers your window size
 - **Keyboard Shortcuts** - Comprehensive shortcuts for all operations
-- **Auto-Update Check** - Notifies when new versions are available
+- **Auto-Update Check** - Notifies when new versions are available, automatically selects correct DMG for your Mac's architecture (Intel/Apple Silicon)
 
 ---
 

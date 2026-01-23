@@ -48,7 +48,7 @@ markview/
 │   │   ├── window.go        # Main window, toolbar, menus
 │   │   ├── editor.go        # Markdown editor widget
 │   │   ├── autocomplete.go  # Link autocomplete for [text](path
-│   │   ├── updater.go       # Auto-update checker via GitHub API
+│   │   ├── updater.go       # Auto-update checker via GitHub API (arch-aware)
 │   │   ├── filetree.go      # File browser tree
 │   │   ├── quickswitcher.go # Fuzzy file finder (Ctrl+P)
 │   │   ├── search.go        # Full-text search
@@ -146,6 +146,15 @@ Implementation:
 - All dialogs are resizable (400x150) using `dialog.NewForm()` with `Resize()`
 - Auto-adds `.md` extension to new files if not present
 - Empty directories are shown in the tree (no longer filtered out)
+
+### Update Checker
+Architecture-aware update checking in `updater.go`:
+- Fetches latest release from GitHub API
+- Uses `runtime.GOARCH` to detect current architecture (amd64/arm64)
+- Selects appropriate DMG: `x86_64` for Intel, `arm64` for Apple Silicon
+- Falls back to universal DMG if arch-specific not found
+- Supports "Skip This Version" preference to dismiss updates
+- Checks once per day in silent mode (startup), on-demand via Help menu
 
 ### Color Themes (8 total)
 Light, Dark, Nord, Solarized Light, Solarized Dark, Monokai, Gruvbox Dark, One Dark
