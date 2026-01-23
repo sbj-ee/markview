@@ -151,29 +151,26 @@ func (e *MarkdownEditor) MinSize() fyne.Size {
 func (e *MarkdownEditor) WrapSelection(prefix, suffix string) {
 	text := e.entry.Text
 
-	// Get cursor position - use entry's position if focused, otherwise use lastInsertPos
-	var pos int
-	if e.focused {
-		col := e.entry.CursorColumn
-		row := e.entry.CursorRow
-
-		// Find position in text
-		pos = 0
-		lines := splitLines(text)
-		for i := 0; i < row && i < len(lines); i++ {
-			pos += len(lines[i]) + 1 // +1 for newline
-		}
-		pos += col
-	} else {
-		pos = e.lastInsertPos
+	// Always try to get selection from entry first (it may persist after focus lost)
+	// Fall back to saved selection only if entry has none
+	selected := e.entry.SelectedText()
+	if selected == "" {
+		selected = e.lastSelectedText
 	}
 
-	// Check if there's a selection - use current selection if focused, or saved selection if not
-	var selected string
-	if e.focused {
-		selected = e.entry.SelectedText()
-	} else {
-		selected = e.lastSelectedText
+	// Get cursor position from entry (even if not focused, entry may still have valid position)
+	col := e.entry.CursorColumn
+	row := e.entry.CursorRow
+	pos := 0
+	lines := splitLines(text)
+	for i := 0; i < row && i < len(lines); i++ {
+		pos += len(lines[i]) + 1 // +1 for newline
+	}
+	pos += col
+
+	// If entry position seems invalid, use lastInsertPos
+	if pos > len(text) || (pos == 0 && e.lastInsertPos > 0) {
+		pos = e.lastInsertPos
 	}
 
 	if selected != "" {
@@ -342,21 +339,43 @@ func joinLines(lines []string) string {
 
 // findSelectionStart finds the start position of selected text near cursor
 func findSelectionStart(text, selected string, cursorPos int) int {
-	// Search backwards from cursor first
-	searchStart := cursorPos - len(selected)
-	if searchStart < 0 {
-		searchStart = 0
-	}
-	for i := searchStart; i <= cursorPos && i+len(selected) <= len(text); i++ {
-		if text[i:i+len(selected)] == selected {
-			return i
+	selLen := len(selected)
+	textLen := len(text)
+
+	// Check the two most likely positions first:
+	// 1. Cursor is at END of selection (most common) - selection starts at cursorPos - selLen
+	if cursorPos >= selLen && cursorPos <= textLen {
+		start := cursorPos - selLen
+		if start+selLen <= textLen && text[start:start+selLen] == selected {
+			return start
 		}
 	}
-	// Search forwards from cursor
-	for i := cursorPos; i+len(selected) <= len(text); i++ {
-		if text[i:i+len(selected)] == selected {
-			return i
+
+	// 2. Cursor is at START of selection - selection starts at cursorPos
+	if cursorPos >= 0 && cursorPos+selLen <= textLen {
+		if text[cursorPos:cursorPos+selLen] == selected {
+			return cursorPos
 		}
 	}
+
+	// Expand search outward from cursor position
+	// Search all positions where selection could contain or be near cursor
+	for offset := 1; offset <= textLen; offset++ {
+		// Search backwards - selection might start before cursor
+		start := cursorPos - offset
+		if start >= 0 && start+selLen <= textLen {
+			if text[start:start+selLen] == selected {
+				return start
+			}
+		}
+		// Search forwards - selection might start after cursor
+		start = cursorPos + offset
+		if start >= 0 && start+selLen <= textLen {
+			if text[start:start+selLen] == selected {
+				return start
+			}
+		}
+	}
+
 	return -1
 }
