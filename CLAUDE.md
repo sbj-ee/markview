@@ -132,18 +132,20 @@ Implementation in `autocomplete.go`:
 - Fuzzy matching filters suggestions as user types
 - Keyboard navigation: Arrow keys, Enter/Tab to accept, Escape to dismiss
 
-### File Tree Context Menu
-Right-click context menu for file/directory operations in `filetree.go`:
-- **Directory context menu**: New File, New Directory, Rename Directory, Delete Directory
-- **File context menu**: Rename File, Delete File, New File Here, New Directory Here
+### File Tree Action Bar
+Action bar at the bottom of the file tree for file/directory operations in `filetree.go`:
+- **New File** - Creates a new markdown file in selected directory (or parent of selected file)
+- **New Folder** - Creates a new directory
+- **Rename** - Renames the selected file or directory
+- **Delete** - Deletes the selected file or directory with confirmation
 
 Implementation:
-- `fileTreeNode` implements `fyne.SecondaryTappable` via `TappedSecondary()`
-- Stores path, isDirectory, isParentDir state for context-aware menus
-- `showContextMenu()` creates popup menu with appropriate options
+- `createActionBar()` creates four icon buttons using Fyne theme icons
+- `selectedPath` and `selectedIsDir` track the current selection
 - Dialog methods: `showNewFileDialog()`, `showNewDirectoryDialog()`, `showRenameDialog()`, `showDeleteConfirmation()`
+- All dialogs are resizable (400x150) using `dialog.NewForm()` with `Resize()`
 - Auto-adds `.md` extension to new files if not present
-- Parent directory ".." entry excluded from context menus
+- Empty directories are shown in the tree (no longer filtered out)
 
 ### Color Themes (8 total)
 Light, Dark, Nord, Solarized Light, Solarized Dark, Monokai, Gruvbox Dark, One Dark
@@ -212,7 +214,7 @@ The `LinkAutocomplete` pattern can be extended:
 | Cmd+L | Validate links |
 | F11 | Zen mode |
 | **File Browser** | |
-| Right-click | Context menu (new/rename/delete) |
+| Action Bar | New File, New Folder, Rename, Delete buttons |
 | **Link Autocomplete** | |
 | Up/Down | Navigate suggestions |
 | Enter/Tab | Accept selection |
