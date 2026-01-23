@@ -5,7 +5,6 @@
 *.so
 *.dylib
 bin/
-dist/
 markview
 
 # Test binary, built with `go test -c`
@@ -40,3 +39,8 @@ fyne-cross/
 tmp/
 temp/
 /.claude/
+
+# Build outputs
+dist/dmg/*.dmg
+dist/dmg/*.app
+dist/deb/*.deb

@@ -21,29 +21,29 @@ echo "============================================"
 
 # Clean previous builds
 echo "[1/7] Cleaning previous builds..."
-rm -rf "dist/${PKG_DIR}" "dist/${PKG_NAME}_${VERSION}_${ARCH}.deb"
-mkdir -p "dist/${PKG_DIR}"
+rm -rf "dist/deb/${PKG_DIR}" "dist/deb/${PKG_NAME}_${VERSION}_${ARCH}.deb"
+mkdir -p "dist/deb/${PKG_DIR}"
 
 # Build the binary
 echo "[2/7] Compiling binary..."
-CGO_ENABLED=1 GOOS=linux GOARCH=${ARCH} go build -ldflags="-s -w -X main.version=${VERSION}" -o "dist/${PKG_DIR}/usr/bin/markview" ./cmd/markview
+CGO_ENABLED=1 GOOS=linux GOARCH=${ARCH} go build -ldflags="-s -w -X main.version=${VERSION}" -o "dist/deb/${PKG_DIR}/usr/bin/markview" ./cmd/markview
 
 # Create directory structure
 echo "[3/7] Creating package structure..."
-mkdir -p "dist/${PKG_DIR}/DEBIAN"
-mkdir -p "dist/${PKG_DIR}/usr/bin"
-mkdir -p "dist/${PKG_DIR}/usr/share/applications"
-mkdir -p "dist/${PKG_DIR}/usr/share/icons/hicolor/64x64/apps"
-mkdir -p "dist/${PKG_DIR}/usr/share/icons/hicolor/128x128/apps"
-mkdir -p "dist/${PKG_DIR}/usr/share/icons/hicolor/256x256/apps"
-mkdir -p "dist/${PKG_DIR}/usr/share/icons/hicolor/scalable/apps"
-mkdir -p "dist/${PKG_DIR}/usr/share/doc/markview"
-mkdir -p "dist/${PKG_DIR}/usr/share/metainfo"
-mkdir -p "dist/${PKG_DIR}/usr/share/mime/packages"
+mkdir -p "dist/deb/${PKG_DIR}/DEBIAN"
+mkdir -p "dist/deb/${PKG_DIR}/usr/bin"
+mkdir -p "dist/deb/${PKG_DIR}/usr/share/applications"
+mkdir -p "dist/deb/${PKG_DIR}/usr/share/icons/hicolor/64x64/apps"
+mkdir -p "dist/deb/${PKG_DIR}/usr/share/icons/hicolor/128x128/apps"
+mkdir -p "dist/deb/${PKG_DIR}/usr/share/icons/hicolor/256x256/apps"
+mkdir -p "dist/deb/${PKG_DIR}/usr/share/icons/hicolor/scalable/apps"
+mkdir -p "dist/deb/${PKG_DIR}/usr/share/doc/markview"
+mkdir -p "dist/deb/${PKG_DIR}/usr/share/metainfo"
+mkdir -p "dist/deb/${PKG_DIR}/usr/share/mime/packages"
 
 # Create control file
 echo "[4/7] Creating package metadata..."
-cat > "dist/${PKG_DIR}/DEBIAN/control" << EOF
+cat > "dist/deb/${PKG_DIR}/DEBIAN/control" << EOF
 Package: markview
 Version: ${VERSION}
 Section: editors
@@ -70,7 +70,7 @@ Description: A powerful markdown viewer and editor
 EOF
 
 # Create postinst script
-cat > "dist/${PKG_DIR}/DEBIAN/postinst" << 'EOF'
+cat > "dist/deb/${PKG_DIR}/DEBIAN/postinst" << 'EOF'
 #!/bin/bash
 set -e
 
@@ -91,10 +91,10 @@ fi
 
 exit 0
 EOF
-chmod 755 "dist/${PKG_DIR}/DEBIAN/postinst"
+chmod 755 "dist/deb/${PKG_DIR}/DEBIAN/postinst"
 
 # Create postrm script
-cat > "dist/${PKG_DIR}/DEBIAN/postrm" << 'EOF'
+cat > "dist/deb/${PKG_DIR}/DEBIAN/postrm" << 'EOF'
 #!/bin/bash
 set -e
 
@@ -110,10 +110,10 @@ fi
 
 exit 0
 EOF
-chmod 755 "dist/${PKG_DIR}/DEBIAN/postrm"
+chmod 755 "dist/deb/${PKG_DIR}/DEBIAN/postrm"
 
 # Create desktop entry
-cat > "dist/${PKG_DIR}/usr/share/applications/markview.desktop" << EOF
+cat > "dist/deb/${PKG_DIR}/usr/share/applications/markview.desktop" << EOF
 [Desktop Entry]
 Name=MarkView
 GenericName=Markdown Editor
@@ -130,7 +130,7 @@ StartupWMClass=markview
 EOF
 
 # Create MIME type definition
-cat > "dist/${PKG_DIR}/usr/share/mime/packages/markview.xml" << 'EOF'
+cat > "dist/deb/${PKG_DIR}/usr/share/mime/packages/markview.xml" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
   <mime-type type="text/markdown">
@@ -144,7 +144,7 @@ cat > "dist/${PKG_DIR}/usr/share/mime/packages/markview.xml" << 'EOF'
 EOF
 
 # Create AppStream metadata
-cat > "dist/${PKG_DIR}/usr/share/metainfo/com.sbj-ee.markview.metainfo.xml" << EOF
+cat > "dist/deb/${PKG_DIR}/usr/share/metainfo/com.sbj-ee.markview.metainfo.xml" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
   <id>com.sbj-ee.markview</id>
@@ -203,23 +203,23 @@ EOF
 # Copy icons
 echo "[5/7] Copying icons..."
 if [ -f "assets/logo-64.png" ]; then
-    cp "assets/logo-64.png" "dist/${PKG_DIR}/usr/share/icons/hicolor/64x64/apps/markview.png"
+    cp "assets/logo-64.png" "dist/deb/${PKG_DIR}/usr/share/icons/hicolor/64x64/apps/markview.png"
 fi
 if [ -f "assets/logo-128.png" ]; then
-    cp "assets/logo-128.png" "dist/${PKG_DIR}/usr/share/icons/hicolor/128x128/apps/markview.png"
+    cp "assets/logo-128.png" "dist/deb/${PKG_DIR}/usr/share/icons/hicolor/128x128/apps/markview.png"
 fi
 if [ -f "assets/logo-256.png" ]; then
-    cp "assets/logo-256.png" "dist/${PKG_DIR}/usr/share/icons/hicolor/256x256/apps/markview.png"
+    cp "assets/logo-256.png" "dist/deb/${PKG_DIR}/usr/share/icons/hicolor/256x256/apps/markview.png"
 fi
 if [ -f "assets/logo.svg" ]; then
-    cp "assets/logo.svg" "dist/${PKG_DIR}/usr/share/icons/hicolor/scalable/apps/markview.svg"
+    cp "assets/logo.svg" "dist/deb/${PKG_DIR}/usr/share/icons/hicolor/scalable/apps/markview.svg"
 fi
 
 # Copy documentation
 echo "[6/7] Copying documentation..."
-cp README.md "dist/${PKG_DIR}/usr/share/doc/markview/"
+cp README.md "dist/deb/${PKG_DIR}/usr/share/doc/markview/"
 
-cat > "dist/${PKG_DIR}/usr/share/doc/markview/copyright" << EOF
+cat > "dist/deb/${PKG_DIR}/usr/share/doc/markview/copyright" << EOF
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: markview
 Upstream-Contact: sbj-ee <sbj-ee@users.noreply.github.com>
@@ -250,27 +250,27 @@ License: MIT
 EOF
 
 # Set permissions
-chmod 755 "dist/${PKG_DIR}/usr/bin/markview"
-chmod 644 "dist/${PKG_DIR}/DEBIAN/control"
-find "dist/${PKG_DIR}/usr/share" -type f -exec chmod 644 {} \;
-find "dist/${PKG_DIR}/usr/share" -type d -exec chmod 755 {} \;
+chmod 755 "dist/deb/${PKG_DIR}/usr/bin/markview"
+chmod 644 "dist/deb/${PKG_DIR}/DEBIAN/control"
+find "dist/deb/${PKG_DIR}/usr/share" -type f -exec chmod 644 {} \;
+find "dist/deb/${PKG_DIR}/usr/share" -type d -exec chmod 755 {} \;
 
 # Build the package
 echo "[7/7] Building .deb package..."
 if command -v fakeroot &> /dev/null; then
-    fakeroot dpkg-deb --build "dist/${PKG_DIR}" "dist/${PKG_NAME}_${VERSION}_${ARCH}.deb"
+    fakeroot dpkg-deb --build "dist/deb/${PKG_DIR}" "dist/deb/${PKG_NAME}_${VERSION}_${ARCH}.deb"
 else
-    dpkg-deb --build "dist/${PKG_DIR}" "dist/${PKG_NAME}_${VERSION}_${ARCH}.deb"
+    dpkg-deb --build "dist/deb/${PKG_DIR}" "dist/deb/${PKG_NAME}_${VERSION}_${ARCH}.deb"
 fi
 
 # Clean up build directory
-rm -rf "dist/${PKG_DIR}"
+rm -rf "dist/deb/${PKG_DIR}"
 
 # Validate with lintian (optional)
 if command -v lintian &> /dev/null; then
     echo ""
     echo "Validating package with lintian..."
-    lintian --no-tag-display-limit "dist/${PKG_NAME}_${VERSION}_${ARCH}.deb" || true
+    lintian --no-tag-display-limit "dist/deb/${PKG_NAME}_${VERSION}_${ARCH}.deb" || true
 fi
 
 echo ""

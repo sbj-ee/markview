@@ -26,42 +26,42 @@ fi
 
 # Clean previous builds
 echo "[1/8] Cleaning previous builds..."
-rm -rf "dist/${APP_NAME}.app" "dist/${DMG_NAME}.dmg" "dist/markview-arm64" "dist/markview-amd64" "dist/markview"
-mkdir -p dist
+rm -rf "dist/dmg/${APP_NAME}.app" "dist/dmg/${DMG_NAME}.dmg" "dist/dmg/markview-arm64" "dist/dmg/markview-amd64" "dist/dmg/markview"
+mkdir -p dist/dmg
 
 # Build for Apple Silicon (arm64)
 echo "[2/8] Compiling binary for Apple Silicon (arm64)..."
 CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build \
     -ldflags="-s -w -X main.version=${VERSION}" \
-    -o "dist/markview-arm64" ./cmd/markview
+    -o "dist/dmg/markview-arm64" ./cmd/markview
 
 # Build for Intel (amd64)
 echo "[3/8] Compiling binary for Intel (amd64)..."
 CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build \
     -ldflags="-s -w -X main.version=${VERSION}" \
-    -o "dist/markview-amd64" ./cmd/markview
+    -o "dist/dmg/markview-amd64" ./cmd/markview
 
 # Create universal binary
 echo "[4/8] Creating universal binary..."
-lipo -create -output "dist/markview" "dist/markview-arm64" "dist/markview-amd64"
-rm "dist/markview-arm64" "dist/markview-amd64"
+lipo -create -output "dist/dmg/markview" "dist/dmg/markview-arm64" "dist/dmg/markview-amd64"
+rm "dist/dmg/markview-arm64" "dist/dmg/markview-amd64"
 
 # Verify universal binary
-echo "   Binary architectures: $(lipo -archs dist/markview)"
+echo "   Binary architectures: $(lipo -archs dist/dmg/markview)"
 
 # Create .app bundle structure
 echo "[5/8] Creating .app bundle..."
-mkdir -p "dist/${APP_NAME}.app/Contents/MacOS"
-mkdir -p "dist/${APP_NAME}.app/Contents/Resources"
+mkdir -p "dist/dmg/${APP_NAME}.app/Contents/MacOS"
+mkdir -p "dist/dmg/${APP_NAME}.app/Contents/Resources"
 
 # Copy binary
-cp "dist/markview" "dist/${APP_NAME}.app/Contents/MacOS/"
-chmod +x "dist/${APP_NAME}.app/Contents/MacOS/markview"
+cp "dist/dmg/markview" "dist/dmg/${APP_NAME}.app/Contents/MacOS/"
+chmod +x "dist/dmg/${APP_NAME}.app/Contents/MacOS/markview"
 
 # Create/copy icon
 echo "[6/8] Creating app icon..."
 if [ -f "assets/markview.icns" ]; then
-    cp "assets/markview.icns" "dist/${APP_NAME}.app/Contents/Resources/"
+    cp "assets/markview.icns" "dist/dmg/${APP_NAME}.app/Contents/Resources/"
 elif [ -f "assets/logo-256.png" ]; then
     # Create iconset from PNG
     ICONSET_DIR="dist/markview.iconset"
@@ -87,18 +87,18 @@ elif [ -f "assets/logo-256.png" ]; then
     fi
 
     # Convert to icns
-    iconutil -c icns "$ICONSET_DIR" -o "dist/${APP_NAME}.app/Contents/Resources/markview.icns"
+    iconutil -c icns "$ICONSET_DIR" -o "dist/dmg/${APP_NAME}.app/Contents/Resources/markview.icns"
     rm -rf "$ICONSET_DIR"
 
     # Also save to assets for future use
-    cp "dist/${APP_NAME}.app/Contents/Resources/markview.icns" "assets/markview.icns" 2>/dev/null || true
+    cp "dist/dmg/${APP_NAME}.app/Contents/Resources/markview.icns" "assets/markview.icns" 2>/dev/null || true
 else
     echo "   Warning: No icon found, app will use default icon"
 fi
 
 # Create Info.plist
 echo "[7/8] Creating Info.plist..."
-cat > "dist/${APP_NAME}.app/Contents/Info.plist" << EOF
+cat > "dist/dmg/${APP_NAME}.app/Contents/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -191,11 +191,11 @@ cat > "dist/${APP_NAME}.app/Contents/Info.plist" << EOF
 EOF
 
 # Create PkgInfo
-echo -n "APPL????" > "dist/${APP_NAME}.app/Contents/PkgInfo"
+echo -n "APPL????" > "dist/dmg/${APP_NAME}.app/Contents/PkgInfo"
 
 # Create DMG
 echo "[8/8] Creating .dmg..."
-rm -f "dist/${DMG_NAME}.dmg"
+rm -f "dist/dmg/${DMG_NAME}.dmg"
 
 if command -v create-dmg &> /dev/null; then
     # Use create-dmg for a prettier DMG with background and icon positioning
@@ -208,39 +208,39 @@ if command -v create-dmg &> /dev/null; then
         --hide-extension "${APP_NAME}.app" \
         --app-drop-link 450 190 \
         --no-internet-enable \
-        "dist/${DMG_NAME}.dmg" \
-        "dist/${APP_NAME}.app" || {
+        "dist/dmg/${DMG_NAME}.dmg" \
+        "dist/dmg/${APP_NAME}.app" || {
             # Fallback if create-dmg fails
             echo "   create-dmg failed, falling back to hdiutil..."
             hdiutil create -volname "${APP_NAME}" \
-                -srcfolder "dist/${APP_NAME}.app" \
+                -srcfolder "dist/dmg/${APP_NAME}.app" \
                 -ov -format UDZO \
-                "dist/${DMG_NAME}.dmg"
+                "dist/dmg/${DMG_NAME}.dmg"
         }
 else
     # Fallback to hdiutil
     hdiutil create -volname "${APP_NAME}" \
-        -srcfolder "dist/${APP_NAME}.app" \
+        -srcfolder "dist/dmg/${APP_NAME}.app" \
         -ov -format UDZO \
-        "dist/${DMG_NAME}.dmg"
+        "dist/dmg/${DMG_NAME}.dmg"
 fi
 
 # Clean up intermediate files
-rm -f "dist/markview"
+rm -f "dist/dmg/markview"
 
 echo ""
 echo "============================================"
 echo "Build complete!"
 echo ""
-echo "App bundle: dist/${APP_NAME}.app"
-echo "DMG file:   dist/${DMG_NAME}.dmg"
+echo "App bundle: dist/dmg/${APP_NAME}.app"
+echo "DMG file:   dist/dmg/${DMG_NAME}.dmg"
 echo ""
 echo "To install:"
 echo "  1. Open dist/${DMG_NAME}.dmg"
 echo "  2. Drag ${APP_NAME} to Applications"
 echo ""
 echo "To test the app bundle directly:"
-echo "  open dist/${APP_NAME}.app"
+echo "  open dist/dmg/${APP_NAME}.app"
 echo "============================================"
 
 # Optional: Code signing reminder
@@ -248,10 +248,10 @@ echo ""
 echo "NOTE: For distribution, you should sign the app:"
 echo "  codesign --deep --force --verify --verbose \\"
 echo "    --sign \"Developer ID Application: Your Name (TEAM_ID)\" \\"
-echo "    \"dist/${APP_NAME}.app\""
+echo "    \"dist/dmg/${APP_NAME}.app\""
 echo ""
 echo "And notarize for Gatekeeper:"
-echo "  xcrun notarytool submit \"dist/${DMG_NAME}.dmg\" \\"
+echo "  xcrun notarytool submit \"dist/dmg/${DMG_NAME}.dmg\" \\"
 echo "    --apple-id \"your@email.com\" \\"
 echo "    --team-id \"TEAM_ID\" \\"
 echo "    --password \"@keychain:AC_PASSWORD\" \\"
