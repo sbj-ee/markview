@@ -149,3 +149,61 @@ func ShowSymbolPickerDialog(parent fyne.Window, onSelect func(symbol string)) {
 	d.Resize(fyne.NewSize(500, 450))
 	d.Show()
 }
+
+// ShowSubscriptPickerDialog shows a dialog for picking subscript characters
+func ShowSubscriptPickerDialog(parent fyne.Window, onSelect func(symbol string)) {
+	// Unicode subscript characters
+	subscripts := []string{
+		"₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉",
+		"₊", "₋", "₌", "₍", "₎",
+		"ₐ", "ₑ", "ₕ", "ᵢ", "ⱼ", "ₖ", "ₗ", "ₘ", "ₙ", "ₒ", "ₚ", "ᵣ", "ₛ", "ₜ", "ᵤ", "ᵥ", "ₓ",
+	}
+
+	grid := container.NewGridWrap(fyne.NewSize(40, 40))
+	for _, sym := range subscripts {
+		s := sym // Capture for closure
+		btn := widget.NewButton(s, func() {
+			onSelect(s)
+		})
+		grid.Add(btn)
+	}
+
+	content := container.NewBorder(
+		widget.NewLabel("Click a subscript character to insert:"),
+		nil, nil, nil,
+		container.NewScroll(grid),
+	)
+
+	d := dialog.NewCustom("Subscript Characters", "Close", content, parent)
+	d.Resize(fyne.NewSize(400, 250))
+	d.Show()
+}
+
+// ShowSuperscriptPickerDialog shows a dialog for picking superscript characters
+func ShowSuperscriptPickerDialog(parent fyne.Window, onSelect func(symbol string)) {
+	// Unicode superscript characters
+	superscripts := []string{
+		"⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹",
+		"⁺", "⁻", "⁼", "⁽", "⁾",
+		"ᵃ", "ᵇ", "ᶜ", "ᵈ", "ᵉ", "ᶠ", "ᵍ", "ʰ", "ⁱ", "ʲ", "ᵏ", "ˡ", "ᵐ", "ⁿ", "ᵒ", "ᵖ", "ʳ", "ˢ", "ᵗ", "ᵘ", "ᵛ", "ʷ", "ˣ", "ʸ", "ᶻ",
+	}
+
+	grid := container.NewGridWrap(fyne.NewSize(40, 40))
+	for _, sym := range superscripts {
+		s := sym // Capture for closure
+		btn := widget.NewButton(s, func() {
+			onSelect(s)
+		})
+		grid.Add(btn)
+	}
+
+	content := container.NewBorder(
+		widget.NewLabel("Click a superscript character to insert:"),
+		nil, nil, nil,
+		container.NewScroll(grid),
+	)
+
+	d := dialog.NewCustom("Superscript Characters", "Close", content, parent)
+	d.Resize(fyne.NewSize(400, 250))
+	d.Show()
+}

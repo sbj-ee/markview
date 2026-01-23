@@ -136,7 +136,7 @@ GFM tables are rendered with styled grid layout:
 ### Edit Toolbar
 The edit toolbar is organized into logical groups:
 - **Text Formatting**: Bold, Italic, Strikethrough, Underline, Highlight
-- **Math/Science**: Subscript (`<sub>`), Superscript (`<sup>`), Symbol picker
+- **Math/Science**: Subscript picker (Unicode ₀₁₂...), Superscript picker (Unicode ⁰¹²...), Symbol picker
 - **Headings**: H1, H2, H3
 - **Links & Media**: Link, Image, Table, Footnote
 - **Code**: Inline code, Code block

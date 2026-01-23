@@ -178,8 +178,8 @@ When in edit mode, the formatting toolbar provides quick access to:
 | | Strikethrough | Wrap with `~~` |
 | | Underline | Wrap with `<u>` tags |
 | | Highlight | Wrap with `==` |
-| **Math/Science** | Subscript | Wrap with `<sub>` tags |
-| | Superscript | Wrap with `<sup>` tags |
+| **Math/Science** | Subscript | Unicode subscript picker (₀₁₂...) |
+| | Superscript | Unicode superscript picker (⁰¹²...) |
 | | Symbol | Open symbol picker dialog |
 | **Headings** | H1/H2/H3 | Insert heading |
 | **Links & Media** | Link | Insert `[text](url)` |
