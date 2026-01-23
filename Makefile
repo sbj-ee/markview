@@ -4,7 +4,7 @@
 BINARY_NAME=markview
 BUILD_DIR=bin
 CMD_DIR=cmd/markview
-VERSION?=1.0.19
+VERSION?=1.0.20
 
 # Go parameters
 GOCMD=go

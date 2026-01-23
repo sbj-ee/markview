@@ -17,6 +17,10 @@ type MarkdownEditor struct {
 	// This is used when the entry doesn't have focus and cursor position may be stale
 	lastInsertPos int
 
+	// lastSelectedText stores the selected text when focus was lost
+	// This allows toolbar actions to wrap selected text even after focus shifts
+	lastSelectedText string
+
 	OnChanged func(content string)
 	// OnKeyEvent is called before key events are processed.
 	// Return true to consume the event (prevent default handling).
@@ -80,6 +84,11 @@ func (e *MarkdownEditor) FocusGained() {
 
 // FocusLost is called when the editor loses focus
 func (e *MarkdownEditor) FocusLost() {
+	// Save cursor position and selection before losing focus
+	// This allows toolbar actions to work correctly even after focus shifts
+	e.SyncLastInsertPos()
+	e.lastSelectedText = e.entry.SelectedText()
+
 	e.focused = false
 	e.entry.FocusLost()
 }
@@ -159,8 +168,14 @@ func (e *MarkdownEditor) WrapSelection(prefix, suffix string) {
 		pos = e.lastInsertPos
 	}
 
-	// Check if there's a selection by looking at selected text
-	selected := e.entry.SelectedText()
+	// Check if there's a selection - use current selection if focused, or saved selection if not
+	var selected string
+	if e.focused {
+		selected = e.entry.SelectedText()
+	} else {
+		selected = e.lastSelectedText
+	}
+
 	if selected != "" {
 		// Find selection in text and wrap it
 		selStart := findSelectionStart(text, selected, pos)
@@ -170,6 +185,7 @@ func (e *MarkdownEditor) WrapSelection(prefix, suffix string) {
 			// Position cursor after the wrapped text
 			newPos := selStart + len(prefix) + len(selected) + len(suffix)
 			e.lastInsertPos = newPos
+			e.lastSelectedText = "" // Clear saved selection after use
 			e.setCursorPosition(newPos)
 			return
 		}
