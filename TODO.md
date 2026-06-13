@@ -13,11 +13,9 @@
 - [x] Preserve scroll position when reloading the same document
 - [x] CI workflow (gofmt, vet, test, build) as a required check on `main`
 - [x] Branch protection ruleset on `main`
-
-## In Progress
-
-- [ ] Dialog consistency — sizing + dismiss-button labels (PR open)
-- [ ] Dialog consistency — normalize error-message casing
+- [x] Dialog consistency — unified sizes and dismiss-button labels
+- [x] Dialog consistency — normalized error-message casing
+- [x] First-run onboarding
 
 ## Features
 
@@ -38,9 +36,7 @@
 - [ ] Mermaid diagram support
 - [ ] Footnote support
 - [ ] Bibliography/citation support
-- [ ] First-run onboarding
 - [ ] Smoother theme/font switching (live preview, transitions)
-- [ ] Accessibility: keyboard focus order and screen-reader labels
 
 ## Bug Fixes
 
