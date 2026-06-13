@@ -2887,6 +2887,9 @@ func (w *Window) markdownToHTMLWithOptions(data []byte, includeScripts bool) str
 	// Add heading IDs to content
 	contentHTML := addHeadingIDs(buf.String())
 
+	// Rewrite mermaid code blocks so the injected Mermaid script renders them.
+	contentHTML = convertMermaidBlocks(contentHTML)
+
 	// Wrap in styled HTML document
 	title := filepath.Base(w.currentFile)
 
