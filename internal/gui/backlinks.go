@@ -199,7 +199,7 @@ func (bp *BacklinksPanel) Show(window fyne.Window) {
 	)
 
 	d = dialog.NewCustom("Backlinks", "Close", content, window)
-	d.Resize(fyne.NewSize(550, 500))
+	d.Resize(dialogSizeList)
 	d.Show()
 }
 

@@ -310,7 +310,7 @@ func ShowTemplatesDialog(window fyne.Window, onCreate func(content string)) {
 		scroll,
 	)
 
-	d = dialog.NewCustom("Document Templates", "Cancel", content, window)
-	d.Resize(fyne.NewSize(450, 450))
+	d = dialog.NewCustom("Document Templates", "Close", content, window)
+	d.Resize(dialogSizeList)
 	d.Show()
 }

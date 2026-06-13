@@ -252,6 +252,6 @@ func ShowTagsDialog(window fyne.Window, tagManager *TagManager, onSelectFile fun
 	split.Offset = 0.35
 
 	d = dialog.NewCustom("Browse by Tag", "Close", split, window)
-	d.Resize(fyne.NewSize(600, 500))
+	d.Resize(dialogSizeList)
 	d.Show()
 }

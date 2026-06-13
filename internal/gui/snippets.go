@@ -123,7 +123,7 @@ func ShowSnippetsDialog(window fyne.Window, onInsert func(content string)) {
 	scroll := container.NewScroll(list)
 	scroll.SetMinSize(fyne.NewSize(400, 350))
 
-	d = dialog.NewCustom("Insert Snippet", "Cancel", scroll, window)
-	d.Resize(fyne.NewSize(450, 450))
+	d = dialog.NewCustom("Insert Snippet", "Close", scroll, window)
+	d.Resize(dialogSizeList)
 	d.Show()
 }

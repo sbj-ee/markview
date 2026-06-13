@@ -169,8 +169,8 @@ func (cp *CommandPalette) Show(window fyne.Window) {
 	scroll.SetMinSize(fyne.NewSize(520, 400))
 	content := container.NewBorder(entry, nil, nil, nil, scroll)
 
-	d = dialog.NewCustom("Command Palette", "Cancel", content, window)
-	d.Resize(fyne.NewSize(560, 500))
+	d = dialog.NewCustom("Command Palette", "Close", content, window)
+	d.Resize(dialogSizeList)
 	d.Show()
 
 	// Pre-select the first command and focus the search field.

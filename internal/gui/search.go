@@ -179,8 +179,8 @@ func (fts *FullTextSearch) Show(window fyne.Window) {
 		scroll,
 	)
 
-	d = dialog.NewCustom("Search in Files (Ctrl+Shift+F)", "Cancel", content, window)
-	d.Resize(fyne.NewSize(650, 550))
+	d = dialog.NewCustom("Search in Files (Ctrl+Shift+F)", "Close", content, window)
+	d.Resize(dialogSizeList)
 	d.Show()
 
 	window.Canvas().Focus(searchEntry)

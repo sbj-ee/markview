@@ -264,7 +264,7 @@ func ShowLinkValidationDialog(window fyne.Window, basePath, content string, onNa
 		)
 
 		d = dialog.NewCustom("Link Validation Results", "Close", content, window)
-		d.Resize(fyne.NewSize(550, 450))
+		d.Resize(dialogSizeList)
 		d.Show()
 	}()
 }

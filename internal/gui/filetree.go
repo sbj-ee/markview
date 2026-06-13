@@ -570,7 +570,7 @@ func (ft *FileTree) showNewDirectoryDialog(parentPath string) {
 		},
 		ft.fyneWindow,
 	)
-	d.Resize(fyne.NewSize(400, 150))
+	d.Resize(dialogSizeForm)
 	d.Show()
 }
 
@@ -621,7 +621,7 @@ func (ft *FileTree) showNewFileDialog(parentPath string) {
 		},
 		ft.fyneWindow,
 	)
-	d.Resize(fyne.NewSize(400, 150))
+	d.Resize(dialogSizeForm)
 	d.Show()
 }
 
@@ -670,7 +670,7 @@ func (ft *FileTree) showRenameDialog(path string, isDir bool) {
 		},
 		ft.fyneWindow,
 	)
-	d.Resize(fyne.NewSize(400, 150))
+	d.Resize(dialogSizeForm)
 	d.Show()
 }
 

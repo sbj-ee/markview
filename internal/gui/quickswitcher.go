@@ -143,8 +143,8 @@ func (qs *QuickSwitcher) Show(window fyne.Window) {
 		scroll,
 	)
 
-	d = dialog.NewCustom("Quick Switcher (Ctrl+P)", "Cancel", content, window)
-	d.Resize(fyne.NewSize(550, 500))
+	d = dialog.NewCustom("Quick Switcher (Ctrl+P)", "Close", content, window)
+	d.Resize(dialogSizeList)
 	d.Show()
 
 	// Focus the search entry
