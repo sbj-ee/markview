@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	mathjax "github.com/litao91/goldmark-mathjax"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 	goldmarkhtml "github.com/yuin/goldmark/renderer/html"
@@ -13,7 +14,7 @@ import (
 // renderMarkdown mirrors the Goldmark configuration used by the HTML export.
 func renderMarkdown(src string) string {
 	md := goldmark.New(
-		goldmark.WithExtensions(extension.GFM, extension.Typographer),
+		goldmark.WithExtensions(extension.GFM, extension.Typographer, mathjax.MathJax),
 		goldmark.WithRendererOptions(goldmarkhtml.WithHardWraps()),
 	)
 	var buf bytes.Buffer

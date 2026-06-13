@@ -18,6 +18,7 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
+	mathjax "github.com/litao91/goldmark-mathjax"
 	"github.com/sbj-ee/markview/internal/library"
 	"github.com/sbj-ee/markview/internal/markdown"
 	"github.com/sbj-ee/markview/internal/themes"
@@ -2870,6 +2871,10 @@ func (w *Window) markdownToHTMLWithOptions(data []byte, includeScripts bool) str
 		goldmark.WithExtensions(
 			extension.GFM,
 			extension.Typographer,
+			// Parse $…$ / $$…$$ into math nodes rendered as \(…\) / \[…\],
+			// which the injected MathJax script renders. Without this, LaTeX
+			// passes through raw and can be mangled by Markdown formatting.
+			mathjax.MathJax,
 		),
 		goldmark.WithRendererOptions(
 			goldmarkhtml.WithHardWraps(),
