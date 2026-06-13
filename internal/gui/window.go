@@ -66,6 +66,7 @@ type Window struct {
 	focusMode         bool              // Hide all UI except content
 	typewriterMode    bool              // Keep cursor centered
 	autoSaveTicker    *time.Ticker      // Auto-save timer
+	saveStatusTimer   *time.Timer       // Clears the transient "Saved" status message
 
 	// Recent files
 	recentFiles []string
@@ -2175,8 +2176,25 @@ func (w *Window) saveFile() {
 	w.contentBuffer = content
 	w.isDirty = false
 	w.updateWindowTitle()
+	w.flashSavedStatus()
 
 	w.logger.Info("File saved", zap.String("path", w.currentFile))
+}
+
+// flashSavedStatus briefly shows a "Saved" confirmation in the status bar,
+// then restores the normal status text after a short delay.
+func (w *Window) flashSavedStatus() {
+	if w.statusBar == nil {
+		return
+	}
+	w.statusBar.SetText("✓ Saved")
+	if w.saveStatusTimer != nil {
+		w.saveStatusTimer.Stop()
+	}
+	w.saveStatusTimer = time.AfterFunc(2*time.Second, func() {
+		// Runs on a timer goroutine, so marshal the UI update onto the main thread.
+		fyne.Do(w.updateStatusBar)
+	})
 }
 
 // saveFileAs saves the current content to a new file
@@ -2218,6 +2236,7 @@ func (w *Window) saveFileAs() {
 		w.fileTree.SetCurrentFile(w.currentFile)
 
 		w.updateWindowTitle()
+		w.flashSavedStatus()
 		w.logger.Info("File saved as", zap.String("path", w.currentFile))
 	}, w.fyneWindow)
 
