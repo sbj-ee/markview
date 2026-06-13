@@ -126,7 +126,7 @@ func (d *ImageInsertDialog) showFilePicker() {
 	}, d.window)
 
 	fd.SetFilter(storage.NewExtensionFileFilter([]string{".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp"}))
-	fd.Resize(fyne.NewSize(800, 600))
+	fd.Resize(dialogSizeFileChooser)
 	fd.Show()
 }
 

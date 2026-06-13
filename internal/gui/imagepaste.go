@@ -127,7 +127,7 @@ func ShowImagePasteDialog(window fyne.Window, basePath string, onInsert func(mar
 			}
 		}, window)
 		fd.SetFilter(&imageFilter{})
-		fd.Resize(fyne.NewSize(800, 600))
+		fd.Resize(dialogSizeFileChooser)
 		fd.Show()
 	})
 
@@ -142,7 +142,7 @@ func ShowImagePasteDialog(window fyne.Window, basePath string, onInsert func(mar
 		infoLabel,
 	)
 
-	d := dialog.NewCustom("Add Image", "Cancel", content, window)
+	d := dialog.NewCustom("Add Image", "Close", content, window)
 	d.Resize(fyne.NewSize(400, 300))
 	d.Show()
 }

@@ -1491,8 +1491,8 @@ func (w *Window) showRecentFiles() {
 	scroll := container.NewScroll(list)
 	scroll.SetMinSize(fyne.NewSize(400, 300))
 
-	d = dialog.NewCustom("Recent Files", "Cancel", scroll, w.fyneWindow)
-	d.Resize(fyne.NewSize(450, 400))
+	d = dialog.NewCustom("Recent Files", "Close", scroll, w.fyneWindow)
+	d.Resize(dialogSizeList)
 	d.Show()
 }
 
@@ -1649,7 +1649,7 @@ func (w *Window) showFolderDialog() {
 		w.setRootFolder(uri.Path())
 	}, w.fyneWindow)
 
-	fd.Resize(fyne.NewSize(1050, 700))
+	fd.Resize(dialogSizeFileChooser)
 	fd.Show()
 }
 
@@ -1782,7 +1782,7 @@ func (w *Window) showOpenDialog() {
 		fd.SetFilter(storage.NewExtensionFileFilter([]string{".md", ".markdown"}))
 
 		// Make the file dialog 1.75x larger
-		fd.Resize(fyne.NewSize(1050, 700))
+		fd.Resize(dialogSizeFileChooser)
 
 		fd.Show()
 	})
@@ -2299,7 +2299,7 @@ func (w *Window) saveFileAs() {
 	} else {
 		fd.SetFileName("untitled.md")
 	}
-	fd.Resize(fyne.NewSize(800, 600))
+	fd.Resize(dialogSizeFileChooser)
 	fd.Show()
 }
 
@@ -2550,7 +2550,7 @@ func (w *Window) exportWithPandoc(format string) {
 	outputName := baseName[:len(baseName)-len(filepath.Ext(baseName))] + "." + format
 	fd.SetFileName(outputName)
 	fd.SetFilter(storage.NewExtensionFileFilter([]string{"." + format}))
-	fd.Resize(fyne.NewSize(800, 600))
+	fd.Resize(dialogSizeFileChooser)
 	fd.Show()
 }
 
@@ -2681,7 +2681,7 @@ func (w *Window) exportToPDF() {
 	pdfName := baseName[:len(baseName)-len(filepath.Ext(baseName))] + ".pdf"
 	fd.SetFileName(pdfName)
 	fd.SetFilter(storage.NewExtensionFileFilter([]string{".pdf"}))
-	fd.Resize(fyne.NewSize(800, 600))
+	fd.Resize(dialogSizeFileChooser)
 	fd.Show()
 }
 
@@ -2726,7 +2726,7 @@ func (w *Window) exportToHTML() {
 	htmlName := baseName[:len(baseName)-len(filepath.Ext(baseName))] + ".html"
 	fd.SetFileName(htmlName)
 	fd.SetFilter(storage.NewExtensionFileFilter([]string{".html"}))
-	fd.Resize(fyne.NewSize(800, 600))
+	fd.Resize(dialogSizeFileChooser)
 	fd.Show()
 }
 
