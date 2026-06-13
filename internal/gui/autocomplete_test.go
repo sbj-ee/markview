@@ -593,7 +593,7 @@ func TestIsImageFile(t *testing.T) {
 		{"image.webp", true},
 		{"icon.bmp", true},
 		{"favicon.ico", true},
-		{"IMAGE.PNG", true},  // case insensitive
+		{"IMAGE.PNG", true}, // case insensitive
 		{"readme.md", false},
 		{"script.js", false},
 		{"data.json", false},
