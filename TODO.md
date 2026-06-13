@@ -17,6 +17,7 @@
 - [x] Dialog consistency — normalized error-message casing
 - [x] First-run onboarding
 - [x] Smoother theme/font switching (in-place re-render, no disk reload, scroll preserved)
+- [x] Mermaid diagram rendering in HTML/Print/PDF export
 
 ## Features
 
@@ -34,7 +35,6 @@
 - [ ] Better image handling (drag & drop, paste from clipboard)
 - [ ] Improved table editing experience
 - [ ] Math/LaTeX rendering support
-- [ ] Mermaid diagram support
 - [ ] Footnote support
 - [ ] Bibliography/citation support
 
