@@ -1796,6 +1796,15 @@ func (w *Window) LoadFile(filePath string) {
 // loadFile loads and displays a markdown file
 func (w *Window) loadFile(filePath string) {
 	w.logger.Info("Loading file", zap.String("path", filePath))
+
+	// Preserve the scroll position when reloading the same document (live
+	// reload or manual refresh); a different document should start at the top.
+	reloadingSameDoc := filePath == w.currentFile
+	var prevScroll fyne.Position
+	if reloadingSameDoc {
+		prevScroll = w.scrollContent.Offset
+	}
+
 	w.currentFile = filePath
 
 	// Add to recent files
@@ -1845,6 +1854,10 @@ func (w *Window) loadFile(filePath string) {
 	// Update content with left padding
 	w.scrollContent.Content = withLeftPadding(content, 16)
 	w.scrollContent.Refresh()
+	if reloadingSameDoc {
+		// Restore the prior scroll position (clamped to the new content height).
+		w.scrollContent.ScrollToOffset(prevScroll)
+	}
 
 	// Update editor content if in edit mode
 	if w.editMode {
