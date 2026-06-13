@@ -51,20 +51,20 @@ type Window struct {
 	currentFontSize themes.FontSize
 
 	// Edit mode
-	editMode       bool
-	splitViewMode  bool // Side-by-side editor and preview
-	isDirty        bool
-	editor         *MarkdownEditor
-	editorScroll   *container.Scroll
-	contentStack   *fyne.Container
-	splitView      *container.Split // For side-by-side editing
-	splitEditor    *MarkdownEditor  // Editor for split view
+	editMode          bool
+	splitViewMode     bool // Side-by-side editor and preview
+	isDirty           bool
+	editor            *MarkdownEditor
+	editorScroll      *container.Scroll
+	contentStack      *fyne.Container
+	splitView         *container.Split  // For side-by-side editing
+	splitEditor       *MarkdownEditor   // Editor for split view
 	splitEditorScroll *container.Scroll // Scroll container for split editor
-	splitPreview   *container.Scroll // Preview scroll for split view
-	contentBuffer  string           // Original content for dirty checking
-	focusMode      bool             // Hide all UI except content
-	typewriterMode bool             // Keep cursor centered
-	autoSaveTicker *time.Ticker     // Auto-save timer
+	splitPreview      *container.Scroll // Preview scroll for split view
+	contentBuffer     string            // Original content for dirty checking
+	focusMode         bool              // Hide all UI except content
+	typewriterMode    bool              // Keep cursor centered
+	autoSaveTicker    *time.Ticker      // Auto-save timer
 
 	// Recent files
 	recentFiles []string
@@ -424,18 +424,20 @@ func (w *Window) setupUI() {
 	// Set up keyboard shortcuts
 	w.setupShortcuts()
 
+	// Native menu bar gives every feature a discoverable home
+	w.fyneWindow.SetMainMenu(w.createMainMenu())
+
 	w.fyneWindow.SetContent(mainContent)
 }
 
 // toolbarAction is a custom toolbar item
 type toolbarAction struct {
-	button *widget.Button
+	button *tooltipButton
 }
 
-// newToolbarAction creates a toolbar action with an icon
-func newToolbarAction(icon fyne.Resource, onTap func()) *toolbarAction {
-	btn := widget.NewButtonWithIcon("", icon, onTap)
-	btn.Importance = widget.LowImportance
+// newToolbarAction creates a toolbar action with an icon and a hover tooltip
+func newToolbarAction(icon fyne.Resource, tooltip string, onTap func()) *toolbarAction {
+	btn := newTooltipButton(icon, tooltip, onTap)
 	return &toolbarAction{button: btn}
 }
 
@@ -450,70 +452,168 @@ func (t *toolbarAction) SetIcon(icon fyne.Resource) {
 }
 
 // createToolbar creates the application toolbar
+// menuItem builds a menu item with an optional Super-modifier keyboard
+// accelerator shown alongside the label.
+func menuItem(label string, key fyne.KeyName, mod fyne.KeyModifier, action func()) *fyne.MenuItem {
+	item := fyne.NewMenuItem(label, action)
+	if key != "" {
+		item.Shortcut = &desktop.CustomShortcut{KeyName: key, Modifier: mod}
+	}
+	return item
+}
+
+// createMainMenu builds the native application menu bar so that every feature
+// has a discoverable home with its keyboard shortcut displayed.
+func (w *Window) createMainMenu() *fyne.MainMenu {
+	const super = fyne.KeyModifierSuper
+	const superShift = fyne.KeyModifierSuper | fyne.KeyModifierShift
+
+	fileMenu := fyne.NewMenu("File",
+		menuItem("New File", fyne.KeyN, super, w.newFile),
+		menuItem("New from Template…", fyne.KeyN, superShift, w.newFileFromTemplate),
+		menuItem("Open File…", fyne.KeyO, super, w.showOpenDialog),
+		menuItem("Open Folder…", "", 0, w.showFolderDialog),
+		menuItem("Open Recent…", fyne.KeyO, superShift, w.showRecentFiles),
+		fyne.NewMenuItemSeparator(),
+		menuItem("Save", fyne.KeyS, super, func() {
+			if w.editMode {
+				w.saveFile()
+			}
+		}),
+		menuItem("Save As…", fyne.KeyS, superShift, func() {
+			if w.editMode {
+				w.saveFileAs()
+			}
+		}),
+		fyne.NewMenuItemSeparator(),
+		menuItem("Print", fyne.KeyP, super, w.printDocument),
+		menuItem("Export…", "", 0, w.showPrintDialog),
+	)
+
+	editMenu := fyne.NewMenu("Edit",
+		menuItem("Toggle Edit Mode", fyne.KeyE, super, w.toggleEditMode),
+		menuItem("Find & Replace…", fyne.KeyF, super, func() {
+			// Matches the Cmd+F canvas handler: find in edit mode,
+			// otherwise focus the file browser filter.
+			if w.editMode {
+				ShowFindReplaceDialog(w.fyneWindow, w.editor)
+			} else {
+				w.fileTree.FocusFilter(w.fyneWindow.Canvas())
+			}
+		}),
+	)
+
+	viewMenu := fyne.NewMenu("View",
+		menuItem("Split View", fyne.KeyBackslash, super, w.toggleSplitView),
+		menuItem("Reload", fyne.KeyR, super, func() {
+			if w.currentFile != "" {
+				w.loadFile(w.currentFile)
+			}
+		}),
+		fyne.NewMenuItemSeparator(),
+		menuItem("Toggle File Browser", "", 0, w.toggleFileTree),
+		menuItem("Toggle Table of Contents", "", 0, w.toggleTOC),
+		menuItem("Toggle Library", "", 0, w.toggleLibraryMode),
+		fyne.NewMenuItemSeparator(),
+		menuItem("Focus Mode", fyne.KeyF, superShift, w.toggleFocusMode),
+		menuItem("Zen Mode", fyne.KeyF11, 0, w.toggleZenMode),
+		menuItem("Presentation Mode", "", 0, w.showPresentationMode),
+		fyne.NewMenuItemSeparator(),
+		menuItem("Appearance Settings…", "", 0, w.toggleTheme),
+	)
+
+	goMenu := fyne.NewMenu("Go",
+		menuItem("Quick Switcher", fyne.KeyP, fyne.KeyModifierControl, w.showQuickSwitcher),
+		menuItem("Search in Files", fyne.KeyG, superShift, w.showFullTextSearch),
+		menuItem("Backlinks", fyne.KeyB, super, w.showBacklinks),
+		menuItem("Browse Tags", fyne.KeyT, super, w.showTagsBrowser),
+	)
+
+	toolsMenu := fyne.NewMenu("Tools",
+		menuItem("Validate Links", fyne.KeyL, super, w.validateLinks),
+		menuItem("Word Count Goal…", "", 0, w.showWordCountGoalDialog),
+		menuItem("Export Theme…", "", 0, w.showExportThemeDialog),
+		menuItem("Custom CSS…", "", 0, w.showCustomCSSDialog),
+	)
+
+	helpMenu := fyne.NewMenu("Help",
+		menuItem("Keyboard Shortcuts", fyne.KeySlash, super, w.showKeyboardShortcuts),
+		menuItem("Help", "", 0, w.showHelpMenu),
+		menuItem("Check for Updates…", "", 0, func() {
+			if w.updateChecker != nil {
+				w.updateChecker.CheckForUpdates(false)
+			}
+		}),
+		menuItem("About MarkView", "", 0, w.showAboutDialog),
+	)
+
+	return fyne.NewMainMenu(fileMenu, editMenu, viewMenu, goMenu, toolsMenu, helpMenu)
+}
+
 func (w *Window) createToolbar() *widget.Toolbar {
-	newFileAction := newToolbarAction(themes.IconNewFile(), func() {
+	newFileAction := newToolbarAction(themes.IconNewFile(), "New File ("+cmdKey+"+N)", func() {
 		w.newFile()
 	})
 
-	openFileAction := newToolbarAction(themes.IconDocument(), func() {
+	openFileAction := newToolbarAction(themes.IconDocument(), "Open File ("+cmdKey+"+O)", func() {
 		w.showOpenDialog()
 	})
 
-	openFolderAction := newToolbarAction(themes.IconFolder(), func() {
+	openFolderAction := newToolbarAction(themes.IconFolder(), "Open Folder", func() {
 		w.showFolderDialog()
 	})
 
-	w.saveAction = newToolbarAction(themes.IconSave(), func() {
+	w.saveAction = newToolbarAction(themes.IconSave(), "Save ("+cmdKey+"+S)", func() {
 		w.saveFile()
 	})
 
-	w.discardAction = newToolbarAction(themes.IconUndo(), func() {
+	w.discardAction = newToolbarAction(themes.IconUndo(), "Discard Changes", func() {
 		w.discardChanges()
 	})
 
-	w.editAction = newToolbarAction(themes.IconEdit(), func() {
+	w.editAction = newToolbarAction(themes.IconEdit(), "Toggle Edit Mode ("+cmdKey+"+E)", func() {
 		w.toggleEditMode()
 	})
 
-	w.splitViewAction = newToolbarAction(themes.IconSplitView(), func() {
+	w.splitViewAction = newToolbarAction(themes.IconSplitView(), "Toggle Split View ("+cmdKey+"+\\)", func() {
 		w.toggleSplitView()
 	})
 
-	refreshAction := newToolbarAction(themes.IconRefresh(), func() {
+	refreshAction := newToolbarAction(themes.IconRefresh(), "Reload ("+cmdKey+"+R)", func() {
 		if w.currentFile != "" {
 			w.loadFile(w.currentFile)
 		}
 	})
 
-	toggleFileTreeAction := newToolbarAction(themes.IconFileTree(), func() {
+	toggleFileTreeAction := newToolbarAction(themes.IconFileTree(), "Toggle File Browser", func() {
 		w.toggleFileTree()
 	})
 
-	toggleTOCAction := newToolbarAction(themes.IconTOC(), func() {
+	toggleTOCAction := newToolbarAction(themes.IconTOC(), "Toggle Table of Contents", func() {
 		w.toggleTOC()
 	})
 
-	toggleThemeAction := newToolbarAction(themes.IconTheme(), func() {
+	toggleThemeAction := newToolbarAction(themes.IconTheme(), "Appearance Settings", func() {
 		w.toggleTheme()
 	})
 
-	toggleLibraryAction := newToolbarAction(themes.IconLibrary(), func() {
+	toggleLibraryAction := newToolbarAction(themes.IconLibrary(), "Toggle Library", func() {
 		w.toggleLibraryMode()
 	})
 
-	presentationAction := newToolbarAction(themes.IconPresentation(), func() {
+	presentationAction := newToolbarAction(themes.IconPresentation(), "Presentation Mode", func() {
 		w.showPresentationMode()
 	})
 
-	printAction := newToolbarAction(themes.IconPrint(), func() {
+	printAction := newToolbarAction(themes.IconPrint(), "Print ("+cmdKey+"+P)", func() {
 		w.printDocument()
 	})
 
-	exportAction := newToolbarAction(themes.IconExport(), func() {
+	exportAction := newToolbarAction(themes.IconExport(), "Export…", func() {
 		w.showPrintDialog()
 	})
 
-	helpAction := newToolbarAction(themes.IconHelp(), func() {
+	helpAction := newToolbarAction(themes.IconHelp(), "Help", func() {
 		w.showHelpMenu()
 	})
 
@@ -601,36 +701,36 @@ func (w *Window) toggleTheme() {
 // createEditToolbar creates the markdown editing toolbar
 func (w *Window) createEditToolbar() *widget.Toolbar {
 	// Text formatting group
-	boldAction := newToolbarAction(themes.IconBold(), func() {
+	boldAction := newToolbarAction(themes.IconBold(), "Bold", func() {
 		w.getActiveEditor().WrapSelection("**", "**")
 	})
 
-	italicAction := newToolbarAction(themes.IconItalic(), func() {
+	italicAction := newToolbarAction(themes.IconItalic(), "Italic", func() {
 		w.getActiveEditor().WrapSelection("*", "*")
 	})
 
-	strikethroughAction := newToolbarAction(themes.IconStrikethrough(), func() {
+	strikethroughAction := newToolbarAction(themes.IconStrikethrough(), "Strikethrough", func() {
 		w.getActiveEditor().WrapSelection("~~", "~~")
 	})
 
-	underlineAction := newToolbarAction(themes.IconUnderline(), func() {
+	underlineAction := newToolbarAction(themes.IconUnderline(), "Underline", func() {
 		w.getActiveEditor().WrapSelection("<u>", "</u>")
 	})
 
-	highlightAction := newToolbarAction(themes.IconHighlight(), func() {
+	highlightAction := newToolbarAction(themes.IconHighlight(), "Highlight", func() {
 		w.getActiveEditor().WrapSelection("==", "==")
 	})
 
 	// Math/Science group - wrap selected text with HTML tags (renders as Unicode sub/superscript)
-	subscriptAction := newToolbarAction(themes.IconSubscript(), func() {
+	subscriptAction := newToolbarAction(themes.IconSubscript(), "Subscript", func() {
 		w.getActiveEditor().WrapSelection("<sub>", "</sub>")
 	})
 
-	superscriptAction := newToolbarAction(themes.IconSuperscript(), func() {
+	superscriptAction := newToolbarAction(themes.IconSuperscript(), "Superscript", func() {
 		w.getActiveEditor().WrapSelection("<sup>", "</sup>")
 	})
 
-	symbolAction := newToolbarAction(themes.IconSymbol(), func() {
+	symbolAction := newToolbarAction(themes.IconSymbol(), "Insert Symbol…", func() {
 		// Sync cursor position before dialog opens
 		w.getActiveEditor().SyncLastInsertPos()
 		ShowSymbolPickerDialog(w.fyneWindow, func(symbol string) {
@@ -640,24 +740,24 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 	})
 
 	// Headings group
-	h1Action := newToolbarAction(themes.IconHeading1(), func() {
+	h1Action := newToolbarAction(themes.IconHeading1(), "Heading 1", func() {
 		w.getActiveEditor().InsertAtLineStart("# ")
 	})
 
-	h2Action := newToolbarAction(themes.IconHeading2(), func() {
+	h2Action := newToolbarAction(themes.IconHeading2(), "Heading 2", func() {
 		w.getActiveEditor().InsertAtLineStart("## ")
 	})
 
-	h3Action := newToolbarAction(themes.IconHeading3(), func() {
+	h3Action := newToolbarAction(themes.IconHeading3(), "Heading 3", func() {
 		w.getActiveEditor().InsertAtLineStart("### ")
 	})
 
 	// Links and media group
-	linkAction := newToolbarAction(themes.IconLink(), func() {
+	linkAction := newToolbarAction(themes.IconLink(), "Insert Link", func() {
 		w.getActiveEditor().WrapSelection("[", "](url)")
 	})
 
-	imageAction := newToolbarAction(themes.IconImage(), func() {
+	imageAction := newToolbarAction(themes.IconImage(), "Insert Image…", func() {
 		// Get base directory for relative paths
 		baseDir := ""
 		if w.currentFile != "" {
@@ -668,58 +768,58 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 		})
 	})
 
-	tableAction := newToolbarAction(themes.IconTable(), func() {
+	tableAction := newToolbarAction(themes.IconTable(), "Insert Table…", func() {
 		ShowTableEditorDialog(w.fyneWindow, func(markdown string) {
 			w.getActiveEditor().InsertAtCursor("\n" + markdown)
 		})
 	})
 
-	footnoteAction := newToolbarAction(themes.IconFootnote(), func() {
+	footnoteAction := newToolbarAction(themes.IconFootnote(), "Insert Footnote", func() {
 		w.getActiveEditor().InsertAtCursor("[^1]")
 	})
 
 	// Code group
-	codeAction := newToolbarAction(themes.IconCode(), func() {
+	codeAction := newToolbarAction(themes.IconCode(), "Inline Code", func() {
 		w.getActiveEditor().WrapSelection("`", "`")
 	})
 
-	codeBlockAction := newToolbarAction(themes.IconCodeBlock(), func() {
+	codeBlockAction := newToolbarAction(themes.IconCodeBlock(), "Code Block", func() {
 		w.getActiveEditor().InsertAtCursor("\n```\n\n```\n")
 	})
 
 	// Lists and structure group
-	quoteAction := newToolbarAction(themes.IconQuote(), func() {
+	quoteAction := newToolbarAction(themes.IconQuote(), "Blockquote", func() {
 		w.getActiveEditor().InsertAtLineStart("> ")
 	})
 
-	listAction := newToolbarAction(themes.IconList(), func() {
+	listAction := newToolbarAction(themes.IconList(), "Bullet List", func() {
 		w.getActiveEditor().InsertAtLineStart("- ")
 	})
 
-	numberedListAction := newToolbarAction(themes.IconNumberedList(), func() {
+	numberedListAction := newToolbarAction(themes.IconNumberedList(), "Numbered List", func() {
 		w.getActiveEditor().InsertAtLineStart("1. ")
 	})
 
-	checkboxAction := newToolbarAction(themes.IconCheckbox(), func() {
+	checkboxAction := newToolbarAction(themes.IconCheckbox(), "Checkbox", func() {
 		w.getActiveEditor().InsertAtLineStart("- [ ] ")
 	})
 
-	hrAction := newToolbarAction(themes.IconHorizontalRule(), func() {
+	hrAction := newToolbarAction(themes.IconHorizontalRule(), "Horizontal Rule", func() {
 		w.getActiveEditor().InsertAtCursor("\n---\n")
 	})
 
 	// Productivity group
-	snippetAction := newToolbarAction(themes.IconSnippet(), func() {
+	snippetAction := newToolbarAction(themes.IconSnippet(), "Snippets…", func() {
 		ShowSnippetsDialog(w.fyneWindow, func(content string) {
 			w.getActiveEditor().InsertAtCursor(content)
 		})
 	})
 
-	typewriterAction := newToolbarAction(themes.IconTypewriter(), func() {
+	typewriterAction := newToolbarAction(themes.IconTypewriter(), "Typewriter Mode", func() {
 		w.toggleTypewriterMode()
 	})
 
-	goalAction := newToolbarAction(themes.IconGoal(), func() {
+	goalAction := newToolbarAction(themes.IconGoal(), "Word Count Goal…", func() {
 		w.showWordCountGoalDialog()
 	})
 
