@@ -2517,7 +2517,7 @@ func (w *Window) exportWithPandoc(format string) {
 	// Check if pandoc is available
 	_, err := exec.LookPath("pandoc")
 	if err != nil {
-		dialog.ShowError(fmt.Errorf("Export to %s requires pandoc.\n\nInstall with:\n  macOS: brew install pandoc\n  Linux: sudo apt install pandoc\n  Windows: choco install pandoc", strings.ToUpper(format)), w.fyneWindow)
+		dialog.ShowError(fmt.Errorf("export to %s requires pandoc.\n\nInstall with:\n  macOS: brew install pandoc\n  Linux: sudo apt install pandoc", strings.ToUpper(format)), w.fyneWindow)
 		return
 	}
 
@@ -2538,7 +2538,7 @@ func (w *Window) exportWithPandoc(format string) {
 		cmd := exec.Command("pandoc", "-f", "markdown", "-t", format, "-o", outputPath, w.currentFile)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			dialog.ShowError(fmt.Errorf("Pandoc conversion failed: %s\n%s", err, string(output)), w.fyneWindow)
+			dialog.ShowError(fmt.Errorf("pandoc conversion failed: %s\n%s", err, string(output)), w.fyneWindow)
 			return
 		}
 

@@ -70,7 +70,7 @@ func (uc *UpdateChecker) CheckForUpdates(silent bool) {
 		release, err := uc.fetchLatestRelease()
 		if err != nil {
 			if !silent {
-				dialog.ShowError(fmt.Errorf("Failed to check for updates: %v", err), uc.window)
+				dialog.ShowError(fmt.Errorf("failed to check for updates: %v", err), uc.window)
 			}
 			return
 		}
