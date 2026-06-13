@@ -157,7 +157,8 @@ make build
 ### Command Line Interface
 
 ```bash
-# Open a specific file
+# Open a specific file (positional or with the -file flag)
+markview README.md
 markview -file README.md
 
 # Open file picker dialog
