@@ -22,6 +22,12 @@ func main() {
 	showVersion := flag.Bool("version", false, "Show version information")
 	flag.Parse()
 
+	// Allow the file to be given as a positional argument too, e.g.
+	// "markview notes.md" in addition to "markview --file notes.md".
+	if *filePath == "" && flag.NArg() > 0 {
+		*filePath = flag.Arg(0)
+	}
+
 	// Initialize logger
 	var err error
 	logger, err = zap.NewDevelopment()
