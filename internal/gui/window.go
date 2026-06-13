@@ -2080,6 +2080,9 @@ func (w *Window) onSplitEditorChanged(content string) {
 
 	// Update split view preview with live changes
 	w.updateSplitViewPreview(content)
+
+	// Keep the status bar (word count, dirty indicator) in sync
+	w.updateStatusBar()
 }
 
 // navigateToLine navigates the editor to a specific line
@@ -2108,7 +2111,8 @@ func (w *Window) navigateToLine(line int) {
 // updateStatusBar updates the status bar with current info
 func (w *Window) updateStatusBar() {
 	if w.editMode {
-		content := w.editor.GetText()
+		editor := w.getActiveEditor()
+		content := editor.GetText()
 
 		// Word count
 		words := len(strings.Fields(content))
@@ -2134,10 +2138,15 @@ func (w *Window) updateStatusBar() {
 		}
 
 		// Cursor position (1-indexed for display)
-		row, col := w.editor.GetCursorPosition()
+		row, col := editor.GetCursorPosition()
 		w.cursorPos.SetText(fmt.Sprintf("Ln %d, Col %d", row+1, col+1))
 
-		w.statusBar.SetText("Edit Mode")
+		// Reflect unsaved changes in the status bar.
+		if w.isDirty {
+			w.statusBar.SetText("● Unsaved")
+		} else {
+			w.statusBar.SetText("Edit Mode")
+		}
 	} else if w.currentFile != "" {
 		// Show file path in view mode
 		w.statusBar.SetText(w.currentFile)
