@@ -40,6 +40,7 @@ type Window struct {
 	fileTreeScroll  *container.Scroll
 	tocTree         *widget.Tree
 	tocScroll       *container.Scroll
+	tocOutlineStack *fyne.Container // Holds TOC and outline; the left nav pane
 	scrollContent   *container.Scroll
 	leftSplit       *container.Split // File Tree | TOC
 	mainSplit       *container.Split // (File Tree | TOC) | Content
@@ -363,7 +364,8 @@ func (w *Window) setupUI() {
 
 	// Create three-pane layout: File Tree | TOC/Outline | Content
 	// Use a stack for TOC and Outline - only one visible at a time
-	tocOutlineStack := container.NewStack(w.tocScroll, w.outlineScroll)
+	w.tocOutlineStack = container.NewStack(w.tocScroll, w.outlineScroll)
+	tocOutlineStack := w.tocOutlineStack
 
 	// Content area: stack of rendered view, editor, split view, and library (only one visible at a time)
 	w.contentStack = container.NewStack(w.scrollContent, w.editorScroll, w.splitView, w.libraryScroll)
@@ -1120,22 +1122,27 @@ func (w *Window) setupShortcuts() {
 	})
 }
 
-// toggleFileTree toggles the file tree visibility
+// toggleFileTree toggles the file tree visibility. Refreshing the split
+// re-runs its layout so the content pane reclaims the freed space.
 func (w *Window) toggleFileTree() {
 	if w.fileTreeScroll.Visible() {
 		w.fileTreeScroll.Hide()
 	} else {
 		w.fileTreeScroll.Show()
 	}
+	w.mainSplit.Refresh()
 }
 
-// toggleTOC toggles the TOC visibility
+// toggleTOC toggles the left navigation pane (TOC or outline). The split's
+// leading leaf is the stack containing both, so the whole stack is hidden and
+// the split refreshed so the content pane reclaims the freed space.
 func (w *Window) toggleTOC() {
-	if w.tocScroll.Visible() {
-		w.tocScroll.Hide()
+	if w.tocOutlineStack.Visible() {
+		w.tocOutlineStack.Hide()
 	} else {
-		w.tocScroll.Show()
+		w.tocOutlineStack.Show()
 	}
+	w.leftSplit.Refresh()
 }
 
 // getActiveEditor returns the currently active editor based on view mode
@@ -1259,21 +1266,19 @@ func (w *Window) toggleFocusMode() {
 	if w.focusMode {
 		// Hide sidebars and toolbars
 		w.fileTreeScroll.Hide()
-		w.tocScroll.Hide()
-		w.outlineScroll.Hide()
+		w.tocOutlineStack.Hide()
 		w.editToolbar.Hide()
 		w.mainSplit.Offset = 0 // Hide left panel entirely
 	} else {
 		// Restore UI
 		w.fileTreeScroll.Show()
+		w.tocOutlineStack.Show()
 		if w.editMode {
-			w.outlineScroll.Show()
 			w.editToolbar.Show()
-		} else {
-			w.tocScroll.Show()
 		}
 		w.mainSplit.Offset = 0.30
 	}
+	w.leftSplit.Refresh()
 	w.mainSplit.Refresh()
 }
 
@@ -3015,8 +3020,7 @@ func (w *Window) toggleZenMode() {
 
 		// Hide all sidebars
 		w.fileTreeScroll.Hide()
-		w.tocScroll.Hide()
-		w.outlineScroll.Hide()
+		w.tocOutlineStack.Hide()
 		w.editToolbar.Hide()
 
 		// Set main split to show only content
@@ -3027,14 +3031,13 @@ func (w *Window) toggleZenMode() {
 
 		// Restore UI based on current mode
 		w.fileTreeScroll.Show()
+		w.tocOutlineStack.Show()
 		if w.editMode {
-			w.outlineScroll.Show()
 			w.editToolbar.Show()
-		} else {
-			w.tocScroll.Show()
 		}
 		w.mainSplit.Offset = 0.30
 	}
+	w.leftSplit.Refresh()
 	w.mainSplit.Refresh()
 }
 
