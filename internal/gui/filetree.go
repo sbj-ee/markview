@@ -26,7 +26,7 @@ type fileTreeNode struct {
 	box         *fyne.Container
 	path        string // full path to the file/directory
 	isDirectory bool
-	isParentDir bool // true if this is the ".." entry
+	isParentDir bool                                             // true if this is the ".." entry
 	onContext   func(path string, isDir bool, pos fyne.Position) // callback for context menu
 }
 

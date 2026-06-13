@@ -149,4 +149,3 @@ func ShowSymbolPickerDialog(parent fyne.Window, onSelect func(symbol string)) {
 	d.Resize(fyne.NewSize(500, 450))
 	d.Show()
 }
-
