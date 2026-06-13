@@ -89,8 +89,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Upload every downloaded file; artifacts preserve their source
+          # subdirectories (e.g. linux/deb/*.deb), so glob files recursively
+          # rather than passing directories to gh.
+          mapfile -t files < <(find artifacts -type f)
           gh release create "$GITHUB_REF_NAME" \
             --repo "$GITHUB_REPOSITORY" \
             --title "$GITHUB_REF_NAME" \
             --generate-notes \
-            artifacts/linux/* artifacts/macos/*
+            "${files[@]}"
