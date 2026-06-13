@@ -170,6 +170,10 @@ func NewWindow(app fyne.App, logger *zap.Logger, version string) *Window {
 	// Load recent files
 	w.loadRecentFiles()
 
+	// Show the welcome / empty state until a document is opened. If a file is
+	// passed on the command line, LoadFile (called after NewWindow) replaces it.
+	w.showWelcomeContent()
+
 	// Load word count goal
 	w.wordCountGoal = w.app.Preferences().Int("wordCountGoal")
 
@@ -330,8 +334,7 @@ func (w *Window) setupUI() {
 			w.isDirty = false
 			w.editor.SetText("")
 			w.splitEditor.SetText("")
-			w.scrollContent.Content = container.NewVBox()
-			w.scrollContent.Refresh()
+			w.showWelcomeContent()
 			// Clear TOC
 			w.tocTree = widget.NewTree(
 				func(uid string) []string { return []string{} },
