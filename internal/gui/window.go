@@ -1715,12 +1715,35 @@ func (w *Window) setTheme(themeType themes.ThemeType) {
 	// Save theme preference
 	w.app.Preferences().SetString("theme", themeType.Name())
 
-	// Reload current file to apply new theme to syntax highlighting
-	if w.currentFile != "" {
-		w.loadFile(w.currentFile)
-	}
+	// Re-render so syntax highlighting picks up the new theme colors.
+	w.rerenderForVisualChange()
 
 	w.logger.Info("Theme changed", zap.String("theme", w.getThemeName()))
+}
+
+// rerenderForVisualChange re-renders the current content after a theme or font
+// change so syntax highlighting picks up the new colors. Unlike reloading the
+// file, it never re-reads from disk and never touches the editor text or the
+// unsaved-changes state, and it keeps the scroll position.
+func (w *Window) rerenderForVisualChange() {
+	if w.splitViewMode {
+		w.updateSplitViewPreview(w.splitEditor.GetText())
+		return
+	}
+
+	offset := w.scrollContent.Offset
+	switch {
+	case w.editMode:
+		// The editor itself restyles via the theme refresh; keep the (hidden)
+		// rendered view in sync from the live editor text.
+		w.updateMainPreview(w.editor.GetText())
+	case w.currentFile != "" || w.contentBuffer != "":
+		w.updateMainPreview(w.contentBuffer)
+	default:
+		// Nothing open (welcome screen); leave it as-is.
+		return
+	}
+	w.scrollContent.ScrollToOffset(offset)
 }
 
 // setFont changes the application font
@@ -1731,10 +1754,8 @@ func (w *Window) setFont(fontFamily themes.FontFamily) {
 	// Save font preference
 	w.app.Preferences().SetString("font", string(fontFamily))
 
-	// Refresh content
-	if w.currentFile != "" {
-		w.loadFile(w.currentFile)
-	}
+	// Re-render content with the new font.
+	w.rerenderForVisualChange()
 
 	w.logger.Info("Font changed", zap.String("font", string(fontFamily)))
 }
@@ -1747,10 +1768,8 @@ func (w *Window) setFontSize(fontSize themes.FontSize) {
 	// Save font size preference
 	w.app.Preferences().SetString("fontSize", string(fontSize))
 
-	// Refresh content
-	if w.currentFile != "" {
-		w.loadFile(w.currentFile)
-	}
+	// Re-render content at the new font size.
+	w.rerenderForVisualChange()
 
 	w.logger.Info("Font size changed", zap.String("fontSize", string(fontSize)))
 }
