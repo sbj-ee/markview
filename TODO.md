@@ -16,6 +16,7 @@
 - [x] Dialog consistency — unified sizes and dismiss-button labels
 - [x] Dialog consistency — normalized error-message casing
 - [x] First-run onboarding
+- [x] Smoother theme/font switching (in-place re-render, no disk reload, scroll preserved)
 
 ## Features
 
@@ -36,11 +37,10 @@
 - [ ] Mermaid diagram support
 - [ ] Footnote support
 - [ ] Bibliography/citation support
-- [ ] Smoother theme/font switching (live preview, transitions)
 
 ## Bug Fixes
 
-- [ ] Investigate occasional rendering glitches on theme switch
+- _None open._ (Theme-switch rendering glitch fixed by the in-place re-render above.)
 
 ## Documentation
 
