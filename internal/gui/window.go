@@ -2407,6 +2407,8 @@ func (w *Window) ShowAndRun() {
 	if w.updateChecker != nil {
 		w.updateChecker.CheckForUpdates(true)
 	}
+	// Greet first-time users with a short orientation dialog.
+	w.maybeShowOnboarding()
 	w.fyneWindow.ShowAndRun()
 }
 
