@@ -18,6 +18,7 @@
 - [x] First-run onboarding
 - [x] Smoother theme/font switching (in-place re-render, no disk reload, scroll preserved)
 - [x] Mermaid diagram rendering in HTML/Print/PDF export
+- [x] Math/LaTeX rendering in HTML/Print/PDF export
 
 ## Features
 
@@ -34,7 +35,6 @@
 - [ ] Performance optimization for large files
 - [ ] Better image handling (drag & drop, paste from clipboard)
 - [ ] Improved table editing experience
-- [ ] Math/LaTeX rendering support
 - [ ] Footnote support
 - [ ] Bibliography/citation support
 
