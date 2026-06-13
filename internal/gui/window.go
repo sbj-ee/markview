@@ -523,6 +523,7 @@ func (w *Window) createMainMenu() *fyne.MainMenu {
 	)
 
 	goMenu := fyne.NewMenu("Go",
+		menuItem("Command Palette", fyne.KeyP, superShift, w.showCommandPalette),
 		menuItem("Quick Switcher", fyne.KeyP, fyne.KeyModifierControl, w.showQuickSwitcher),
 		menuItem("Search in Files", fyne.KeyG, superShift, w.showFullTextSearch),
 		menuItem("Backlinks", fyne.KeyB, super, w.showBacklinks),
@@ -2874,6 +2875,54 @@ func (w *Window) showQuickSwitcher() {
 			w.loadFile(path)
 		})
 	})
+}
+
+// shortcutLabel renders a Super-modifier custom shortcut for display, e.g.
+// "Cmd+Shift+P". It returns "" for shortcuts it cannot describe.
+func shortcutLabel(s fyne.Shortcut) string {
+	cs, ok := s.(*desktop.CustomShortcut)
+	if !ok || cs == nil {
+		return ""
+	}
+	var parts []string
+	if cs.Modifier&fyne.KeyModifierSuper != 0 {
+		parts = append(parts, cmdKey)
+	}
+	if cs.Modifier&fyne.KeyModifierControl != 0 {
+		parts = append(parts, "Ctrl")
+	}
+	if cs.Modifier&fyne.KeyModifierShift != 0 {
+		parts = append(parts, "Shift")
+	}
+	if cs.Modifier&fyne.KeyModifierAlt != 0 {
+		parts = append(parts, "Alt")
+	}
+	parts = append(parts, string(cs.KeyName))
+	return strings.Join(parts, "+")
+}
+
+// showCommandPalette opens a searchable list of every command in the menu bar,
+// keeping the palette automatically in sync with the menus.
+func (w *Window) showCommandPalette() {
+	menu := w.createMainMenu()
+	var cmds []command
+	for _, m := range menu.Items {
+		for _, item := range m.Items {
+			if item.IsSeparator || item.Action == nil {
+				continue
+			}
+			// Skip the palette's own entry to avoid a self-referential command.
+			if item.Label == "Command Palette" {
+				continue
+			}
+			cmds = append(cmds, command{
+				label:    m.Label + ": " + item.Label,
+				shortcut: shortcutLabel(item.Shortcut),
+				action:   item.Action,
+			})
+		}
+	}
+	NewCommandPalette(cmds).Show(w.fyneWindow)
 }
 
 // showFullTextSearch shows the full-text search dialog
