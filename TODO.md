@@ -19,6 +19,7 @@
 - [x] Smoother theme/font switching (in-place re-render, no disk reload, scroll preserved)
 - [x] Mermaid diagram rendering in HTML/Print/PDF export
 - [x] Math/LaTeX rendering in HTML/Print/PDF export
+- [x] Release automation — tag-triggered GitHub Release (Linux .deb/tarball, macOS .dmg)
 
 ## Features
 
@@ -52,4 +53,4 @@
 
 - [ ] Increase test coverage
 - [ ] Add integration tests
-- [ ] Release automation (signed macOS and Linux builds on tag)
+- [ ] macOS Developer ID signing + notarization in the release workflow (needs Apple secrets; currently ad-hoc signed)
