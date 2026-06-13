@@ -82,6 +82,9 @@ type Window struct {
 	saveAction      *toolbarAction
 	discardAction   *toolbarAction
 	splitViewAction *toolbarAction
+	fileTreeAction  *toolbarAction
+	tocAction       *toolbarAction
+	libraryAction   *toolbarAction
 
 	// Edit toolbar (shown in edit mode)
 	editToolbar *widget.Toolbar
@@ -434,6 +437,9 @@ func (w *Window) setupUI() {
 	w.fyneWindow.SetMainMenu(w.createMainMenu())
 
 	w.fyneWindow.SetContent(mainContent)
+
+	// Reflect the initial panel visibility on the toolbar toggle buttons.
+	w.updatePanelToggleStates()
 }
 
 // toolbarAction is a custom toolbar item
@@ -592,21 +598,24 @@ func (w *Window) createToolbar() *widget.Toolbar {
 		}
 	})
 
-	toggleFileTreeAction := newToolbarAction(themes.IconFileTree(), "Toggle File Browser", func() {
+	w.fileTreeAction = newToolbarAction(themes.IconFileTree(), "Toggle File Browser", func() {
 		w.toggleFileTree()
 	})
+	toggleFileTreeAction := w.fileTreeAction
 
-	toggleTOCAction := newToolbarAction(themes.IconTOC(), "Toggle Table of Contents", func() {
+	w.tocAction = newToolbarAction(themes.IconTOC(), "Toggle Table of Contents", func() {
 		w.toggleTOC()
 	})
+	toggleTOCAction := w.tocAction
 
 	toggleThemeAction := newToolbarAction(themes.IconTheme(), "Appearance Settings", func() {
 		w.toggleTheme()
 	})
 
-	toggleLibraryAction := newToolbarAction(themes.IconLibrary(), "Toggle Library", func() {
+	w.libraryAction = newToolbarAction(themes.IconLibrary(), "Toggle Library", func() {
 		w.toggleLibraryMode()
 	})
+	toggleLibraryAction := w.libraryAction
 
 	presentationAction := newToolbarAction(themes.IconPresentation(), "Presentation Mode", func() {
 		w.showPresentationMode()
@@ -1126,6 +1135,20 @@ func (w *Window) setupShortcuts() {
 	})
 }
 
+// updatePanelToggleStates highlights the toolbar toggle buttons whose panels
+// are currently visible, so their on/off state is obvious at a glance.
+func (w *Window) updatePanelToggleStates() {
+	if w.fileTreeAction != nil {
+		w.fileTreeAction.button.setActive(w.fileTreeScroll.Visible())
+	}
+	if w.tocAction != nil {
+		w.tocAction.button.setActive(w.tocOutlineStack.Visible())
+	}
+	if w.libraryAction != nil {
+		w.libraryAction.button.setActive(w.libraryMode)
+	}
+}
+
 // toggleFileTree toggles the file tree visibility. Refreshing the split
 // re-runs its layout so the content pane reclaims the freed space.
 func (w *Window) toggleFileTree() {
@@ -1135,6 +1158,7 @@ func (w *Window) toggleFileTree() {
 		w.fileTreeScroll.Show()
 	}
 	w.mainSplit.Refresh()
+	w.updatePanelToggleStates()
 }
 
 // toggleTOC toggles the left navigation pane (TOC or outline). The split's
@@ -1147,6 +1171,7 @@ func (w *Window) toggleTOC() {
 		w.tocOutlineStack.Show()
 	}
 	w.leftSplit.Refresh()
+	w.updatePanelToggleStates()
 }
 
 // getActiveEditor returns the currently active editor based on view mode
@@ -1284,6 +1309,7 @@ func (w *Window) toggleFocusMode() {
 	}
 	w.leftSplit.Refresh()
 	w.mainSplit.Refresh()
+	w.updatePanelToggleStates()
 }
 
 // showKeyboardShortcuts shows a dialog with keyboard shortcuts
@@ -1584,6 +1610,7 @@ func (w *Window) toggleLibraryMode() {
 		w.scrollContent.Show()
 		w.fyneWindow.SetTitle("MarkView")
 		w.updateWindowTitle()
+		w.updatePanelToggleStates()
 	} else {
 		// Enter library mode
 		if w.currentDir == "" {
@@ -1605,6 +1632,7 @@ func (w *Window) toggleLibraryMode() {
 		w.editorScroll.Hide()
 		w.libraryScroll.Show()
 		w.fyneWindow.SetTitle("MarkView - Library")
+		w.updatePanelToggleStates()
 	}
 }
 
@@ -3061,6 +3089,7 @@ func (w *Window) toggleZenMode() {
 	}
 	w.leftSplit.Refresh()
 	w.mainSplit.Refresh()
+	w.updatePanelToggleStates()
 }
 
 // showExportThemeDialog shows the export theme selection dialog

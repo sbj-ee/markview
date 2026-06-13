@@ -85,3 +85,16 @@ func (b *tooltipButton) hideTooltip() {
 		b.popup = nil
 	}
 }
+
+// setActive toggles the button's highlighted state, used to indicate that the
+// panel it controls is currently visible.
+func (b *tooltipButton) setActive(active bool) {
+	imp := widget.LowImportance
+	if active {
+		imp = widget.HighImportance
+	}
+	if b.Importance != imp {
+		b.Importance = imp
+		b.Refresh()
+	}
+}
