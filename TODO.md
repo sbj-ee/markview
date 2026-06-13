@@ -23,7 +23,6 @@
 
 - [ ] Code signing and notarization for macOS distribution
 - [ ] Linux .deb package testing and distribution
-- [ ] Windows build support
 - [ ] Vim keybindings mode
 - [ ] Custom CSS themes support
 - [ ] Plugin system for extensions
@@ -57,4 +56,4 @@
 
 - [ ] Increase test coverage
 - [ ] Add integration tests
-- [ ] Release automation (signed, cross-platform builds on tag)
+- [ ] Release automation (signed macOS and Linux builds on tag)
