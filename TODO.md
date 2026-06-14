@@ -20,6 +20,7 @@
 - [x] Mermaid diagram rendering in HTML/Print/PDF export
 - [x] Math/LaTeX rendering in HTML/Print/PDF export
 - [x] Release automation — tag-triggered GitHub Release (Linux .deb/tarball, macOS .dmg)
+- [x] Improved table editing (per-column alignment, pipe escaping, edit existing tables in place)
 
 ## Features
 
@@ -35,7 +36,6 @@
 
 - [ ] Performance optimization for large files
 - [ ] Better image handling (drag & drop, paste from clipboard)
-- [ ] Improved table editing experience
 - [ ] Footnote support
 - [ ] Bibliography/citation support
 
