@@ -481,7 +481,7 @@ func (w *Window) createMainMenu() *fyne.MainMenu {
 	const super = fyne.KeyModifierSuper
 	const superShift = fyne.KeyModifierSuper | fyne.KeyModifierShift
 
-	fileMenu := fyne.NewMenu("File",
+	fileMenu := fyne.NewMenu(menuTitle("File"),
 		menuItem("New File", fyne.KeyN, super, w.newFile),
 		menuItem("New from Template…", fyne.KeyN, superShift, w.newFileFromTemplate),
 		menuItem("Open File…", fyne.KeyO, super, w.showOpenDialog),
@@ -503,7 +503,7 @@ func (w *Window) createMainMenu() *fyne.MainMenu {
 		menuItem("Export…", "", 0, w.showPrintDialog),
 	)
 
-	editMenu := fyne.NewMenu("Edit",
+	editMenu := fyne.NewMenu(menuTitle("Edit"),
 		menuItem("Toggle Edit Mode", fyne.KeyE, super, w.toggleEditMode),
 		menuItem("Find & Replace…", fyne.KeyF, super, func() {
 			// Matches the Cmd+F canvas handler: find in edit mode,
@@ -516,7 +516,7 @@ func (w *Window) createMainMenu() *fyne.MainMenu {
 		}),
 	)
 
-	viewMenu := fyne.NewMenu("View",
+	viewMenu := fyne.NewMenu(menuTitle("View"),
 		menuItem("Split View", fyne.KeyBackslash, super, w.toggleSplitView),
 		menuItem("Reload", fyne.KeyR, super, func() {
 			if w.currentFile != "" {
@@ -535,7 +535,7 @@ func (w *Window) createMainMenu() *fyne.MainMenu {
 		menuItem("Appearance Settings…", "", 0, w.toggleTheme),
 	)
 
-	goMenu := fyne.NewMenu("Go",
+	goMenu := fyne.NewMenu(menuTitle("Go"),
 		menuItem("Command Palette", fyne.KeyP, superShift, w.showCommandPalette),
 		menuItem("Quick Switcher", fyne.KeyP, fyne.KeyModifierControl, w.showQuickSwitcher),
 		menuItem("Search in Files", fyne.KeyG, superShift, w.showFullTextSearch),
@@ -543,14 +543,14 @@ func (w *Window) createMainMenu() *fyne.MainMenu {
 		menuItem("Browse Tags", fyne.KeyT, super, w.showTagsBrowser),
 	)
 
-	toolsMenu := fyne.NewMenu("Tools",
+	toolsMenu := fyne.NewMenu(menuTitle("Tools"),
 		menuItem("Validate Links", fyne.KeyL, super, w.validateLinks),
 		menuItem("Word Count Goal…", "", 0, w.showWordCountGoalDialog),
 		menuItem("Export Theme…", "", 0, w.showExportThemeDialog),
 		menuItem("Custom CSS…", "", 0, w.showCustomCSSDialog),
 	)
 
-	helpMenu := fyne.NewMenu("Help",
+	helpMenu := fyne.NewMenu(menuTitle("Help"),
 		menuItem("Keyboard Shortcuts", fyne.KeySlash, super, w.showKeyboardShortcuts),
 		menuItem("Help", "", 0, w.showHelpMenu),
 		menuItem("Check for Updates…", "", 0, func() {
@@ -3035,7 +3035,8 @@ func (w *Window) showCommandPalette() {
 				continue
 			}
 			cmds = append(cmds, command{
-				label:    m.Label + ": " + item.Label,
+				// Menu titles may be padded for menu-bar spacing; trim for display.
+				label:    strings.TrimSpace(m.Label) + ": " + item.Label,
 				shortcut: shortcutLabel(item.Shortcut),
 				action:   item.Action,
 			})
