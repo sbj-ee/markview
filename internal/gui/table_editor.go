@@ -35,6 +35,52 @@ func NewTableEditor(onInsert func(markdown string)) *TableEditor {
 	return te
 }
 
+// NewTableEditorWithData creates a table editor pre-populated from parsed table
+// data, used to edit an existing table.
+func NewTableEditorWithData(headers, aligns []string, rows [][]string, onInsert func(markdown string)) *TableEditor {
+	cols := len(headers)
+	if cols < 1 {
+		cols = 1
+	}
+	rowCount := len(rows)
+	if rowCount < 1 {
+		rowCount = 1
+	}
+
+	te := &TableEditor{rows: rowCount, cols: cols, onInsert: onInsert}
+
+	te.headers = make([]*widget.Entry, cols)
+	te.aligns = make([]string, cols)
+	for j := 0; j < cols; j++ {
+		e := widget.NewEntry()
+		e.SetPlaceHolder(fmt.Sprintf("Header %d", j+1))
+		if j < len(headers) {
+			e.SetText(headers[j])
+		}
+		te.headers[j] = e
+		te.aligns[j] = "Left"
+		if j < len(aligns) && aligns[j] != "" {
+			te.aligns[j] = aligns[j]
+		}
+	}
+
+	te.cells = make([][]*widget.Entry, rowCount)
+	for i := 0; i < rowCount; i++ {
+		te.cells[i] = make([]*widget.Entry, cols)
+		for j := 0; j < cols; j++ {
+			e := widget.NewEntry()
+			e.SetPlaceHolder(fmt.Sprintf("R%dC%d", i+1, j+1))
+			if i < len(rows) && j < len(rows[i]) {
+				e.SetText(rows[i][j])
+			}
+			te.cells[i][j] = e
+		}
+	}
+
+	te.updateContainer()
+	return te
+}
+
 // buildUI builds the table editor UI
 func (te *TableEditor) buildUI() {
 	te.createCells()
@@ -267,26 +313,33 @@ func (te *TableEditor) GetContainer() *fyne.Container {
 // ShowTableEditorDialog shows a dialog for creating/editing tables
 func ShowTableEditorDialog(parent fyne.Window, onInsert func(markdown string)) {
 	te := NewTableEditor(onInsert)
+	showTableEditorDialog(parent, te, "Insert Table", "Insert Table", onInsert)
+}
 
+// ShowTableEditorDialogForEdit opens the table editor pre-populated with an
+// existing table's data; applying replaces the original table.
+func ShowTableEditorDialogForEdit(parent fyne.Window, headers, aligns []string, rows [][]string, onApply func(markdown string)) {
+	te := NewTableEditorWithData(headers, aligns, rows, onApply)
+	showTableEditorDialog(parent, te, "Edit Table", "Update Table", onApply)
+}
+
+// showTableEditorDialog builds the dialog around a configured TableEditor.
+func showTableEditorDialog(parent fyne.Window, te *TableEditor, title, applyLabel string, onApply func(markdown string)) {
 	var d dialog.Dialog
 
-	insertBtn := widget.NewButton("Insert Table", func() {
-		markdown := te.GenerateMarkdown()
-		if onInsert != nil {
-			onInsert(markdown)
+	applyBtn := widget.NewButton(applyLabel, func() {
+		if onApply != nil {
+			onApply(te.GenerateMarkdown())
 		}
 		d.Hide()
 	})
-	insertBtn.Importance = widget.HighImportance
+	applyBtn.Importance = widget.HighImportance
 
 	cancelBtn := widget.NewButton("Cancel", func() {
 		d.Hide()
 	})
 
-	buttons := container.NewHBox(
-		cancelBtn,
-		insertBtn,
-	)
+	buttons := container.NewHBox(cancelBtn, applyBtn)
 
 	content := container.NewVBox(
 		te.GetContainer(),
@@ -294,7 +347,7 @@ func ShowTableEditorDialog(parent fyne.Window, onInsert func(markdown string)) {
 		buttons,
 	)
 
-	d = dialog.NewCustomWithoutButtons("Insert Table", content, parent)
+	d = dialog.NewCustomWithoutButtons(title, content, parent)
 	d.Resize(fyne.NewSize(600, 500))
 	d.Show()
 }

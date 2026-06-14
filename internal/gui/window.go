@@ -785,10 +785,23 @@ func (w *Window) createEditToolbar() *widget.Toolbar {
 		})
 	})
 
-	tableAction := newToolbarAction(themes.IconTable(), "Insert Table…", func() {
-		ShowTableEditorDialog(w.fyneWindow, func(markdown string) {
-			w.getActiveEditor().InsertAtCursor("\n" + markdown)
-		})
+	tableAction := newToolbarAction(themes.IconTable(), "Insert/Edit Table…", func() {
+		editor := w.getActiveEditor()
+		// If the cursor is inside an existing table, edit it in place;
+		// otherwise insert a new table at the cursor.
+		text := editor.GetText()
+		row, _ := editor.GetCursorPosition()
+		if start, end, ok := detectTableAt(text, row); ok {
+			lines := strings.Split(text, "\n")
+			headers, aligns, rows := parseTableLines(lines[start : end+1])
+			ShowTableEditorDialogForEdit(w.fyneWindow, headers, aligns, rows, func(markdown string) {
+				editor.ReplaceLines(start, end, strings.TrimRight(markdown, "\n"))
+			})
+		} else {
+			ShowTableEditorDialog(w.fyneWindow, func(markdown string) {
+				editor.InsertAtCursor("\n" + markdown)
+			})
+		}
 	})
 
 	footnoteAction := newToolbarAction(themes.IconFootnote(), "Insert Footnote", func() {
