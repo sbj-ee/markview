@@ -20,6 +20,17 @@ var cmdKey = func() string {
 	return "Ctrl"
 }()
 
+// menuTitle widens a top-level menu title with surrounding spaces so the menu
+// bar entries sit further apart. Only applied where Fyne draws the menu bar
+// in-window (Linux, etc.); macOS uses the native system menu bar, which must
+// keep plain titles.
+func menuTitle(name string) string {
+	if runtime.GOOS == "darwin" {
+		return name
+	}
+	return "  " + name + "  "
+}
+
 // tooltipButton is a widget.Button that displays a text tooltip on hover.
 // Fyne 2.7 has no built-in tooltip support, so we provide a lightweight one
 // by extending the button's hover handling to show/hide a small popup.
