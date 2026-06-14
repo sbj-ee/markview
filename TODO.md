@@ -21,6 +21,10 @@
 - [x] Math/LaTeX rendering in HTML/Print/PDF export
 - [x] Release automation — tag-triggered GitHub Release (Linux .deb/tarball, macOS .dmg)
 - [x] Improved table editing (per-column alignment, pipe escaping, edit existing tables in place)
+- [x] Three new color themes: Agua (ocean blues), Groovy (70s warm), Chili Pepper (pepper colors)
+- [x] Hover-delay for toolbar tooltips (no longer flash while sweeping the toolbar)
+- [x] Wider spacing between menu-bar titles
+- [x] Smaller (caption-size) font for file browser names
 
 ## Features
 
