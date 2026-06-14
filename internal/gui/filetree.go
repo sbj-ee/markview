@@ -33,6 +33,8 @@ type fileTreeNode struct {
 func newFileTreeNode() *fileTreeNode {
 	icon := widget.NewIcon(theme.FileIcon())
 	label := widget.NewLabel("")
+	// Use the smaller caption text size so file names are more compact.
+	label.SizeName = theme.SizeNameCaptionText
 	n := &fileTreeNode{
 		icon:  icon,
 		label: label,
