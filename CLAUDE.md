@@ -76,7 +76,7 @@ markview/
 │   │   └── debounce.go      # Change debouncing
 │   ├── library/             # Document library management
 │   └── themes/              # Theme definitions
-│       ├── themes.go        # 8 color themes + icon functions
+│       ├── themes.go        # 11 color themes + icon functions
 │       └── icons.go         # SVG icons for toolbar
 ├── scripts/                 # Build scripts
 │   ├── build-deb.sh         # Debian/Ubuntu packaging
@@ -194,8 +194,8 @@ Auto-update checking in `updater.go`:
 - Supports "Skip This Version" preference to dismiss updates
 - Checks once per day in silent mode (startup), on-demand via Help menu
 
-### Color Themes (8 total)
-Light, Dark, Nord, Solarized Light, Solarized Dark, Monokai, Gruvbox Dark, One Dark
+### Color Themes (11 total)
+Light, Dark, Nord, Solarized Light, Solarized Dark, Monokai, Gruvbox Dark, One Dark, Agua (ocean blues), Groovy (70s burnt orange/brown/yellow), Chili Pepper (pepper reds/greens/oranges)
 
 ### Export Themes (6 total)
 Default, GitHub, Academic, Dark, Minimal, Print-Friendly

@@ -46,7 +46,7 @@
   - Meeting Notes, Blog Post, README, Technical Spec, Journal, and more
 
 ### Themes & Appearance
-- **8 Color Themes** - Light, Dark, Nord, Solarized Light/Dark, Monokai, Gruvbox Dark, One Dark
+- **11 Color Themes** - Light, Dark, Nord, Solarized Light/Dark, Monokai, Gruvbox Dark, One Dark, Agua (ocean blues), Groovy (70s warm), Chili Pepper (pepper colors)
 - **Font Families** - System Default, Monospace, Serif, Sans Serif
 - **Font Sizes** - Small, Normal, Large, Extra Large
 - **Instant Theme Switching** - Click the palette icon to customize
@@ -227,6 +227,9 @@ The symbol picker (Ω icon) provides quick access to:
 | **Monokai** | Classic code editor colors |
 | **Gruvbox Dark** | Retro groove colors |
 | **One Dark** | Atom-inspired dark theme |
+| **Agua** | Deep-ocean palette of blues |
+| **Groovy** | 1970s burnt orange, brown, and mustard yellow |
+| **Chili Pepper** | Pepper reds, greens, and oranges on warm charcoal |
 
 ### Export Themes
 
