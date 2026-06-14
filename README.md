@@ -12,6 +12,12 @@
   Built with Go and Fyne • Supports macOS and Linux • Lightweight and Native
 </p>
 
+<p align="center">
+  <a href="https://github.com/sbj-ee/markview/releases/latest"><img src="https://img.shields.io/github/v/release/sbj-ee/markview?label=latest%20release&color=2ea043" alt="Latest release"></a>
+</p>
+
+> 🎉 **MarkView v1.0.22 is out** — the first release of a major round of improvements: a command palette, native menu bar, first-run onboarding, Mermaid & LaTeX rendering on export, a revamped table editor, three new color themes (Agua, Groovy, Chili Pepper), and lots of polish. **[Download the latest release →](https://github.com/sbj-ee/markview/releases/latest)**
+
 ---
 
 ## Features
@@ -118,7 +124,15 @@
 
 ## Installation
 
-### Prerequisites
+### Download
+
+Pre-built packages are attached to every [release](https://github.com/sbj-ee/markview/releases/latest):
+
+- **macOS** — `MarkView-<version>.dmg` (universal). The app is ad-hoc signed, so on first launch right-click the app → **Open** to get past the Gatekeeper prompt.
+- **Debian / Ubuntu** — `markview_<version>_amd64.deb` → `sudo dpkg -i markview_<version>_amd64.deb`
+- **Linux (generic)** — `markview_<version>_linux_amd64.tar.gz`
+
+### Prerequisites (build from source)
 
 - **Go 1.21+** (for building from source)
 - **GCC** or compatible C compiler (required by Fyne for GUI)
