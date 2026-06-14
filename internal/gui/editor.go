@@ -1,6 +1,8 @@
 package gui
 
 import (
+	"strings"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
@@ -61,6 +63,21 @@ func (e *MarkdownEditor) SetText(text string) {
 // GetText returns the current editor content
 func (e *MarkdownEditor) GetText() string {
 	return e.entry.Text
+}
+
+// ReplaceLines replaces the inclusive line range [start, end] (0-indexed) with
+// the given replacement text. Out-of-range arguments are a no-op.
+func (e *MarkdownEditor) ReplaceLines(start, end int, replacement string) {
+	lines := strings.Split(e.entry.Text, "\n")
+	if start < 0 || end >= len(lines) || start > end {
+		return
+	}
+	replLines := strings.Split(strings.TrimRight(replacement, "\n"), "\n")
+	newLines := make([]string, 0, len(lines)-(end-start+1)+len(replLines))
+	newLines = append(newLines, lines[:start]...)
+	newLines = append(newLines, replLines...)
+	newLines = append(newLines, lines[end+1:]...)
+	e.SetText(strings.Join(newLines, "\n"))
 }
 
 // GetCursorPosition returns the current cursor row and column (0-indexed)
