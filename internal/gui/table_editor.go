@@ -10,12 +10,16 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+// columnAlignments are the selectable per-column alignment options.
+var columnAlignments = []string{"Left", "Center", "Right"}
+
 // TableEditor provides a visual interface for creating markdown tables
 type TableEditor struct {
 	rows      int
 	cols      int
 	cells     [][]*widget.Entry
 	headers   []*widget.Entry
+	aligns    []string // per-column alignment: one of columnAlignments
 	container *fyne.Container
 	onInsert  func(markdown string)
 }
@@ -41,9 +45,11 @@ func (te *TableEditor) buildUI() {
 func (te *TableEditor) createCells() {
 	// Create header cells
 	te.headers = make([]*widget.Entry, te.cols)
+	te.aligns = make([]string, te.cols)
 	for j := 0; j < te.cols; j++ {
 		te.headers[j] = widget.NewEntry()
 		te.headers[j].SetPlaceHolder(fmt.Sprintf("Header %d", j+1))
+		te.aligns[j] = "Left"
 	}
 
 	// Create data cells
@@ -63,6 +69,17 @@ func (te *TableEditor) updateContainer() {
 	headerRow := container.NewGridWithColumns(te.cols)
 	for j := 0; j < te.cols; j++ {
 		headerRow.Add(te.headers[j])
+	}
+
+	// Build per-column alignment row
+	alignRow := container.NewGridWithColumns(te.cols)
+	for j := 0; j < te.cols; j++ {
+		col := j // capture
+		sel := widget.NewSelect(columnAlignments, func(s string) {
+			te.aligns[col] = s
+		})
+		sel.SetSelected(te.aligns[j])
+		alignRow.Add(sel)
 	}
 
 	// Build data rows
@@ -106,6 +123,8 @@ func (te *TableEditor) updateContainer() {
 	te.container = container.NewVBox(
 		widget.NewLabel("Headers:"),
 		headerRow,
+		widget.NewLabel("Alignment:"),
+		alignRow,
 		widget.NewSeparator(),
 		widget.NewLabel("Data:"),
 		dataRows,
@@ -153,6 +172,7 @@ func (te *TableEditor) addColumn() {
 	newHeader := widget.NewEntry()
 	newHeader.SetPlaceHolder(fmt.Sprintf("Header %d", te.cols))
 	te.headers = append(te.headers, newHeader)
+	te.aligns = append(te.aligns, "Left")
 
 	// Add new cell to each row
 	for i := 0; i < te.rows; i++ {
@@ -171,6 +191,7 @@ func (te *TableEditor) removeColumn() {
 	}
 	te.cols--
 	te.headers = te.headers[:te.cols]
+	te.aligns = te.aligns[:te.cols]
 	for i := 0; i < te.rows; i++ {
 		te.cells[i] = te.cells[i][:te.cols]
 	}
@@ -188,14 +209,14 @@ func (te *TableEditor) GenerateMarkdown() string {
 		if text == "" {
 			text = fmt.Sprintf("Column %d", j+1)
 		}
-		sb.WriteString(" " + text + " |")
+		sb.WriteString(" " + escapeTableCell(text) + " |")
 	}
 	sb.WriteString("\n")
 
-	// Separator row
+	// Separator row, with per-column alignment markers
 	sb.WriteString("|")
 	for j := 0; j < te.cols; j++ {
-		sb.WriteString(" --- |")
+		sb.WriteString(" " + alignmentSeparator(te.aligns[j]) + " |")
 	}
 	sb.WriteString("\n")
 
@@ -206,6 +227,8 @@ func (te *TableEditor) GenerateMarkdown() string {
 			text := te.cells[i][j].Text
 			if text == "" {
 				text = " "
+			} else {
+				text = escapeTableCell(text)
 			}
 			sb.WriteString(" " + text + " |")
 		}
@@ -213,6 +236,27 @@ func (te *TableEditor) GenerateMarkdown() string {
 	}
 
 	return sb.String()
+}
+
+// alignmentSeparator returns the GFM separator-row marker for an alignment.
+func alignmentSeparator(align string) string {
+	switch align {
+	case "Center":
+		return ":---:"
+	case "Right":
+		return "---:"
+	default: // Left
+		return ":---"
+	}
+}
+
+// escapeTableCell escapes characters that would otherwise break a table cell.
+// A literal pipe must be backslash-escaped; newlines can't occur (cells are
+// single-line entries) but are collapsed defensively.
+func escapeTableCell(s string) string {
+	s = strings.ReplaceAll(s, "|", "\\|")
+	s = strings.ReplaceAll(s, "\n", " ")
+	return s
 }
 
 // GetContainer returns the table editor container
