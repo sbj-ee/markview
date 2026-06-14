@@ -1,19 +1,37 @@
 package themes
 
 import (
+	"image/color"
 	"testing"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/theme"
 )
 
+// TestNewThemeBackgrounds verifies the new themes dispatch to their own
+// palettes (distinct background colors), rather than falling back to default.
+func TestNewThemeBackgrounds(t *testing.T) {
+	cases := map[ThemeType]color.RGBA{
+		ThemeAgua:        {R: 13, G: 27, B: 42, A: 255},
+		ThemeGroovy:      {R: 42, G: 30, B: 22, A: 255},
+		ThemeChiliPepper: {R: 28, G: 24, B: 22, A: 255},
+	}
+	for themeType, want := range cases {
+		th := NewMarkViewThemeWithOptions(themeType, FontDefault, FontSizeNormal)
+		got, ok := th.Color(theme.ColorNameBackground, theme.VariantDark).(color.RGBA)
+		if !ok || got != want {
+			t.Errorf("theme %v background = %v (ok=%v), want %v", themeType, got, ok, want)
+		}
+	}
+}
+
 func TestThemeNames(t *testing.T) {
 	names := ThemeNames()
-	if len(names) != 8 {
-		t.Errorf("ThemeNames() returned %d names, want 8", len(names))
+	if len(names) != 11 {
+		t.Errorf("ThemeNames() returned %d names, want 11", len(names))
 	}
 
-	expected := []string{"Light", "Dark", "Nord", "Solarized Light", "Solarized Dark", "Monokai", "Gruvbox Dark", "One Dark"}
+	expected := []string{"Light", "Dark", "Nord", "Solarized Light", "Solarized Dark", "Monokai", "Gruvbox Dark", "One Dark", "Agua", "Groovy", "Chili Pepper"}
 	for i, name := range names {
 		if name != expected[i] {
 			t.Errorf("ThemeNames()[%d] = %q, want %q", i, name, expected[i])
@@ -34,6 +52,9 @@ func TestThemeFromName(t *testing.T) {
 		{"Monokai", ThemeMonokai},
 		{"Gruvbox Dark", ThemeGruvboxDark},
 		{"One Dark", ThemeOneDark},
+		{"Agua", ThemeAgua},
+		{"Groovy", ThemeGroovy},
+		{"Chili Pepper", ThemeChiliPepper},
 		{"Unknown", ThemeDark}, // Default
 		{"", ThemeDark},        // Empty string defaults to Dark
 	}

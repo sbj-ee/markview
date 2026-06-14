@@ -19,6 +19,9 @@ const (
 	ThemeMonokai
 	ThemeGruvboxDark
 	ThemeOneDark
+	ThemeAgua
+	ThemeGroovy
+	ThemeChiliPepper
 )
 
 // ThemeNames returns all available theme names
@@ -32,6 +35,9 @@ func ThemeNames() []string {
 		"Monokai",
 		"Gruvbox Dark",
 		"One Dark",
+		"Agua",
+		"Groovy",
+		"Chili Pepper",
 	}
 }
 
@@ -54,6 +60,12 @@ func ThemeFromName(name string) ThemeType {
 		return ThemeGruvboxDark
 	case "One Dark":
 		return ThemeOneDark
+	case "Agua":
+		return ThemeAgua
+	case "Groovy":
+		return ThemeGroovy
+	case "Chili Pepper":
+		return ThemeChiliPepper
 	default:
 		return ThemeDark
 	}
@@ -211,6 +223,12 @@ func (m *MarkViewTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVarian
 		return m.gruvboxDarkColor(name)
 	case ThemeOneDark:
 		return m.oneDarkColor(name)
+	case ThemeAgua:
+		return m.aguaColor(name)
+	case ThemeGroovy:
+		return m.groovyColor(name)
+	case ThemeChiliPepper:
+		return m.chiliPepperColor(name)
 	default:
 		return m.darkColor(name)
 	}
@@ -672,6 +690,146 @@ func (m *MarkViewTheme) oneDarkColor(name fyne.ThemeColorName) color.Color {
 		return color.RGBA{R: 209, G: 154, B: 102, A: 255} // Orange for table headers
 	case theme.ColorNamePlaceHolder:
 		return color.RGBA{R: 128, G: 135, B: 150, A: 255} // Comment gray - visible
+	default:
+		return theme.DefaultTheme().Color(name, theme.VariantDark)
+	}
+}
+
+// aguaColor returns colors for the Agua theme: a deep-ocean palette of blues.
+func (m *MarkViewTheme) aguaColor(name fyne.ThemeColorName) color.Color {
+	switch name {
+	case theme.ColorNameBackground:
+		return color.RGBA{R: 13, G: 27, B: 42, A: 255} // Deep ocean navy
+	case theme.ColorNameForeground:
+		return color.RGBA{R: 202, G: 227, B: 240, A: 255} // Pale sea foam text
+	case theme.ColorNameButton:
+		return color.RGBA{R: 27, G: 49, B: 77, A: 255}
+	case theme.ColorNameHover:
+		return color.RGBA{R: 35, G: 62, B: 94, A: 255}
+	case theme.ColorNamePressed:
+		return color.RGBA{R: 45, G: 76, B: 112, A: 255}
+	case theme.ColorNamePrimary:
+		return color.RGBA{R: 0, G: 180, B: 216, A: 255} // Bright azure
+	case theme.ColorNameSuccess:
+		return color.RGBA{R: 64, G: 192, B: 160, A: 255} // Teal
+	case theme.ColorNameWarning:
+		return color.RGBA{R: 240, G: 196, B: 100, A: 255} // Sandy gold
+	case theme.ColorNameError:
+		return color.RGBA{R: 235, G: 110, B: 110, A: 255} // Coral
+	case theme.ColorNameHyperlink:
+		return color.RGBA{R: 72, G: 202, B: 228, A: 255} // Cyan
+	case theme.ColorNameInputBackground:
+		return color.RGBA{R: 22, G: 41, B: 64, A: 255}
+	case theme.ColorNameInputBorder:
+		return color.RGBA{R: 60, G: 100, B: 140, A: 255}
+	case theme.ColorNameSelection:
+		return color.RGBA{R: 40, G: 90, B: 130, A: 200}
+	case theme.ColorNameScrollBar:
+		return color.RGBA{R: 60, G: 100, B: 140, A: 255}
+	case "heading1", "heading2":
+		return color.RGBA{R: 0, G: 180, B: 216, A: 255} // Azure
+	case "heading3", "heading4":
+		return color.RGBA{R: 144, G: 224, B: 239, A: 255} // Light aqua
+	case "math":
+		return color.RGBA{R: 150, G: 170, B: 230, A: 255} // Periwinkle
+	case "tableHeader":
+		return color.RGBA{R: 72, G: 202, B: 228, A: 255} // Cyan
+	case theme.ColorNamePlaceHolder:
+		return color.RGBA{R: 110, G: 140, B: 170, A: 255} // Muted slate blue
+	default:
+		return theme.DefaultTheme().Color(name, theme.VariantDark)
+	}
+}
+
+// groovyColor returns colors for the Groovy theme: 1970s burnt orange, brown,
+// and mustard yellow.
+func (m *MarkViewTheme) groovyColor(name fyne.ThemeColorName) color.Color {
+	switch name {
+	case theme.ColorNameBackground:
+		return color.RGBA{R: 42, G: 30, B: 22, A: 255} // Dark chocolate brown
+	case theme.ColorNameForeground:
+		return color.RGBA{R: 235, G: 220, B: 195, A: 255} // Cream
+	case theme.ColorNameButton:
+		return color.RGBA{R: 66, G: 46, B: 30, A: 255}
+	case theme.ColorNameHover:
+		return color.RGBA{R: 84, G: 58, B: 38, A: 255}
+	case theme.ColorNamePressed:
+		return color.RGBA{R: 102, G: 70, B: 46, A: 255}
+	case theme.ColorNamePrimary:
+		return color.RGBA{R: 204, G: 102, B: 0, A: 255} // Burnt orange
+	case theme.ColorNameSuccess:
+		return color.RGBA{R: 124, G: 138, B: 50, A: 255} // Avocado green
+	case theme.ColorNameWarning:
+		return color.RGBA{R: 224, G: 168, B: 0, A: 255} // Mustard yellow
+	case theme.ColorNameError:
+		return color.RGBA{R: 170, G: 57, B: 30, A: 255} // Rust red
+	case theme.ColorNameHyperlink:
+		return color.RGBA{R: 230, G: 150, B: 40, A: 255} // Amber
+	case theme.ColorNameInputBackground:
+		return color.RGBA{R: 60, G: 42, B: 28, A: 255}
+	case theme.ColorNameInputBorder:
+		return color.RGBA{R: 120, G: 84, B: 50, A: 255}
+	case theme.ColorNameSelection:
+		return color.RGBA{R: 140, G: 90, B: 40, A: 200}
+	case theme.ColorNameScrollBar:
+		return color.RGBA{R: 120, G: 84, B: 50, A: 255}
+	case "heading1", "heading2":
+		return color.RGBA{R: 204, G: 102, B: 0, A: 255} // Burnt orange
+	case "heading3", "heading4":
+		return color.RGBA{R: 224, G: 168, B: 0, A: 255} // Mustard yellow
+	case "math":
+		return color.RGBA{R: 124, G: 138, B: 50, A: 255} // Avocado green
+	case "tableHeader":
+		return color.RGBA{R: 204, G: 102, B: 0, A: 255} // Burnt orange
+	case theme.ColorNamePlaceHolder:
+		return color.RGBA{R: 150, G: 125, B: 95, A: 255} // Muted tan
+	default:
+		return theme.DefaultTheme().Color(name, theme.VariantDark)
+	}
+}
+
+// chiliPepperColor returns colors for the Chili Pepper theme: pepper reds,
+// greens, and oranges on a warm charcoal.
+func (m *MarkViewTheme) chiliPepperColor(name fyne.ThemeColorName) color.Color {
+	switch name {
+	case theme.ColorNameBackground:
+		return color.RGBA{R: 28, G: 24, B: 22, A: 255} // Warm charcoal
+	case theme.ColorNameForeground:
+		return color.RGBA{R: 240, G: 230, B: 220, A: 255} // Warm off-white
+	case theme.ColorNameButton:
+		return color.RGBA{R: 44, G: 38, B: 34, A: 255}
+	case theme.ColorNameHover:
+		return color.RGBA{R: 58, G: 50, B: 44, A: 255}
+	case theme.ColorNamePressed:
+		return color.RGBA{R: 72, G: 62, B: 54, A: 255}
+	case theme.ColorNamePrimary:
+		return color.RGBA{R: 213, G: 43, B: 30, A: 255} // Chili red
+	case theme.ColorNameSuccess:
+		return color.RGBA{R: 76, G: 175, B: 80, A: 255} // Jalapeño green
+	case theme.ColorNameWarning:
+		return color.RGBA{R: 240, G: 140, B: 0, A: 255} // Habanero orange
+	case theme.ColorNameError:
+		return color.RGBA{R: 200, G: 30, B: 30, A: 255} // Deep red
+	case theme.ColorNameHyperlink:
+		return color.RGBA{R: 240, G: 140, B: 0, A: 255} // Orange
+	case theme.ColorNameInputBackground:
+		return color.RGBA{R: 40, G: 34, B: 30, A: 255}
+	case theme.ColorNameInputBorder:
+		return color.RGBA{R: 90, G: 70, B: 60, A: 255}
+	case theme.ColorNameSelection:
+		return color.RGBA{R: 160, G: 50, B: 40, A: 200}
+	case theme.ColorNameScrollBar:
+		return color.RGBA{R: 90, G: 70, B: 60, A: 255}
+	case "heading1", "heading2":
+		return color.RGBA{R: 213, G: 43, B: 30, A: 255} // Chili red
+	case "heading3", "heading4":
+		return color.RGBA{R: 76, G: 175, B: 80, A: 255} // Pepper green
+	case "math":
+		return color.RGBA{R: 240, G: 140, B: 0, A: 255} // Orange
+	case "tableHeader":
+		return color.RGBA{R: 240, G: 140, B: 0, A: 255} // Orange
+	case theme.ColorNamePlaceHolder:
+		return color.RGBA{R: 150, G: 130, B: 120, A: 255} // Muted warm gray
 	default:
 		return theme.DefaultTheme().Color(name, theme.VariantDark)
 	}
