@@ -80,21 +80,49 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
+      # SHA256SUMS lists every release file and is signed with minisign by
+      # the shared release key (DBC46B23C3AF0EF3, as zwriter and zedit).
+      # Help > Check for Updates installs nothing without a valid signature.
+      - name: Assemble and sign SHA256SUMS
+        env:
+          MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
+          MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          find artifacts -type f -exec cp {} out/ \;
+          (cd out && sha256sum * > SHA256SUMS && cat SHA256SUMS && sha256sum -c SHA256SUMS)
+          if [ -z "${MINISIGN_SECRET_KEY:-}" ]; then
+            echo "::error::Secret MINISIGN_SECRET_KEY is not set: refusing to publish an unsigned release"
+            exit 1
+          fi
+          sudo apt-get install -y -qq minisign
+          key="$RUNNER_TEMP/minisign.key"
+          (umask 077 && printf '%s\n' "$MINISIGN_SECRET_KEY" > "$key")
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n' "${MINISIGN_PASSWORD:-}" \
+            | minisign -S -s "$key" -m out/SHA256SUMS -t "markview $GITHUB_REF_NAME SHA256SUMS"
+          rm -f "$key"
+          # Verify with the public key compiled into this commit.
+          pub=$(sed -n 's/^const SigningPublicKey = "\(RW[A-Za-z0-9+/=]*\)"/\1/p' internal/update/minisign.go)
+          test -n "$pub"
+          minisign -V -P "$pub" -m out/SHA256SUMS -x out/SHA256SUMS.minisig
+
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Upload every downloaded file; artifacts preserve their source
-          # subdirectories (e.g. linux/deb/*.deb), so glob files recursively
-          # rather than passing directories to gh.
-          mapfile -t files < <(find artifacts -type f)
           gh release create "$GITHUB_REF_NAME" \
             --repo "$GITHUB_REPOSITORY" \
             --title "$GITHUB_REF_NAME" \
             --generate-notes \
-            "${files[@]}"
+            --verify-tag \
+            out/*

@@ -1,10 +1,14 @@
 package gui
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -12,7 +16,10 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/sbj-ee/markview/internal/update"
 )
 
 const (
@@ -22,6 +29,8 @@ const (
 	updateCheckKey  = "lastUpdateCheck"
 	skippedVersion  = "skippedVersion"
 	checkInterval   = 24 * time.Hour // Check once per day
+	// checkAtStartupKey holds the Help > Check for Updates at Startup toggle.
+	checkAtStartupKey = "checkUpdatesAtStartup"
 )
 
 // GitHubRelease represents the GitHub API response for a release
@@ -70,7 +79,7 @@ func (uc *UpdateChecker) CheckForUpdates(silent bool) {
 		release, err := uc.fetchLatestRelease()
 		if err != nil {
 			if !silent {
-				dialog.ShowError(fmt.Errorf("failed to check for updates: %v", err), uc.window)
+				fyne.Do(func() { dialog.ShowError(fmt.Errorf("failed to check for updates: %v", err), uc.window) })
 			}
 			return
 		}
@@ -91,9 +100,11 @@ func (uc *UpdateChecker) CheckForUpdates(silent bool) {
 			}
 			uc.showUpdateDialog(release)
 		} else if !silent {
-			dialog.ShowInformation("Up to Date",
-				fmt.Sprintf("You're running the latest version (%s).", uc.currentVersion),
-				uc.window)
+			fyne.Do(func() {
+				dialog.ShowInformation("Up to Date",
+					fmt.Sprintf("You're running the latest version (%s).", uc.currentVersion),
+					uc.window)
+			})
 		}
 	}()
 }
@@ -171,82 +182,141 @@ func parseVersion(v string) []int {
 	return result
 }
 
-// showUpdateDialog displays the update available dialog
+// showUpdateDialog displays the update available dialog: release notes and
+// Install / Skip This Version / Later. Install follows zwriter's flow:
+// download SHA256SUMS + SHA256SUMS.minisig, verify the minisign signature
+// with the embedded public key, download the package, check its SHA-256,
+// then install it (Linux: pkexec apt) or open it (macOS: the .dmg).
 func (uc *UpdateChecker) showUpdateDialog(release *GitHubRelease) {
+	fyne.Do(func() { uc.buildUpdateDialog(release).Show() })
+}
+
+func (uc *UpdateChecker) buildUpdateDialog(release *GitHubRelease) dialog.Dialog {
 	latestVersion := strings.TrimPrefix(release.TagName, "v")
 
-	// Create release notes (truncate if too long)
 	releaseNotes := release.Body
-	if len(releaseNotes) > 500 {
-		releaseNotes = releaseNotes[:500] + "..."
+	if len(releaseNotes) > 1500 {
+		releaseNotes = releaseNotes[:1500] + "..."
 	}
 
-	// Build content
-	titleLabel := widget.NewLabel(fmt.Sprintf("A new version of MarkView is available!"))
+	titleLabel := widget.NewLabel(fmt.Sprintf("MarkView %s is available", latestVersion))
 	titleLabel.TextStyle = fyne.TextStyle{Bold: true}
+	versionLabel := widget.NewLabel(fmt.Sprintf("You have %s.", uc.currentVersion))
+	notes := widget.NewRichTextFromMarkdown(releaseNotes)
+	notes.Wrapping = fyne.TextWrapWord
+	notesScroll := container.NewVScroll(notes)
+	notesScroll.SetMinSize(fyne.NewSize(460, 180))
 
-	versionLabel := widget.NewLabel(fmt.Sprintf("Current: %s  →  Latest: %s",
-		uc.currentVersion, latestVersion))
-
-	notesLabel := widget.NewLabel("Release Notes:")
-	notesLabel.TextStyle = fyne.TextStyle{Bold: true}
-
-	notesText := widget.NewLabel(releaseNotes)
-	notesText.Wrapping = fyne.TextWrapWord
-
-	notesScroll := container.NewVScroll(notesText)
-	notesScroll.SetMinSize(fyne.NewSize(400, 150))
-
-	content := container.NewVBox(
-		titleLabel,
-		versionLabel,
-		widget.NewSeparator(),
-		notesLabel,
-		notesScroll,
-	)
-
-	// Find download URL for macOS DMG
-	downloadURL := release.HTMLURL
-	for _, asset := range release.Assets {
-		name := strings.ToLower(asset.Name)
-		if strings.HasSuffix(name, ".dmg") {
-			downloadURL = asset.BrowserDownloadURL
-			break
-		}
+	pkgName := update.PackageName(latestVersion, runtime.GOOS, runtime.GOARCH)
+	rel := toUpdateRelease(release)
+	_, hasPkg := rel.Find(pkgName)
+	_, hasSums := rel.Find("SHA256SUMS")
+	_, hasSig := rel.Find("SHA256SUMS.minisig")
+	how := fmt.Sprintf("Install downloads %s and the signed SHA256SUMS, checks the signature and the SHA-256, then ", pkgName)
+	if runtime.GOOS == "darwin" {
+		how += "opens the disk image so you can drag MarkView.app to Applications."
+	} else {
+		how += "runs pkexec apt install (you'll be asked for your password)."
 	}
+	canInstall := pkgName != "" && hasPkg && hasSums && hasSig
+	if !canInstall {
+		how = "This release has no signed package for this system, so it can't be installed from here. Use the release page."
+	}
+	howLabel := widget.NewLabel(how)
+	howLabel.Wrapping = fyne.TextWrapWord
 
-	// Create custom dialog with buttons
-	d := dialog.NewCustomConfirm(
-		"Update Available",
-		"Download",
-		"Later",
-		content,
-		func(download bool) {
-			if download {
-				// Open download URL in browser
-				if err := openURL(downloadURL); err != nil {
-					dialog.ShowError(err, uc.window)
-				}
-			}
-		},
-		uc.window,
-	)
-
-	// Add "Skip This Version" button by wrapping the dialog
-	skipBtn := widget.NewButton("Skip This Version", func() {
+	var d dialog.Dialog
+	install := widget.NewButton("Install", func() {
+		d.Hide()
+		uc.installRelease(rel, pkgName)
+	})
+	install.Importance = widget.HighImportance
+	if !canInstall {
+		install.Disable()
+	}
+	skip := widget.NewButton("Skip This Version", func() {
 		uc.app.Preferences().SetString(skippedVersion, latestVersion)
 		d.Hide()
 	})
+	later := widget.NewButton("Later", func() { d.Hide() })
+	page := widget.NewHyperlink("Release page", nil)
+	if u, err := url.Parse(release.HTMLURL); err == nil {
+		page.SetURL(u)
+	}
 
-	d.Show()
+	content := container.NewBorder(
+		container.NewVBox(titleLabel, container.NewHBox(versionLabel, page), widget.NewSeparator()),
+		container.NewVBox(widget.NewSeparator(), howLabel, container.NewHBox(layout.NewSpacer(), install, skip, later)),
+		nil, nil, notesScroll)
+	d = dialog.NewCustomWithoutButtons("Update Available", content, uc.window)
+	d.Resize(fyne.NewSize(560, 440))
+	return d
+}
 
-	// Show skip button in a separate small dialog after main dialog
-	// This is a workaround since Fyne dialogs don't support 3 buttons easily
+func toUpdateRelease(r *GitHubRelease) *update.Release {
+	out := &update.Release{TagName: r.TagName, Name: r.Name, Body: r.Body, HTMLURL: r.HTMLURL, PublishedAt: r.PublishedAt}
+	for _, a := range r.Assets {
+		out.Assets = append(out.Assets, update.Asset{Name: a.Name, URL: a.BrowserDownloadURL})
+	}
+	return out
+}
+
+// installRelease downloads and verifies the package, then installs or opens it.
+func (uc *UpdateChecker) installRelease(rel *update.Release, pkgName string) {
+	bar := widget.NewProgressBar()
+	status := widget.NewLabel("Downloading and verifying " + pkgName + "…")
+	prog := dialog.NewCustomWithoutButtons("Updating MarkView", container.NewVBox(status, bar), uc.window)
+	prog.Show()
 	go func() {
-		time.Sleep(100 * time.Millisecond)
-		// Add skip functionality via preferences menu instead
+		dir, err := os.MkdirTemp("", "markview-update-")
+		if err != nil {
+			fyne.Do(func() { prog.Hide(); dialog.ShowError(err, uc.window) })
+			return
+		}
+		c := &update.Client{
+			HTTP:      &http.Client{Timeout: 10 * time.Minute},
+			UserAgent: "MarkView/" + uc.currentVersion,
+			OnProgress: func(_ string, got, total int64) {
+				if total > 0 {
+					fyne.Do(func() { bar.SetValue(float64(got) / float64(total)) })
+				}
+			},
+		}
+		path, err := c.DownloadVerified(context.Background(), rel, pkgName, dir)
+		if err != nil {
+			os.RemoveAll(dir)
+			fyne.Do(func() {
+				prog.Hide()
+				dialog.ShowError(fmt.Errorf("the update was not installed: %v", err), uc.window)
+			})
+			return
+		}
+		cmdline := update.InstallCommand(runtime.GOOS, path)
+		fyne.Do(func() { status.SetText("Verified. Installing…") })
+		out, err := exec.Command(cmdline[0], cmdline[1:]...).CombinedOutput()
+		fyne.Do(func() {
+			prog.Hide()
+			switch {
+			case err != nil:
+				dialog.ShowError(fmt.Errorf("the installer failed: %v\n%s\nThe verified package is at %s", err, strings.TrimSpace(string(out)), path), uc.window)
+			case runtime.GOOS == "darwin":
+				dialog.ShowInformation("Update Downloaded", "MarkView "+rel.Version()+" was verified and the disk image is open. Drag MarkView.app to Applications, then quit and reopen MarkView.", uc.window)
+			default:
+				os.RemoveAll(dir)
+				dialog.ShowInformation("Update Installed", "MarkView "+rel.Version()+" was installed. Restart MarkView to use it.", uc.window)
+			}
+		})
 	}()
-	_ = skipBtn // Reserved for future use
+}
+
+// CheckAtStartupEnabled reports the Help > Check for Updates at Startup choice (default on).
+func CheckAtStartupEnabled(app fyne.App) bool {
+	return app.Preferences().BoolWithFallback(checkAtStartupKey, true)
+}
+
+// SetCheckAtStartupEnabled stores the Help > Check for Updates at Startup choice.
+func SetCheckAtStartupEnabled(app fyne.App, on bool) {
+	app.Preferences().SetBool(checkAtStartupKey, on)
 }
 
 // openURL opens a URL in the default browser
