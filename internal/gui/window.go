@@ -558,6 +558,7 @@ func (w *Window) createMainMenu() *fyne.MainMenu {
 				w.updateChecker.CheckForUpdates(false)
 			}
 		}),
+		w.checkAtStartupMenuItem(),
 		menuItem("About MarkView", "", 0, w.showAboutDialog),
 	)
 
@@ -2436,8 +2437,9 @@ func (w *Window) Show() {
 
 // ShowAndRun shows the window and runs the application
 func (w *Window) ShowAndRun() {
-	// Check for updates silently on startup
-	if w.updateChecker != nil {
+	// Check for updates silently on startup (Help > Check for Updates at
+	// Startup; at most once a day).
+	if w.updateChecker != nil && CheckAtStartupEnabled(w.app) {
 		w.updateChecker.CheckForUpdates(true)
 	}
 	// Greet first-time users with a short orientation dialog.
@@ -3237,4 +3239,18 @@ func (w *Window) getExportThemeCSS() string {
 		return themes[0].CSS
 	}
 	return ""
+}
+
+// checkAtStartupMenuItem is the Help > Check for Updates at Startup toggle.
+func (w *Window) checkAtStartupMenuItem() *fyne.MenuItem {
+	item := fyne.NewMenuItem("Check for Updates at Startup", nil)
+	item.Checked = CheckAtStartupEnabled(w.app)
+	item.Action = func() {
+		item.Checked = !item.Checked
+		SetCheckAtStartupEnabled(w.app, item.Checked)
+		if m := w.fyneWindow.MainMenu(); m != nil {
+			m.Refresh()
+		}
+	}
+	return item
 }
