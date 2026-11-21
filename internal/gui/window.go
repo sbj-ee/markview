@@ -248,6 +248,7 @@ func (w *Window) setupUI() {
 
 	// Initialize update checker
 	w.updateChecker = NewUpdateChecker(w.version, w.fyneWindow, w.app)
+	w.updateChecker.RestartState = func() (string, bool) { return w.currentFile, w.isDirty }
 
 	// Hook autocomplete key handler to editor
 	w.editor.OnKeyEvent = func(key *fyne.KeyEvent) bool {

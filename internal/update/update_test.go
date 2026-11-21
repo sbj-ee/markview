@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -107,8 +108,8 @@ func TestPackageNameAndInstall(t *testing.T) {
 	if strings.Join(InstallCommand("linux", "/tmp/x.deb"), " ") != "/usr/bin/pkexec /usr/bin/apt install -y /tmp/x.deb" {
 		t.Error("linux install command")
 	}
-	if InstallCommand("darwin", "/tmp/x.dmg")[0] != "/usr/bin/open" {
-		t.Error("mac open command")
+	if InstallCommand("darwin", "/tmp/x.dmg") != nil {
+		t.Error("macOS installs in place, not with a command")
 	}
 }
 
@@ -137,9 +138,13 @@ func signMinisign(priv ed25519.PrivateKey, keyID []byte, msg []byte, trusted str
 }
 
 func mockGitHub(t *testing.T, pkg []byte, listed []byte, signWith ed25519.PrivateKey, keyID []byte) (*httptest.Server, *Release) {
+	return mockGitHubSigned(t, pkg, listed, signWith, keyID, ExpectedSignedComment("v1.1.0"))
+}
+
+func mockGitHubSigned(t *testing.T, pkg []byte, listed []byte, signWith ed25519.PrivateKey, keyID []byte, comment string) (*httptest.Server, *Release) {
 	sum := sha256.Sum256(listed)
 	sums := []byte(hex.EncodeToString(sum[:]) + "  markview_1.1.0_amd64.deb\n")
-	sig := signMinisign(signWith, keyID, sums, "timestamp:0 file:SHA256SUMS hashed")
+	sig := signMinisign(signWith, keyID, sums, comment)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/SHA256SUMS", func(w http.ResponseWriter, _ *http.Request) { w.Write(sums) })
 	mux.HandleFunc("/SHA256SUMS.minisig", func(w http.ResponseWriter, _ *http.Request) { w.Write(sig) })
@@ -212,5 +217,85 @@ func TestLatest(t *testing.T) {
 	r, err := (&Client{HTTP: srv.Client(), APIURL: srv.URL}).Latest(context.Background())
 	if err != nil || r.Version() != "1.1.0" {
 		t.Fatalf("%v %v", r, err)
+	}
+}
+
+func TestDownloadRefusesSignatureForAnotherTag(t *testing.T) {
+	pub, priv, _ := ed25519.GenerateKey(nil)
+	keyID := []byte{1, 2, 3, 4, 5, 6, 7, 8}
+	pubB64 := base64.StdEncoding.EncodeToString(append(append([]byte("Ed"), keyID...), pub...))
+	pkg := []byte("old but genuinely signed package")
+	// A validly signed SHA256SUMS from v1.0.0 replayed under the v1.1.0 tag.
+	srv, rel := mockGitHubSigned(t, pkg, pkg, priv, keyID, ExpectedSignedComment("v1.0.0"))
+	c := &Client{HTTP: srv.Client(), PublicKey: pubB64, AllowURL: func(u string) bool { return strings.HasPrefix(u, srv.URL) }}
+	_, err := c.DownloadVerified(context.Background(), rel, "markview_1.1.0_amd64.deb", t.TempDir())
+	if err == nil || !strings.Contains(err.Error(), "signed for") {
+		t.Fatalf("replayed signature accepted: %v", err)
+	}
+}
+
+func TestDownloadRefusesUntrustedRedirect(t *testing.T) {
+	pub, priv, _ := ed25519.GenerateKey(nil)
+	keyID := []byte{1, 2, 3, 4, 5, 6, 7, 8}
+	pubB64 := base64.StdEncoding.EncodeToString(append(append([]byte("Ed"), keyID...), pub...))
+	pkg := []byte("package")
+	srv, rel := mockGitHub(t, pkg, pkg, priv, keyID)
+	evil := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write(pkg) }))
+	t.Cleanup(evil.Close)
+	redir := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, evil.URL+"/pkg", http.StatusFound)
+	}))
+	t.Cleanup(redir.Close)
+	rel.Assets[0].URL = redir.URL + "/pkg"
+	c := &Client{HTTP: srv.Client(), PublicKey: pubB64, AllowURL: func(string) bool { return true }}
+	_, err := c.DownloadVerified(context.Background(), rel, "markview_1.1.0_amd64.deb", t.TempDir())
+	if err == nil || !strings.Contains(err.Error(), "release-asset host") {
+		t.Fatalf("untrusted redirect followed: %v", err)
+	}
+}
+
+func TestTrustedAssetURLAndRedirect(t *testing.T) {
+	if !TrustedAssetURL("https://github.com/sbj-ee/markview/releases/download/v1.1.0/SHA256SUMS", "v1.1.0", "SHA256SUMS") {
+		t.Error("exact asset URL refused")
+	}
+	for _, bad := range []string{
+		"https://github.com/sbj-ee/markview/releases/download/v1.0.0/SHA256SUMS", // other tag
+		"https://github.com/sbj-ee/markview/releases/download/v1.1.0/other",      // other file
+		"https://github.com:8443/sbj-ee/markview/releases/download/v1.1.0/SHA256SUMS",
+		"https://u@github.com/sbj-ee/markview/releases/download/v1.1.0/SHA256SUMS",
+	} {
+		if TrustedAssetURL(bad, "v1.1.0", "SHA256SUMS") {
+			t.Error(bad)
+		}
+	}
+	for raw, want := range map[string]bool{
+		"https://release-assets.githubusercontent.com/x": true,
+		"https://objects.githubusercontent.com/x":        true,
+		"http://objects.githubusercontent.com/x":         false,
+		"https://evil.example/x":                         false,
+	} {
+		u, _ := url.Parse(raw)
+		if TrustedAssetRedirect(u) != want {
+			t.Errorf("TrustedAssetRedirect(%s) != %v", raw, want)
+		}
+	}
+}
+
+func TestStageVerified(t *testing.T) {
+	src := filepath.Join(t.TempDir(), "markview_1.1.0_amd64.deb")
+	os.WriteFile(src, []byte("pkg"), 0o600)
+	sum := sha256.Sum256([]byte("pkg"))
+	good := hex.EncodeToString(sum[:])
+	dir := t.TempDir()
+	if p, err := StageVerified(src, good, dir); err != nil || filepath.Dir(p) != dir {
+		t.Fatalf("StageVerified = %q, %v", p, err)
+	}
+	dir2 := t.TempDir()
+	os.WriteFile(src, []byte("tampered"), 0o600)
+	if _, err := StageVerified(src, good, dir2); err == nil {
+		t.Fatal("changed package staged")
+	}
+	if ents, _ := os.ReadDir(dir2); len(ents) != 0 {
+		t.Fatal("rejected copy left on disk")
 	}
 }

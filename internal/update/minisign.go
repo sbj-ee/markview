@@ -20,29 +20,36 @@ const SigningPublicKey = "RWTzDq/DI2vE2xMeF01QWTxP2lwwlxGL9M1UxQE4EFV5kVmTF84wwy
 // prehashed ("ED", minisign's default) and legacy ("Ed") forms are accepted,
 // and the trusted comment's global signature must verify too.
 func VerifyMinisign(publicKeyB64 string, msg, sigFile []byte) error {
+	_, err := VerifyMinisignComment(publicKeyB64, msg, sigFile)
+	return err
+}
+
+// VerifyMinisignComment is VerifyMinisign that also returns the signature's
+// trusted comment once everything (including the comment) has verified.
+func VerifyMinisignComment(publicKeyB64 string, msg, sigFile []byte) (string, error) {
 	pk, err := base64.StdEncoding.DecodeString(strings.TrimSpace(publicKeyB64))
 	if err != nil || len(pk) != 42 || pk[0] != 'E' || pk[1] != 'd' {
-		return errors.New("invalid minisign public key")
+		return "", errors.New("invalid minisign public key")
 	}
 	lines := strings.Split(strings.ReplaceAll(string(sigFile), "\r\n", "\n"), "\n")
 	if len(lines) < 4 || !strings.HasPrefix(lines[0], "untrusted comment:") {
-		return errors.New("malformed signature file")
+		return "", errors.New("malformed signature file")
 	}
 	sig, err := base64.StdEncoding.DecodeString(strings.TrimSpace(lines[1]))
 	if err != nil || len(sig) != 74 {
-		return errors.New("malformed signature")
+		return "", errors.New("malformed signature")
 	}
 	const tcPrefix = "trusted comment: "
 	if !strings.HasPrefix(lines[2], tcPrefix) {
-		return errors.New("signature has no trusted comment")
+		return "", errors.New("signature has no trusted comment")
 	}
 	trusted := []byte(strings.TrimPrefix(lines[2], tcPrefix))
 	global, err := base64.StdEncoding.DecodeString(strings.TrimSpace(lines[3]))
 	if err != nil || len(global) != 64 {
-		return errors.New("malformed global signature")
+		return "", errors.New("malformed global signature")
 	}
 	if !bytes.Equal(sig[2:10], pk[2:10]) {
-		return errors.New("signed by a different key")
+		return "", errors.New("signed by a different key")
 	}
 	pub := ed25519.PublicKey(pk[10:])
 	var signed []byte
@@ -53,13 +60,13 @@ func VerifyMinisign(publicKeyB64 string, msg, sigFile []byte) error {
 	case "Ed":
 		signed = msg
 	default:
-		return errors.New("unsupported signature algorithm")
+		return "", errors.New("unsupported signature algorithm")
 	}
 	if !ed25519.Verify(pub, signed, sig[10:]) {
-		return errors.New("signature verification failed")
+		return "", errors.New("signature verification failed")
 	}
 	if !ed25519.Verify(pub, append(append([]byte{}, sig[10:]...), trusted...), global) {
-		return errors.New("trusted comment signature verification failed")
+		return "", errors.New("trusted comment signature verification failed")
 	}
-	return nil
+	return string(trusted), nil
 }
