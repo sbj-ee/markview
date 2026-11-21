@@ -159,18 +159,23 @@ func (l *ImageLoader) wrapImage(img *canvas.Image, altText string) fyne.CanvasOb
 		newImg = canvas.NewImageFromFile(img.File)
 	}
 	newImg.FillMode = canvas.ImageFillContain
-	newImg.SetMinSize(img.MinSize())
+	natural := img.MinSize()
+	newImg.SetMinSize(fyne.NewSize(0, 0))
+
+	// Scale down to the available width instead of overflowing it
+	fitted := NewFitWidth(newImg, natural)
 
 	if altText == "" {
-		return newImg
+		return fitted
 	}
 
 	// Add caption below image
 	caption := widget.NewLabel(altText)
 	caption.Alignment = fyne.TextAlignCenter
 	caption.TextStyle = fyne.TextStyle{Italic: true}
+	caption.Wrapping = fyne.TextWrapWord
 
-	return container.NewVBox(newImg, caption)
+	return container.NewVBox(fitted, caption)
 }
 
 // createPlaceholder creates a placeholder widget for failed image loads
@@ -183,6 +188,7 @@ func (l *ImageLoader) createPlaceholder(src string, altText string) fyne.CanvasO
 	label := widget.NewLabel("[" + text + "]")
 	label.Alignment = fyne.TextAlignCenter
 	label.TextStyle = fyne.TextStyle{Italic: true}
+	label.Wrapping = fyne.TextWrapWord
 
 	return label
 }

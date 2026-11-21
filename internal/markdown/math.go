@@ -44,6 +44,7 @@ func (m *MathBlock) CreateRenderer() fyne.WidgetRenderer {
 			},
 		},
 	})
+	label.Wrapping = fyne.TextWrapWord
 
 	return &mathBlockRenderer{
 		mathBlock: m,

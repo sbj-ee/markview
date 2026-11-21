@@ -21,7 +21,9 @@ func NewCodeBlock(segments []widget.RichTextSegment) *CodeBlock {
 	rt := widget.NewRichText(&widget.ParagraphSegment{
 		Texts: segments,
 	})
-	rt.Wrapping = fyne.TextWrapOff
+	// Wrap long lines rather than letting one wide line force the whole
+	// document wider than the window (which breaks paragraph wrapping).
+	rt.Wrapping = fyne.TextWrapWord
 
 	cb := &CodeBlock{
 		richText: rt,
