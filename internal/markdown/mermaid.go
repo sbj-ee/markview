@@ -57,6 +57,7 @@ func (m *MermaidBlock) CreateRenderer() fyne.WidgetRenderer {
 			},
 		},
 	})
+	label.Wrapping = fyne.TextWrapWord
 
 	return &mermaidBlockRenderer{
 		mermaidBlock: m,

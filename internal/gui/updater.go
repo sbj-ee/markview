@@ -3,11 +3,13 @@ package gui
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -51,7 +53,15 @@ type UpdateChecker struct {
 	currentVersion string
 	window         fyne.Window
 	app            fyne.App
+
+	// RestartState, when set, reports the file to reopen after a restart
+	// and whether there are unsaved changes that a restart would lose.
+	RestartState func() (file string, dirty bool)
 }
+
+// installedBinary is where the .deb installs MarkView. Linux updates only
+// install over this copy, and a restart starts it (the new version).
+const installedBinary = "/usr/bin/markview"
 
 // NewUpdateChecker creates a new update checker
 func NewUpdateChecker(currentVersion string, window fyne.Window, app fyne.App) *UpdateChecker {
@@ -214,7 +224,7 @@ func (uc *UpdateChecker) buildUpdateDialog(release *GitHubRelease) dialog.Dialog
 	_, hasSig := rel.Find("SHA256SUMS.minisig")
 	how := fmt.Sprintf("Install downloads %s and the signed SHA256SUMS, checks the signature and the SHA-256, then ", pkgName)
 	if runtime.GOOS == "darwin" {
-		how += "opens the disk image so you can drag MarkView.app to Applications."
+		how += "replaces MarkView.app in place."
 	} else {
 		how += "runs pkexec apt install (you'll be asked for your password)."
 	}
@@ -282,7 +292,7 @@ func (uc *UpdateChecker) installRelease(rel *update.Release, pkgName string) {
 				}
 			},
 		}
-		path, err := c.DownloadVerified(context.Background(), rel, pkgName, dir)
+		path, sum, err := c.DownloadVerifiedSum(context.Background(), rel, pkgName, dir)
 		if err != nil {
 			os.RemoveAll(dir)
 			fyne.Do(func() {
@@ -291,22 +301,139 @@ func (uc *UpdateChecker) installRelease(rel *update.Release, pkgName string) {
 			})
 			return
 		}
-		cmdline := update.InstallCommand(runtime.GOOS, path)
+		// Hand the installer a private copy, re-verified against the signed
+		// hash at the last moment.
+		stageDir, err := os.MkdirTemp("", "markview-install-")
+		if err == nil {
+			var staged string
+			if staged, err = update.StageVerified(path, sum, stageDir); err == nil {
+				path = staged
+			} else {
+				os.RemoveAll(stageDir)
+			}
+		}
+		if err != nil {
+			os.RemoveAll(dir)
+			fyne.Do(func() {
+				prog.Hide()
+				dialog.ShowError(fmt.Errorf("the update was not installed: %v", err), uc.window)
+			})
+			return
+		}
 		fyne.Do(func() { status.SetText("Verified. Installing…") })
-		out, err := exec.Command(cmdline[0], cmdline[1:]...).CombinedOutput()
+		err = uc.install(path, stageDir)
 		fyne.Do(func() {
 			prog.Hide()
-			switch {
-			case err != nil:
-				dialog.ShowError(fmt.Errorf("the installer failed: %v\n%s\nThe verified package is at %s", err, strings.TrimSpace(string(out)), path), uc.window)
-			case runtime.GOOS == "darwin":
-				dialog.ShowInformation("Update Downloaded", "MarkView "+rel.Version()+" was verified and the disk image is open. Drag MarkView.app to Applications, then quit and reopen MarkView.", uc.window)
-			default:
-				os.RemoveAll(dir)
-				dialog.ShowInformation("Update Installed", "MarkView "+rel.Version()+" was installed. Restart MarkView to use it.", uc.window)
+			if err != nil {
+				uc.fallback(err, path)
+				return
 			}
+			os.RemoveAll(dir)
+			os.RemoveAll(stageDir)
+			uc.offerRestart(rel.Version())
 		})
 	}()
+}
+
+// install puts the verified package in place: on macOS by replacing the
+// running MarkView.app from the disk image, on Linux with pkexec apt.
+func (uc *UpdateChecker) install(pkg, workDir string) error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	if resolved, rerr := filepath.EvalSymlinks(exe); rerr == nil {
+		exe = resolved
+	}
+	if runtime.GOOS == "darwin" {
+		bundle := update.RunningBundle(exe)
+		if bundle == "" {
+			return errors.New("this MarkView isn't running from an app bundle, so it can't replace itself")
+		}
+		return update.ReplaceBundleFromDMG(pkg, bundle, workDir, nil)
+	}
+	if exe != installedBinary {
+		return fmt.Errorf("this MarkView (%s) wasn't installed from the .deb, so the package can't be installed in its place automatically", exe)
+	}
+	cmdline := update.InstallCommand(runtime.GOOS, pkg)
+	if cmdline == nil {
+		return fmt.Errorf("installing updates isn't supported on %s", runtime.GOOS)
+	}
+	if out, err := exec.Command(cmdline[0], cmdline[1:]...).CombinedOutput(); err != nil {
+		return fmt.Errorf("the installer failed: %v\n%s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+// fallback explains why the update wasn't installed automatically and keeps
+// the verified package so it can be installed by hand.
+func (uc *UpdateChecker) fallback(why error, pkg string) {
+	how := "Install it with: sudo apt install " + pkg
+	if runtime.GOOS == "darwin" {
+		how = "Open it and drag MarkView.app to Applications."
+		_ = exec.Command("/usr/bin/open", pkg).Start()
+	}
+	dialog.ShowError(fmt.Errorf("%v\n\nThe verified package is at:\n%s\n\n%s", why, pkg, how), uc.window)
+}
+
+// offerRestart asks whether to restart into the newly installed version.
+func (uc *UpdateChecker) offerRestart(version string) {
+	file, dirty := "", false
+	if uc.RestartState != nil {
+		file, dirty = uc.RestartState()
+	}
+	text := "MarkView " + version + " was installed. Restart MarkView now to use it?"
+	if file != "" {
+		text += "\n\n" + filepath.Base(file) + " will be reopened."
+	}
+	if dirty {
+		text += "\n\nWarning: you have unsaved changes, and restarting now will lose them. Choose Later and save first to keep them."
+	}
+	msg := widget.NewLabel(text)
+	msg.Wrapping = fyne.TextWrapWord
+	var d dialog.Dialog
+	restart := widget.NewButton("Restart Now", func() {
+		d.Hide()
+		uc.restart(file)
+	})
+	later := widget.NewButton("Later", func() { d.Hide() })
+	if dirty {
+		later.Importance = widget.HighImportance
+	} else {
+		restart.Importance = widget.HighImportance
+	}
+	d = dialog.NewCustomWithoutButtons("Restart MarkView",
+		container.NewVBox(msg, container.NewHBox(layout.NewSpacer(), restart, later)), uc.window)
+	d.Resize(fyne.NewSize(460, 200))
+	d.Show()
+}
+
+// restart starts the installed MarkView (reopening file, if any) and quits.
+func (uc *UpdateChecker) restart(file string) {
+	var cmd *exec.Cmd
+	if runtime.GOOS == "darwin" {
+		exe, _ := os.Executable()
+		if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+			exe = resolved
+		}
+		args := []string{"-n", update.RunningBundle(exe)}
+		if file != "" {
+			args = append(args, "--args", file)
+		}
+		cmd = exec.Command("/usr/bin/open", args...)
+	} else {
+		var args []string
+		if file != "" {
+			args = append(args, file)
+		}
+		cmd = exec.Command(installedBinary, args...)
+	}
+	if err := cmd.Start(); err != nil {
+		dialog.ShowError(fmt.Errorf("could not restart MarkView: %v\nQuit and reopen it to use the new version", err), uc.window)
+		return
+	}
+	_ = cmd.Process.Release()
+	uc.app.Quit()
 }
 
 // CheckAtStartupEnabled reports the Help > Check for Updates at Startup choice (default on).

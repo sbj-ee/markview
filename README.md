@@ -78,7 +78,7 @@
 - **Image Support** - Local image rendering with upload dialog
 - **Window Size Persistence** - Remembers your window size
 - **Keyboard Shortcuts** - Comprehensive shortcuts for all operations
-- **Auto-Update Check** - Notifies when new versions are available
+- **Signed In-App Updates** - Help → Check for Updates (plus an optional daily check) installs new releases only after verifying their minisign-signed `SHA256SUMS`: `pkexec apt` on Linux, in-place `MarkView.app` replacement on macOS, then offers a restart
 
 ---
 

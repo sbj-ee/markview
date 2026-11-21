@@ -248,6 +248,7 @@ func (w *Window) setupUI() {
 
 	// Initialize update checker
 	w.updateChecker = NewUpdateChecker(w.version, w.fyneWindow, w.app)
+	w.updateChecker.RestartState = func() (string, bool) { return w.currentFile, w.isDirty }
 
 	// Hook autocomplete key handler to editor
 	w.editor.OnKeyEvent = func(key *fyne.KeyEvent) bool {
@@ -2984,9 +2985,13 @@ func (w *Window) getCustomCSSStyle() string {
 
 // withLeftPadding wraps content with left padding
 func withLeftPadding(content fyne.CanvasObject, padding float32) fyne.CanvasObject {
-	spacer := canvas.NewRectangle(color.Transparent)
-	spacer.SetMinSize(fyne.NewSize(padding, 0))
-	return container.NewBorder(nil, nil, spacer, nil, content)
+	left := canvas.NewRectangle(color.Transparent)
+	left.SetMinSize(fyne.NewSize(padding, 0))
+	// Matching right gutter so wrapped text isn't drawn under the
+	// vertical scrollbar, which overlays the right edge of the content.
+	right := canvas.NewRectangle(color.Transparent)
+	right.SetMinSize(fyne.NewSize(padding, 0))
+	return container.NewBorder(nil, nil, left, right, content)
 }
 
 // showQuickSwitcher shows the quick file switcher

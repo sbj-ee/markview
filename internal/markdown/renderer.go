@@ -1067,9 +1067,11 @@ func (r *Renderer) renderTableAsWidget(node *east.Table) {
 
 	// Build table as a VBox of rows
 	tableRows := []fyne.CanvasObject{}
+	tableCells := [][]*FixedWidthContainer{}
 
 	// Create header row
 	headerCells := []fyne.CanvasObject{}
+	headerFixed := []*FixedWidthContainer{}
 	for col := 0; col < numCols; col++ {
 		var text string
 		if col < len(headers) {
@@ -1077,13 +1079,16 @@ func (r *Renderer) renderTableAsWidget(node *east.Table) {
 		}
 		cell := r.createTableCell(text, true, headerBgColor, borderColor, colWidths[col])
 		headerCells = append(headerCells, cell)
+		headerFixed = append(headerFixed, cell)
 	}
 	headerRow := container.NewHBox(headerCells...)
 	tableRows = append(tableRows, headerRow)
+	tableCells = append(tableCells, headerFixed)
 
 	// Create data rows
 	for rowIdx, row := range rows {
 		rowCells := []fyne.CanvasObject{}
+		rowFixed := []*FixedWidthContainer{}
 		var bgColor fyne.ThemeColorName
 		if rowIdx%2 == 0 {
 			bgColor = theme.ColorNameInputBackground
@@ -1099,13 +1104,16 @@ func (r *Renderer) renderTableAsWidget(node *east.Table) {
 			}
 			cell := r.createTableCell(text, false, rowBgColor, borderColor, colWidths[col])
 			rowCells = append(rowCells, cell)
+			rowFixed = append(rowFixed, cell)
 		}
 		dataRow := container.NewHBox(rowCells...)
 		tableRows = append(tableRows, dataRow)
+		tableCells = append(tableCells, rowFixed)
 	}
 
-	// Create the table container
-	tableContainer := container.NewVBox(tableRows...)
+	// Wrap the rows so column widths shrink to fit the available width
+	// instead of pushing the whole document wider than the window.
+	tableContainer := NewResponsiveTable(container.NewVBox(tableRows...), tableCells, colWidths)
 
 	r.widgets = append(r.widgets, tableContainer)
 
@@ -1114,7 +1122,7 @@ func (r *Renderer) renderTableAsWidget(node *east.Table) {
 }
 
 // createTableCell creates a single table cell with background, border, and fixed width
-func (r *Renderer) createTableCell(text string, isHeader bool, bgColor, borderColor color.Color, width float32) fyne.CanvasObject {
+func (r *Renderer) createTableCell(text string, isHeader bool, bgColor, borderColor color.Color, width float32) *FixedWidthContainer {
 	// Create background
 	bg := canvas.NewRectangle(bgColor)
 
