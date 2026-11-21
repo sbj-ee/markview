@@ -5,6 +5,8 @@ described on the [GitHub Releases page](https://github.com/sbj-ee/markview/relea
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-21
+
 ### Fixed
 
 - Paragraphs no longer run off the right side of the preview. A wide code
