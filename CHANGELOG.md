@@ -5,6 +5,13 @@ described on the [GitHub Releases page](https://github.com/sbj-ee/markview/relea
 
 ## [Unreleased]
 
+### Fixed
+
+- Toolbar icons respond on the first click. The hover tooltip was a Fyne
+  PopUp covering the whole window, so a click only dismissed the tooltip
+  and the button never ran its action (often several clicks were needed,
+  especially on macOS).
+
 ## [1.2.0] - 2026-11-21
 
 ### Fixed
