@@ -5,6 +5,8 @@ described on the [GitHub Releases page](https://github.com/sbj-ee/markview/relea
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-11-27
+
 ### Fixed
 
 - Toolbar icons respond on the first click. The hover tooltip was a Fyne

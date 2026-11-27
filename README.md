@@ -352,8 +352,8 @@ make package-deb
 make package-dmg
 
 # Specify version
-VERSION=1.2.0 make package-deb
-VERSION=1.2.0 make package-dmg
+VERSION=1.2.1 make package-deb
+VERSION=1.2.1 make package-dmg
 ```
 
 The packaging scripts create:
